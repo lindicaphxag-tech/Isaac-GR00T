@@ -122,5 +122,10 @@ class ModalityConfig:
                         format=ActionFormat[action_config["format"]],
                         state_key=action_config.get("state_key", None),
                     )
+                if action_config.rep == ActionRepresentation.DELTA:
+                    raise ValueError(
+                        "ActionRepresentation.DELTA is not implemented by StateActionProcessor. "
+                        "Use RELATIVE for state-referenced deltas or ABSOLUTE for target actions."
+                    )
                 parsed_action_configs.append(action_config)
             self.action_configs = parsed_action_configs
