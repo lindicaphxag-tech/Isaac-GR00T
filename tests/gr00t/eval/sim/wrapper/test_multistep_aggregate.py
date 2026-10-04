@@ -215,7 +215,9 @@ def test_step_preserves_episode_boundary_flags_and_stops_action_chunk(
 
     class _FlagEnv(gym.Env):
         action_space = gym.spaces.Box(-1.0, 1.0, (1,), np.float32)
-        observation_space = gym.spaces.Dict()
+        observation_space = gym.spaces.Dict(
+            {"state.position": gym.spaces.Box(-10.0, 10.0, (1,), np.float32)}
+        )
 
         def __init__(self):
             self.steps = 0
@@ -223,25 +225,29 @@ def test_step_preserves_episode_boundary_flags_and_stops_action_chunk(
         def reset(self, *, seed=None, options=None):
             super().reset(seed=seed)
             self.steps = 0
-            return {}, {}
+            return {"state.position": np.array([0], np.float32)}, {}
 
         def step(self, action):
             terminated, truncated = flags[self.steps]
             self.steps += 1
-            return {}, 1.0, terminated, truncated, {}
+            observation = {"state.position": np.array([self.steps], np.float32)}
+            return observation, 1.0, terminated, truncated, {}
 
     contract = PolicyHorizonSpec(
         n_action_steps=3,
         action_horizon=3,
         video_delta_indices=(0,),
-        state_delta_indices=None,
+        state_delta_indices=(0,),
     )
     wrapper = mod.MultiStepWrapper(env=_FlagEnv(), contract=contract, max_episode_steps=100)
     wrapper.reset()
 
-    _, _, terminated, truncated, info = wrapper.step({"action": np.zeros((3, 1), np.float32)})
+    observation, _, terminated, truncated, info = wrapper.step(
+        {"action": np.zeros((3, 1), np.float32)}
+    )
 
     assert wrapper.env.steps == expected_steps
+    assert observation["state.position"][0, 0] == expected_steps
     assert terminated == expected_terminated
     assert truncated == expected_truncated
     assert info["n_env_steps"] == expected_steps
@@ -254,9 +260,11 @@ def test_max_episode_steps_is_reported_as_truncation_and_stops_chunk(terminate_a
     mod = _import_module()
     import gymnasium as gym
 
-    class _NeverDoneEnv(gym.Env):
+    class _StepEnv(gym.Env):
         action_space = gym.spaces.Box(-1.0, 1.0, (1,), np.float32)
-        observation_space = gym.spaces.Dict()
+        observation_space = gym.spaces.Dict(
+            {"state.position": gym.spaces.Box(-10.0, 10.0, (1,), np.float32)}
+        )
 
         def __init__(self):
             self.steps = 0
@@ -264,26 +272,30 @@ def test_max_episode_steps_is_reported_as_truncation_and_stops_chunk(terminate_a
         def reset(self, *, seed=None, options=None):
             super().reset(seed=seed)
             self.steps = 0
-            return {}, {}
+            return {"state.position": np.array([0], np.float32)}, {}
 
         def step(self, action):
             self.steps += 1
             terminated = self.steps == terminate_at_step
-            return {}, 1.0, terminated, False, {}
+            observation = {"state.position": np.array([self.steps], np.float32)}
+            return observation, 1.0, terminated, False, {}
 
     contract = PolicyHorizonSpec(
         n_action_steps=3,
         action_horizon=3,
         video_delta_indices=(0,),
-        state_delta_indices=None,
+        state_delta_indices=(0,),
     )
-    env = _NeverDoneEnv()
+    env = _StepEnv()
     wrapper = mod.MultiStepWrapper(env=env, contract=contract, max_episode_steps=2)
     wrapper.reset()
 
-    _, _, terminated, truncated, info = wrapper.step({"action": np.zeros((3, 1), np.float32)})
+    observation, _, terminated, truncated, info = wrapper.step(
+        {"action": np.zeros((3, 1), np.float32)}
+    )
 
     assert env.steps == 2
+    assert observation["state.position"][0, 0] == 2
     assert terminated == (terminate_at_step is not None)
     assert truncated is True
     assert info["n_env_steps"] == 2
