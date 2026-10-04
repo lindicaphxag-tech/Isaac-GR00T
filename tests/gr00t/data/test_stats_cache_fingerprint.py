@@ -30,8 +30,8 @@ from gr00t.configs.data.embodiment_configs import MODALITY_CONFIGS
 from gr00t.data.embodiment_tags import EmbodimentTag
 from gr00t.data.stats import (
     LE_ROBOT_REL_STATS_FILENAME,
-    _compute_dataset_source_fingerprint,
     STATS_FINGERPRINTS_KEY,
+    _compute_dataset_source_fingerprint,
     _compute_relative_action_fingerprint,
     generate_rel_stats,
 )
