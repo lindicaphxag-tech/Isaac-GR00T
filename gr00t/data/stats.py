@@ -56,7 +56,7 @@ LE_ROBOT_REL_STATS_FILENAME = "meta/relative_stats.json"
 logger = logging.getLogger(__name__)
 
 
-def _compute_dataset_source_fingerprint(dataset_path: Path | str) -> str:
+def _compute_dataset_source_fingerprint(dataset_path: Path | str) -> str | None:
     """Fingerprint the parquet sources that normalization statistics summarize.
 
     Schema/config fingerprints catch representation changes, but statistics also
@@ -82,6 +82,8 @@ def _compute_dataset_source_fingerprint(dataset_path: Path | str) -> str:
                 "mtime_ns": stat.st_mtime_ns,
             }
         )
+    if not entries:
+        return None
     canonical = json.dumps(entries, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
