@@ -157,7 +157,6 @@ class TestDatasetSourceFingerprint:
         assert touched == baseline
 
 
-
 class TestStatsFingerprintHelper:
     def test_deterministic(self):
         a = _compute_stats_fingerprint("action", _ACTION_META)
