@@ -30,6 +30,7 @@ from gr00t.configs.data.embodiment_configs import MODALITY_CONFIGS
 from gr00t.data.embodiment_tags import EmbodimentTag
 from gr00t.data.stats import (
     LE_ROBOT_REL_STATS_FILENAME,
+    _compute_dataset_source_fingerprint,
     STATS_FINGERPRINTS_KEY,
     _compute_relative_action_fingerprint,
     generate_rel_stats,
@@ -232,7 +233,10 @@ class TestGenerateRelStatsCache:
 
     def test_partial_cache_only_recomputes_missing(self, dataset_dir, mock_calculate):
         """Pre-fill cache for one key only; the other should be the only one computed."""
-        eef_fp = _compute_relative_action_fingerprint(EMBODIMENT, "eef_9d")
+        source_fp = _compute_dataset_source_fingerprint(dataset_dir)
+        eef_fp = _compute_relative_action_fingerprint(
+            EMBODIMENT, "eef_9d", source_fp
+        )
         prefilled = {
             "eef_9d": {k: v.tolist() for k, v in _stub_stats().items()},
             STATS_FINGERPRINTS_KEY: {"eef_9d": eef_fp},
