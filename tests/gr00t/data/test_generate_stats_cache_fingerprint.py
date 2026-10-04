@@ -318,7 +318,6 @@ class TestGenerateStatsCache:
         assert len(mock_calculate) == 1
         assert sorted(mock_calculate[0]) == sorted(lowdim_features)
 
-
     def test_dtype_change_recomputes_only_that_feature(
         self, dataset, lowdim_features, mock_calculate
     ):
