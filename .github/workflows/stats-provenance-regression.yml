@@ -26,7 +26,7 @@ jobs:
       - name: Install targeted test dependencies
         run: |
           . .venv/bin/activate
-          pip install pytest numpy==1.26.4 pandas==2.2.3 scipy==1.15.3 tqdm
+          pip install pytest filelock numpy==1.26.4 pandas==2.2.3 scipy==1.15.3 tqdm
 
       - name: Lint touched files
         run: |
