@@ -13,16 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CPU-only tests for the per-feature schema-fingerprint cache in ``generate_stats``.
+"""CPU-only tests for schema and dataset-source fingerprints in ``generate_stats``.
 
-Without the fingerprint guard, an existing ``meta/stats.json`` was reused as
-long as every float feature name was still present, even after the underlying
-``info.json`` schema (``dtype`` / ``shape``) had changed -- silently degrading
-normalization at training/eval time. The fingerprint hashes the per-feature
-schema so any drift invalidates just that feature's cached entry.
+A cached ``meta/stats.json`` is only valid for the schema and parquet sources
+whose values it summarizes. These tests guard both schema drift and source
+replacement while keeping source identity portable across filesystem mtimes.
 """
 
 import json
+import os
 
 from gr00t.data.stats import (
     LE_ROBOT_STATS_FILENAME,
@@ -137,6 +136,26 @@ class TestDatasetSourceFingerprint:
         mutated = _compute_dataset_source_fingerprint(dataset)
 
         assert mutated != baseline
+
+    def test_changes_on_same_size_source_rewrite(self, dataset):
+        shard = _write_source_shard(dataset, b"AAAA")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        shard.write_bytes(b"BBBB")
+        mutated = _compute_dataset_source_fingerprint(dataset)
+
+        assert mutated != baseline
+
+    def test_ignores_filesystem_mtime_only_changes(self, dataset):
+        shard = _write_source_shard(dataset, b"portable")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        stat = shard.stat()
+        os.utime(shard, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+        touched = _compute_dataset_source_fingerprint(dataset)
+
+        assert touched == baseline
+
 
 
 class TestStatsFingerprintHelper:
