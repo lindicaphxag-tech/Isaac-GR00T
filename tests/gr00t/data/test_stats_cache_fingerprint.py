@@ -182,7 +182,6 @@ class TestGenerateRelStatsCache:
 
         assert sorted(c[2] for c in mock_calculate) == sorted(RELATIVE_KEYS)
 
-
     def test_legacy_file_without_fingerprints_is_regenerated(self, dataset_dir, mock_calculate):
         """Pre-existing relative_stats.json from before this fix must be recomputed."""
         legacy_payload = {key: {"_legacy": True} for key in RELATIVE_KEYS}
