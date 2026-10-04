@@ -234,9 +234,7 @@ class TestGenerateRelStatsCache:
     def test_partial_cache_only_recomputes_missing(self, dataset_dir, mock_calculate):
         """Pre-fill cache for one key only; the other should be the only one computed."""
         source_fp = _compute_dataset_source_fingerprint(dataset_dir)
-        eef_fp = _compute_relative_action_fingerprint(
-            EMBODIMENT, "eef_9d", source_fp
-        )
+        eef_fp = _compute_relative_action_fingerprint(EMBODIMENT, "eef_9d", source_fp)
         prefilled = {
             "eef_9d": {k: v.tolist() for k, v in _stub_stats().items()},
             STATS_FINGERPRINTS_KEY: {"eef_9d": eef_fp},
