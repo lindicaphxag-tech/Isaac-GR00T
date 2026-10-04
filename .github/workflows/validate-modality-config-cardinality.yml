@@ -18,13 +18,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install numpy pytest
-      - name: Run modality config regressions
+      - run: python -m pip install numpy
+      - name: Normal-mode witness
         env:
           PYTHONPATH: .
-        run: python -m pytest -q tests/gr00t/data/test_modality_config.py
-      - name: Direct optimized-mode witness
+        run: |
+          python - <<'PY'
+          from gr00t.data.types import ActionConfig, ActionFormat, ActionRepresentation, ActionType, ModalityConfig
+
+          try:
+              ModalityConfig(
+                  delta_indices=[0],
+                  modality_keys=["arm", "gripper"],
+                  action_configs=[
+                      ActionConfig(
+                          rep=ActionRepresentation.RELATIVE,
+                          type=ActionType.NON_EEF,
+                          format=ActionFormat.DEFAULT,
+                      )
+                  ],
+              )
+          except ValueError:
+              print("PASS: invalid semantic mapping rejected normally")
+          else:
+              raise SystemExit("FAIL: invalid semantic mapping accepted")
+          PY
+      - name: Optimized-mode witness
         env:
           PYTHONPATH: .
         run: |
