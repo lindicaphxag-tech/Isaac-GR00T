@@ -61,6 +61,9 @@ def _stub_stats():
 @pytest.fixture
 def dataset_dir(tmp_path):
     (tmp_path / "meta").mkdir()
+    shard = tmp_path / "data" / "chunk-000" / "episode_000000.parquet"
+    shard.parent.mkdir(parents=True)
+    shard.write_bytes(b"version-one")
     return tmp_path
 
 
@@ -166,6 +169,19 @@ class TestGenerateRelStatsCache:
         generate_rel_stats(dataset_dir, EMBODIMENT)
 
         assert mock_calculate == [], "fresh fingerprints must produce zero recompute"
+
+    def test_dataset_source_change_invalidates_all_relative_stats(
+        self, dataset_dir, mock_calculate
+    ):
+        generate_rel_stats(dataset_dir, EMBODIMENT)
+        mock_calculate.clear()
+
+        shard = dataset_dir / "data" / "chunk-000" / "episode_000000.parquet"
+        shard.write_bytes(b"version-two-is-different")
+        generate_rel_stats(dataset_dir, EMBODIMENT)
+
+        assert sorted(c[2] for c in mock_calculate) == sorted(RELATIVE_KEYS)
+
 
     def test_legacy_file_without_fingerprints_is_regenerated(self, dataset_dir, mock_calculate):
         """Pre-existing relative_stats.json from before this fix must be recomputed."""
