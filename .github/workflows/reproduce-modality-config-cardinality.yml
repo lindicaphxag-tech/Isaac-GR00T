@@ -1,0 +1,41 @@
+name: Reproduce modality config cardinality bug
+
+on:
+  push:
+    branches:
+      - ci/modality-config-cardinality-baseline
+  workflow_dispatch:
+
+jobs:
+  optimized-python-witness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy
+      - name: Invalid action mapping must be rejected under optimized Python
+        env:
+          PYTHONPATH: .
+        run: |
+          python -O - <<'PY'
+          from gr00t.data.types import ActionConfig, ActionFormat, ActionRepresentation, ActionType, ModalityConfig
+
+          try:
+              ModalityConfig(
+                  delta_indices=[0],
+                  modality_keys=["arm", "gripper"],
+                  action_configs=[
+                      ActionConfig(
+                          rep=ActionRepresentation.RELATIVE,
+                          type=ActionType.NON_EEF,
+                          format=ActionFormat.DEFAULT,
+                      )
+                  ],
+              )
+          except (ValueError, AssertionError):
+              print("PASS: invalid semantic mapping rejected")
+          else:
+              raise SystemExit("FAIL: invalid semantic mapping accepted under python -O")
+          PY
