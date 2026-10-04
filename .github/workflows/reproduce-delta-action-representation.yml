@@ -1,0 +1,41 @@
+name: Reproduce silent DELTA acceptance
+
+on:
+  push:
+    branches:
+      - ci/reject-delta-action-representation-baseline
+  workflow_dispatch:
+
+jobs:
+  delta-representation-witness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy
+      - name: DELTA must not be silently accepted
+        env:
+          PYTHONPATH: .
+        run: |
+          python - <<'PY'
+          from gr00t.data.types import ActionConfig, ActionFormat, ActionRepresentation, ActionType, ModalityConfig
+
+          try:
+              ModalityConfig(
+                  delta_indices=[0],
+                  modality_keys=["arm"],
+                  action_configs=[
+                      ActionConfig(
+                          rep=ActionRepresentation.DELTA,
+                          type=ActionType.NON_EEF,
+                          format=ActionFormat.DEFAULT,
+                      )
+                  ],
+              )
+          except ValueError:
+              print("PASS: DELTA rejected")
+          else:
+              raise SystemExit("FAIL: DELTA silently accepted and will follow ABSOLUTE path")
+          PY
