@@ -110,9 +110,11 @@ class ModalityConfig:
         ):
             raise ValueError(f"modality_keys must be a non-empty list, got {self.modality_keys!r}")
         if self.action_configs is not None:
-            assert len(self.action_configs) == len(self.modality_keys), (
-                f"Number of action configs ({len(self.action_configs)}) must match number of modality keys ({len(self.modality_keys)})"
-            )
+            if len(self.action_configs) != len(self.modality_keys):
+                raise ValueError(
+                    f"Number of action configs ({len(self.action_configs)}) must match "
+                    f"number of modality keys ({len(self.modality_keys)})"
+                )
             parsed_action_configs = []
             for action_config in self.action_configs:
                 if isinstance(action_config, dict):
