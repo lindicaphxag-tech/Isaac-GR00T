@@ -56,30 +56,65 @@ LE_ROBOT_REL_STATS_FILENAME = "meta/relative_stats.json"
 logger = logging.getLogger(__name__)
 
 
+_SOURCE_SAMPLE_BYTES = 64 * 1024
+
+
+def _compute_parquet_source_digest(path: Path) -> str:
+    """Return a portable, lightweight digest for one parquet source shard.
+
+    Full-file hashing makes every cache hit O(dataset bytes), which defeats the
+    purpose of keeping precomputed normalization statistics.  This digest reads
+    only fixed-size boundary samples plus the parquet footer metadata when
+    present.  It is intentionally a source-change detector, not a cryptographic
+    guarantee that every interior byte is identical.
+    """
+    size = path.stat().st_size
+    hasher = hashlib.sha256()
+    hasher.update(str(size).encode("ascii"))
+
+    with path.open("rb") as f:
+        head = f.read(min(size, _SOURCE_SAMPLE_BYTES))
+        hasher.update(head)
+
+        if size > _SOURCE_SAMPLE_BYTES:
+            tail_start = max(0, size - _SOURCE_SAMPLE_BYTES)
+            f.seek(tail_start)
+            hasher.update(f.read())
+
+        if size >= 8:
+            f.seek(size - 8)
+            trailer = f.read(8)
+            if trailer[4:] == b"PAR1":
+                footer_size = int.from_bytes(trailer[:4], "little")
+                footer_start = size - 8 - footer_size
+                if 0 <= footer_start <= size - 8:
+                    f.seek(footer_start)
+                    hasher.update(f.read(footer_size + 8))
+
+    return "sha256:" + hasher.hexdigest()
+
+
 def _compute_dataset_source_fingerprint(dataset_path: Path | str) -> str | None:
     """Fingerprint the parquet sources that normalization statistics summarize.
 
     Schema/config fingerprints catch representation changes, but statistics also
-    depend on the *values* in the dataset.  A dataset may be regenerated in place
-    with the same feature names and shapes; reusing the old cache in that case
-    silently normalizes new samples with stale ranges.
+    depend on dataset values. A dataset may be regenerated in place with the
+    same feature names and shapes; reusing the old cache in that case silently
+    normalizes new samples with stale ranges.
 
-    Hashing full parquet contents on every cache hit would defeat most of the
-    cache's purpose.  Instead, bind the cache to a cheap source manifest:
-    relative path, byte size, and nanosecond mtime for every parquet shard.
-    Rewriting, adding, removing, or replacing a shard therefore invalidates the
-    cache.  False invalidation (for example, copying a dataset while changing
-    mtimes) is safe: it only causes recomputation.
+    The source manifest is portable across machines: it uses each shard's
+    relative path, byte size, and a lightweight content/footer digest rather
+    than filesystem mtime. Adding, removing, replacing, or commonly rewriting a
+    shard therefore invalidates the cache without hashing the full dataset.
     """
     dataset_path = Path(dataset_path)
     entries = []
     for path in sorted(dataset_path.glob(LE_ROBOT_DATA_FILENAME)):
-        stat = path.stat()
         entries.append(
             {
                 "path": path.relative_to(dataset_path).as_posix(),
-                "size": stat.st_size,
-                "mtime_ns": stat.st_mtime_ns,
+                "size": path.stat().st_size,
+                "digest": _compute_parquet_source_digest(path),
             }
         )
     if not entries:
