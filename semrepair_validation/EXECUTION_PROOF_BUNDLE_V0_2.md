@@ -29,10 +29,7 @@ The hashed wire surface has **no binary floating-point values**:
 - adapter costs are canonical exponent-free decimal strings;
 - arbitrary float evidence is converted to a reserved tagged-decimal object;
 - minimum-cost verification uses exact decimal arithmetic;
-- Unicode strings are normalized to NFC;
-- object keys are sorted;
-- JSON is UTF-8 with no insignificant whitespace;
-- integers remain JSON integers.
+- Unicode strings and object keys are normalized to NFC;\n- object keys are sorted by normalized UTF-8 byte order (not host-language default string order);\n- JSON is UTF-8 with no insignificant whitespace;\n- JSON integers must fit the cross-language safe range `[-(2^53-1), 2^53-1]`; larger integers require a future explicit string/tagged representation.
 
 Canonicalization profile:
 
@@ -80,3 +77,16 @@ evidence policy.
 
 C++, Rust, ROS 2, JVM, or other consumers can implement the v0.2 verifier
 without importing SemRepair's Python compiler or search implementation.
+
+
+## Authorization hardening
+
+The v0.2 verifier also fails closed on malformed certificate schemas, unknown
+semantic-type axes, unsupported physical effect classes, zero/invalid evidence
+thresholds, malformed evidence identities, binary-float escape, and a mismatch
+between the producer-selected cost and the independently replayed exact-decimal
+path cost.
+
+The Node reference verifier implements the same checks independently and
+contains a self-test for UTF-8 key ordering and the exact
+`0.1 + 0.2 == 0.3` decimal relation.
