@@ -1,0 +1,43 @@
+name: RTC focused validation
+
+on:
+  push:
+    branches:
+      - validation/rtc-policy-focused-ci
+    paths:
+      - "gr00t/policy/gr00t_policy.py"
+      - "tests/gr00t/model/test_action_head.py"
+      - "tests/gr00t/policy/test_gr00t_policy.py"
+      - "tests/gr00t/policy/test_policy_service.py"
+      - ".github/workflows/rtc-focused-validation.yml"
+
+env:
+  CACHE_PREFIX: v4
+  PYTHONPATH: ./
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Pull LFS objects
+        run: git lfs pull
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-venv
+        with:
+          python-version: "3.10"
+          cache-prefix: ${{ env.CACHE_PREFIX }}
+      - name: Lint changed Python files
+        run: |
+          . .venv/bin/activate
+          ruff check             gr00t/policy/gr00t_policy.py             tests/gr00t/model/test_action_head.py             tests/gr00t/policy/test_gr00t_policy.py             tests/gr00t/policy/test_policy_service.py
+          ruff format --check             gr00t/policy/gr00t_policy.py             tests/gr00t/model/test_action_head.py             tests/gr00t/policy/test_gr00t_policy.py             tests/gr00t/policy/test_policy_service.py
+      - name: Run RTC focused regressions
+        run: |
+          . .venv/bin/activate
+          pytest -q             tests/gr00t/model/test_action_head.py             tests/gr00t/policy/test_gr00t_policy.py             tests/gr00t/policy/test_policy_service.py
+      - name: Diff hygiene
+        run: git diff --check
