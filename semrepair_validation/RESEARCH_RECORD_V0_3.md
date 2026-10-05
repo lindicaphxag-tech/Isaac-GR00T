@@ -89,16 +89,32 @@ tests and deterministic behavioral assays.
 
 ### Python implementation
 
-Public code-validation snapshot:
+Current public code-validation snapshot:
 
-- public head: `939f0453a65f53e6aa3ab7481dde8eebf9f4124e`;
-- workflow run: **37312334137**;
+- public head: `c4f2059801be13743a83b43513dabaeb0abbca57`;
+- workflow run: **37315363674**;
 - Python: **3.10 / 3.12 / 3.13**;
-- tests: **102 passed per matrix job**;
+- tests: **140 passed per matrix job**;
 - machine-readable behavioral evidence: success.
 
-The same core continued to pass after the formal-validation files were added at
-head `c32f7438c6faf04853a9a03ba3d7cddff5b01843`.
+The current surface includes the earlier compiler/repair core plus:
+
+- repair certificates bound to executable implementation identities;
+- certificate-only runtime repair installation;
+- ambiguity-preserving Semantic Effect Commit;
+- independent observation-plane effect evidence;
+- bounded crash/replay state-machine checking;
+- effect certificates bound to semantic compilation digests;
+- proof-carrying re-authorization at prepare / dispatch / commit;
+- a runtime release gate;
+- a bounded theorem checker;
+- production compiler vs independent exhaustive-oracle conformance.
+
+The immediately preceding public run exposed one auditability defect: registry
+drift was correctly rejected, but the proof kernel collapsed the reason to a
+generic failure. The kernel was changed to preserve independent verifier
+reasons, after which the complete 140-test matrix passed on all three Python
+versions.
 
 Deterministic behavioral assays report:
 
@@ -155,6 +171,16 @@ Mechanized theorem surface currently includes:
 This formalization covers only the small core calculus. It does not verify the
 full Python compiler or prove task correctness.
 
+In addition, the Python artifact now runs two bounded independent checks:
+
+- a theorem checker for pure preservation, event non-forgeability,
+  fail-closed progress, and minimum-cost repair search;
+- a production-vs-exhaustive differential checker for ACCEPT / UNIQUE-REPAIR /
+  AMBIGUOUS / OBLIGATION / REJECT decisions.
+
+These are finite-domain mechanized/differential evidence and are not presented
+as proof-assistant theorems about the full implementation.
+
 ## 6. Exact upstream evidence
 
 ### NVIDIA Isaac-GR00T #786
@@ -200,6 +226,10 @@ The following remain explicitly unresolved:
 6. **Citation surface:** not yet created.
 7. **Native ManiSkill closed-loop execution:** not yet established.
 8. **Full formal verification of the Python compiler:** not claimed.
+
+The reusable-artifact execution gate is now satisfied by public run
+**37315363674**. This does not change any external-adoption or prospective
+counter.
 
 ## 8. Threats to validity
 
