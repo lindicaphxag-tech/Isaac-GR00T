@@ -1,4 +1,8 @@
-from research.semantic_invariants.embodied_rotation_chain import evaluate_rotation_chain
+from research.semantic_invariants.embodied_rotation_chain import (
+    angular_distance_radians,
+    euler_xyz_matrix,
+    evaluate_rotation_chain,
+)
 
 
 TARGET = (0.08, 0.08, 0.08)
