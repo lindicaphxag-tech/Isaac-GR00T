@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "artifact": "SemRepair",
+  "version": "0.3.0rc1",
+  "surface": "public-release-candidate",
+  "repository": "lindicaphxag-tech/Isaac-GR00T",
+  "branch": "semrepair-v0.3-rc1",
+  "standalone_package_installable": true,
+  "citation_metadata_present": true,
+  "explicit_license_present": true,
+  "formal_core_present": true,
+  "real_stack_closed_loop": false,
+  "maintained_external_adoptions": 0,
+  "prospective_i2_matches": 0,
+  "counts_as_versioned_public_release": false,
+  "counts_as_l8": false,
+  "counts_as_l9": false,
+  "remaining_release_blockers": [
+    "dedicated standalone repository not yet available through the connected GitHub tool",
+    "no GitHub tag/release has been created",
+    "no maintained external adoption",
+    "no project-native real-stack closed-loop validation"
+  ]
+}
