@@ -782,7 +782,9 @@ class Gr00tSimPolicyWrapper(PolicyWrapper):
 
         Args:
             observation: Flat observation dictionary from Gr00t sim environment
-            options: Optional parameters (currently unused)
+            options: Optional inference parameters forwarded to the underlying policy.
+                RTC previous-action keys are translated from the wrapper's flat
+                "action.<key>" namespace back to the inner policy namespace.
 
         Returns:
             Tuple of (flat_actions_dict, info_dict)
@@ -815,8 +817,22 @@ class Gr00tSimPolicyWrapper(PolicyWrapper):
                     # Video and state arrays are already in correct format (B, T, ...)
                     new_obs[modality][key] = arr
 
+        # Keep the public RTC contract consistent across wrappers: callers feed
+        # the action dictionary returned by *this* policy back as rtc_previous_action.
+        # Gr00tSimPolicyWrapper returns flat "action.<key>" names, while the inner
+        # Gr00tPolicy expects the unprefixed action modality keys.
+        inner_options = options
+        if options is not None and "rtc_previous_action" in options:
+            inner_options = dict(options)
+            previous_action = options["rtc_previous_action"]
+            if isinstance(previous_action, dict):
+                inner_options["rtc_previous_action"] = {
+                    key.removeprefix("action."): value
+                    for key, value in previous_action.items()
+                }
+
         # Compute actions using the underlying Gr00tPolicy
-        action, info = self.policy.get_action(new_obs, options)
+        action, info = self.policy.get_action(new_obs, inner_options)
 
         # Transform actions back to flat format for Gr00t sim environment
         # action['joints'] -> 'action.joints'
