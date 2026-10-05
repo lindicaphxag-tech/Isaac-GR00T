@@ -1,24 +1,28 @@
 # Adopting SemRepair in another robotics repository
 
-SemRepair is designed so an upstream project does **not** need to adopt a new
-robotics framework.
+SemRepair is designed so an upstream project can adopt a semantic contract
+without adopting a new robotics framework.
 
-## Package install
-
-Moving release-candidate branch:
+## Install the immutable rc1 prerelease
 
 ```bash
 python -m pip install \
-  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc1#subdirectory=semrepair_validation"
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3.0rc1#subdirectory=semrepair_validation"
 ```
 
-Once frozen, prefer the fixed branch `semrepair-v0.3.0rc1` or an exact reviewed
-commit SHA.
+Published tag target:
+
+```text
+8cd7e7ad01e50aa18f42d333765f4fd242228d66
+```
+
+The moving branch `semrepair-v0.3-rc1` contains post-release development and
+should not be mistaken for the immutable released snapshot.
 
 ## Minimal source-boundary integration
 
-Create a manifest that names producer/consumer source locations, partial semantic
-types, inference rules, and allowed certified adapters. Then run:
+Create a manifest naming producer/consumer source locations, partial semantic
+types, inference rules, and allowed certified adapters, then run:
 
 ```bash
 semrepair-source --manifest path/to/semrepair.json --json
@@ -29,26 +33,13 @@ or missing proof evidence.
 
 ## Runtime event semantics
 
-Do not encode pure adapters that relabel:
-
-- requested → executed;
-- stale → fresh.
-
-These transitions require owner-boundary evidence such as an execution receipt
-or a fresh sensor sample.
+Do not use pure adapters to relabel requested→executed or stale→fresh. Those
+transitions require owner-boundary runtime evidence.
 
 ## Repository-native adoption
 
-For upstream projects, a native regression is often preferable to importing the
-full runtime. Examples include:
-
-- converter output reconstructed by the controller decoder preserves rotation;
-- logged executed action equals the action actually sent after safety mediation;
-- episode-relative lookup is invariant to storage repartition;
-- environment permutation only relabels independent trajectories within the
-  declared numerical floor.
-
-Generate a skeleton:
+For upstream projects, a native regression may be preferable to importing the
+full runtime. Generate a conservative skeleton with:
 
 ```bash
 semrepair-adopt-init \
@@ -59,8 +50,8 @@ semrepair-adopt-init \
   --maintained-path tests/test_executed_action_provenance.py
 ```
 
-The generated placeholder deliberately raises until project-native evidence is
-implemented.
+The generated placeholder intentionally fails until replaced with project-native
+semantic evidence.
 
 ## Composite Action
 
@@ -76,7 +67,7 @@ implemented.
 
 ## Evidence rule
 
-A fork, copied snippet, issue comment, or self-authored consumer fixture counts
-as **zero maintained external adoption**. SemRepair's L8/L9 ledger changes only
-when an independently maintained repository intentionally retains the
-regression/spec/tooling in its own source or CI.
+A fork, copied snippet, issue comment, reviewer request, self-authored fixture,
+or self-test counts as **zero maintained external adoption**. Only independent
+retention/reuse in another maintained repository changes the L8/L9 adoption
+ledger.
