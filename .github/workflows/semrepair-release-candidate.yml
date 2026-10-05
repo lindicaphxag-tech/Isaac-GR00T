@@ -335,3 +335,38 @@ jobs:
           path: evidence/mujoco-native-closed-loop.json
           if-no-files-found: error
           retention-days: 30
+
+  reusable-action-consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SemRepair action
+        uses: actions/checkout@v4
+
+      - name: Create simulated downstream adoption surface
+        run: |
+          mkdir -p consumer-fixture/tests
+          cat > consumer-fixture/tests/test_semantic_contract.py <<'PY'
+          def test_repository_native_semantic_contract():
+              assert True
+          PY
+          cat > consumer-fixture/semrepair-adoption.json <<'JSON'
+          {
+            "schema_version": 1,
+            "repository": "example/robot-stack",
+            "integration_type": "native-regression",
+            "semantic_layer": "controller/action-representation",
+            "contract_ids": [
+              "embodied/representation/controller-roundtrip@0.2"
+            ],
+            "maintained_path": "tests/test_semantic_contract.py",
+            "status": "candidate",
+            "claim_boundary": "CI fixture only; not external adoption."
+          }
+          JSON
+
+      - name: Consume reusable SemRepair Action
+        uses: ./semrepair_validation
+        with:
+          manifest: consumer-fixture/semrepair-adoption.json
+          repository-root: consumer-fixture
+          model-depth: "3"
