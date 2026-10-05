@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - "validation/maniskill1495-current-head"
+  pull_request:
+    branches:
+      - "validation/maniskill1495-current-head"
   workflow_dispatch:
 
 permissions:
