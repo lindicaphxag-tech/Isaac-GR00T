@@ -9,13 +9,12 @@ Moving release-candidate branch:
 
 ```bash
 python -m pip install \
-  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc3#subdirectory=semrepair_validation"
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3.0rc3#subdirectory=semrepair_validation"
 ```
 
-For reproducible evaluation of the moving rc3 candidate, prefer an exact reviewed
-commit SHA. After the full rc3 release workflow is green, freeze and prefer the
-immutable `semrepair-v0.3.0rc3` branch/tag. For production-like reuse before that,
-use the already published immutable prerelease rather than a moving branch.
+For reproducible rc3 evaluation, prefer the immutable `semrepair-v0.3.0rc3`
+branch or exact validated commit `45066dc1a7e5dfc62e26cdf90d40b08ff3be57b5`.
+The complete rc3 public workflow is green; a GitHub tag/release is still pending.
 
 ## Minimal source-boundary integration
 
