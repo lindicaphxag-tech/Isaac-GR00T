@@ -146,6 +146,18 @@ class TestDatasetSourceFingerprint:
 
         assert mutated != baseline
 
+    def test_changes_when_only_interior_bytes_change(self, dataset):
+        payload = bytearray(b"A" * (256 * 1024))
+        shard = _write_source_shard(dataset, bytes(payload))
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        # Preserve path, size, head and tail while changing only the interior.
+        payload[len(payload) // 2] = ord("B")
+        shard.write_bytes(payload)
+        mutated = _compute_dataset_source_fingerprint(dataset)
+
+        assert mutated != baseline
+
     def test_ignores_filesystem_mtime_only_changes(self, dataset):
         shard = _write_source_shard(dataset, b"portable")
         baseline = _compute_dataset_source_fingerprint(dataset)
