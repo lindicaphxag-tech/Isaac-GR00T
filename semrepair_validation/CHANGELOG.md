@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0-rc2
+
+This release candidate adds a language-neutral proof-carrying execution bundle
+without changing the frozen semantic contract generation.
+
+### Interoperability surface
+
+- canonical JSON proof bundle `semrepair-execution-proof-bundle/v0.1`;
+- JSON Schema for non-Python consumers;
+- independent wire verifier that does not call compiler/search code;
+- adapter-registry and contextual-evidence digest verification;
+- independent selected-path replay and bounded unique minimum-cost verification;
+- effect-certificate / logical-intent / compilation-dependency binding;
+- fail-closed rejection of non-forgeable adapter transitions and unverified
+  repair candidates;
+- installed `semrepair-proof-bundle` verification CLI.
+
+### Claim boundary
+
+SHA-256 receipts provide deterministic integrity and dependency binding. They
+are not issuer authentication or digital signatures, and the bundle does not by
+itself prove the physical postcondition.
+
+
 ## 0.3.0-rc1
 
 This release candidate isolates the constructive SemRepair method from the
