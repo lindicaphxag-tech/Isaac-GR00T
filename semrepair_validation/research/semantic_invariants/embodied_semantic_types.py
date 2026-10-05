@@ -15,6 +15,7 @@ The central safety rule is that semantic repair is not ordinary casting:
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from heapq import heappop, heappush
 from itertools import count
 from typing import Mapping, Sequence
@@ -37,6 +38,14 @@ SEMANTIC_FIELDS = (
 )
 
 NON_FORGEABLE_FIELDS = frozenset({"provenance", "freshness"})
+
+
+def _exact_adapter_cost(value: float) -> Decimal:
+    """Map the public numeric cost to an exact decimal search weight."""
+    cost = Decimal(str(value))
+    if not cost.is_finite() or cost < 0:
+        raise ValueError("adapter cost must be finite and non-negative")
+    return cost
 
 
 @dataclass(frozen=True)
@@ -113,8 +122,7 @@ class SemanticAdapter:
         unknown = (set(self.requires) | set(self.produces)) - set(SEMANTIC_FIELDS)
         if unknown:
             raise ValueError(f"unknown semantic field(s): {sorted(unknown)}")
-        if self.cost < 0:
-            raise ValueError("adapter cost must be non-negative")
+        _exact_adapter_cost(self.cost)
 
         for field in NON_FORGEABLE_FIELDS & set(self.produces):
             before = self.requires.get(field)
@@ -246,8 +254,8 @@ def synthesize_adapter_plan(
         return AdapterPlan(source, target, (), source, 0.0, (), ())
 
     serial = count()
-    queue = [(0.0, 0, next(serial), source, (), ())]
-    best: dict[SemanticTensorType, float] = {source: 0.0}
+    queue = [(Decimal("0"), 0, next(serial), source, (), ())]
+    best: dict[SemanticTensorType, Decimal] = {source: Decimal("0")}
     blocked_obligations: set[str] = set()
 
     while queue:
@@ -265,7 +273,7 @@ def synthesize_adapter_plan(
                 target,
                 path,
                 current,
-                cost,
+                float(cost),
                 effects,
                 evidence_used,
             )
@@ -284,8 +292,8 @@ def synthesize_adapter_plan(
             nxt = adapter.apply_type(current)
             if nxt == current:
                 continue
-            new_cost = cost + adapter.cost
-            if new_cost >= best.get(nxt, float("inf")):
+            new_cost = cost + _exact_adapter_cost(adapter.cost)
+            if new_cost >= best.get(nxt, Decimal("Infinity")):
                 continue
             best[nxt] = new_cost
             heappush(
@@ -349,12 +357,12 @@ def synthesize_unique_adapter_plan(
 
     serial = count()
     queue = [
-        (0.0, 0, next(serial), source, (), frozenset((source,)))
+        (Decimal("0"), 0, next(serial), source, (), frozenset((source,)))
     ]
-    best: dict[SemanticTensorType, float] = {source: 0.0}
+    best: dict[SemanticTensorType, Decimal] = {source: Decimal("0")}
     blocked_obligations: set[str] = set()
     seen_paths: set[tuple[SemanticTensorType, tuple[str, ...]]] = {(source, ())}
-    minimum_cost: float | None = None
+    minimum_cost: Decimal | None = None
     solutions: list[AdapterPlan] = []
 
     while queue:
@@ -386,7 +394,7 @@ def synthesize_unique_adapter_plan(
                     target,
                     path,
                     current,
-                    cost,
+                    float(cost),
                     effects,
                     evidence_used,
                 )
@@ -417,7 +425,7 @@ def synthesize_unique_adapter_plan(
                 # increases cost or changes the remaining suffix semantics.
                 continue
 
-            new_cost = cost + adapter.cost
+            new_cost = cost + _exact_adapter_cost(adapter.cost)
             if minimum_cost is not None and new_cost > minimum_cost:
                 continue
 
