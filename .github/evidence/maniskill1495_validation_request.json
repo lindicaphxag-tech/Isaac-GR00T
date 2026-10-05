@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "subject": "ManiSkill PR #1495 exact-head composition validation",
+  "pr_1495_head": "cdd6db713ffe7edc3e0df3abfab51ea5320c1c0b",
+  "dependency_pr_1472_head": "eed9be164797d41540421bda8adb3840377d7087",
+  "claim_boundary": "Self-authored composition validation only; zero maintained external-adoption credit.",
+  "validation_base_head": "ea42ced05421a7fdfe92364eb97712d863dc9cc3"
+}
