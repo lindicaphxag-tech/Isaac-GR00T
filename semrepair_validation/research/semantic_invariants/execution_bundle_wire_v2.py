@@ -392,6 +392,19 @@ def _valid_hex64(value: object) -> bool:
     return isinstance(value, str) and HEX64.fullmatch(value) is not None
 
 
+def _contains_binary_float(value: object) -> bool:
+    if isinstance(value, float):
+        return True
+    if isinstance(value, Mapping):
+        return any(
+            _contains_binary_float(key) or _contains_binary_float(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_binary_float(item) for item in value)
+    return False
+
+
 def verify_execution_bundle_v2(record: Mapping[str, Any]) -> dict[str, object]:
     checks: dict[str, bool] = {}
     errors: list[str] = []
@@ -401,6 +414,9 @@ def verify_execution_bundle_v2(record: Mapping[str, Any]) -> dict[str, object]:
     checks["canonicalization_profile"] = (
         record.get("canonicalization_profile") == CANONICALIZATION_PROFILE
     )
+    checks["float_free_wire_surface"] = not _contains_binary_float(record)
+    if not checks["float_free_wire_surface"]:
+        errors.append("binary floating-point value escaped into v0.2 wire surface")
 
     outer = dict(record)
     claimed_bundle_digest = outer.pop("bundle_digest", None)
@@ -484,6 +500,16 @@ def verify_execution_bundle_v2(record: Mapping[str, Any]) -> dict[str, object]:
     checks["adapter_semantics_valid"] = adapter_semantics_valid
 
     checks["installable_compilation"] = compilation.get("repair_candidate") is None
+
+    producer_selected_cost = compilation.get("producer_selected_cost_decimal")
+    try:
+        if producer_selected_cost is not None:
+            _parse_decimal(producer_selected_cost, nonnegative=True)
+        producer_selected_cost_ok = True
+    except ValueError:
+        producer_selected_cost_ok = False
+        errors.append("producer_selected_cost_decimal is not canonical")
+    checks["producer_selected_cost_decimal"] = producer_selected_cost_ok
 
     producer_comp_digest = compilation.get("producer_decision_digest")
     producer_effect_digest = effect.get("producer_decision_digest")
