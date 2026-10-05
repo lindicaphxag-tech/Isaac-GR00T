@@ -8,7 +8,7 @@ The Python package follows semantic versioning once a stable 1.0 surface is
 declared. Until then, 0.x versions may change APIs, but every release candidate
 must state breaking changes explicitly.
 
-Current software version: **0.3.0-rc2**.
+Current software version: **0.3.0-rc3**.
 
 ## Manifest schema
 
