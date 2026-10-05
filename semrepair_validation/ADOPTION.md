@@ -70,3 +70,45 @@ A useful regression should preserve the semantic contract itself, for example:
 SemRepair's own L8/L9 ledger counts an external project only when the project
 maintains the regression/spec/tooling in its own repository or CI. A fork,
 comment, copied snippet, or self-authored demo is intentionally insufficient.
+
+## 6. Generate an upstream-native adoption skeleton
+
+To lower integration friction, the release candidate includes a scaffold
+generator. It deliberately creates a **failing placeholder regression** rather
+than a test that can pass without project-native semantic evidence.
+
+Example:
+
+```bash
+semrepair-adopt-init \
+  --repository my-org/my-robot-stack \
+  --contract-id embodied/provenance/executed-action@0.2 \
+  --semantic-layer dataset/safety-provenance \
+  --integration-type native-regression \
+  --maintained-path tests/test_executed_action_provenance.py
+```
+
+The generated directory contains:
+
+- `semrepair-adoption.json`: machine-readable candidate integration metadata;
+- `test_semantic_contract.py`: a repository-native regression skeleton that
+  raises `NotImplementedError` until replaced with real project code.
+
+For a source-boundary CI integration, use:
+
+```bash
+semrepair-adopt-init \
+  --repository my-org/my-robot-stack \
+  --contract-id embodied/representation/controller-roundtrip@0.2 \
+  --semantic-layer controller/action-representation \
+  --integration-type source-boundary-ci
+```
+
+The adoption manifest schema is:
+
+`schemas/adoption-manifest-v1.schema.json`
+
+A generated manifest has `status=candidate`. SemRepair's own evidence ledger
+must not promote it to maintained adoption merely because this command was run.
+Promotion requires the named external repository to actually retain the
+regression/spec/tooling.
