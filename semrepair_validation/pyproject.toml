@@ -28,6 +28,7 @@ semrepair-runtime-gate = "research.semantic_invariants.semantic_runtime_release_
 semrepair-conformance = "research.semantic_invariants.semrepair_compiler_conformance:main"
 semrepair-mode-closure = "research.semantic_invariants.semrepair_mode_closure_cli:main"
 semrepair-effect-parity = "research.semantic_invariants.semrepair_effect_parity_cli:main"
+semrepair-effect-fault-assay = "research.semantic_invariants.semantic_effect_fault_assay:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
