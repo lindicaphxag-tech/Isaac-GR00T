@@ -47,7 +47,7 @@ jobs:
 
       - name: Run PI-CASJ unit gates
         run: |
-          python -m pytest -q casj_validation/tests/test_continuation.py casj_validation/tests/test_temporal_scope.py casj_validation/tests/test_trust_region.py
+          python -m pytest -q casj_validation/tests/test_continuation.py casj_validation/tests/test_finite_equivariance.py casj_validation/tests/test_temporal_scope.py casj_validation/tests/test_trust_region.py
 
       - name: Record environment identity
         run: |
@@ -100,6 +100,12 @@ jobs:
               assert "temporal_slot_jacobian_norm" in result
               assert "event_current_stale_mse" in result
               assert "event_current_casj_mse" in result
+              assert "fie_certificate" in result
+              assert "fie_raw_transport_mse" in result
+              assert result["fie_certificate"]["num_probes"] == 4
+              assert result["fie_certificate"]["runtime_transport_policy_queries"] == 0
+              assert "fie_raw_transport" in result["rollout_branches"]
+              assert "fie_certified" in result["rollout_branches"]
               assert result["pi_casj_certificate"]["policy_queries"] == 20
               assert "pi_casj_raw" in result["rollout_branches"]
               assert "pi_casj_certified" in result["rollout_branches"]
