@@ -48,6 +48,9 @@ jobs:
       - name: Run proof-carrying runtime release gate
         run: |
           semrepair-runtime-gate --depth 4 --json | tee semrepair_validation/artifacts/runtime-release-gate.json
+      - name: Run physical-effect fault injection assay
+        run: |
+          semrepair-effect-fault-assay --json | tee semrepair_validation/artifacts/physical-effect-fault-assay.json
       - name: Build wheel and sdist
         run: python -m build semrepair_validation
       - name: Check installed dependencies
@@ -116,6 +119,8 @@ jobs:
         run: semrepair-conformance --json
       - name: Run installed runtime release gate
         run: semrepair-runtime-gate --depth 4 --json
+      - name: Run installed physical-effect fault assay
+        run: semrepair-effect-fault-assay --json
       - name: Run installed behavioral evidence
         run: semrepair-behavior --json
 
