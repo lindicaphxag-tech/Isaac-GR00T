@@ -577,3 +577,68 @@ jobs:
           manifest: consumer-fixture/semrepair-adoption.json
           repository-root: consumer-fixture
           model-depth: "3"
+
+      - name: Set up Python for reusable proof Action
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate downstream-style proof bundle fixture
+        run: |
+          python -m pip install -e semrepair_validation
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.semantic_invariants.embodied_compilation_certificate import issue_compilation_certificate
+          from research.semantic_invariants.embodied_semantic_compiler import compile_semantic_boundary
+          from research.semantic_invariants.embodied_semantic_types import SemanticAdapter, SemanticTensorType
+          from research.semantic_invariants.execution_bundle_wire_v2 import export_execution_bundle_v2
+          from research.semantic_invariants.semantic_effect_certificate import EffectCommitPolicy, issue_effect_certificate
+          from research.semantic_invariants.semantic_effect_commit import EffectClass, SemanticEffectIntent
+
+          source = SemanticTensorType(
+              role="action",
+              entity="joint_command",
+              ordering="policy",
+              provenance="requested",
+          )
+          target = source.updated(ordering="controller")
+          adapter = SemanticAdapter(
+              "policy-to-controller-order",
+              requires={"ordering": "policy"},
+              produces={"ordering": "controller"},
+              cost=1.0,
+          )
+          result = compile_semantic_boundary(source, target, adapters=(adapter,))
+          compilation = issue_compilation_certificate(result, adapters=(adapter,))
+          intent = SemanticEffectIntent(
+              effect_id="downstream-fixture:dispatch",
+              action_name="dispatch_joint_command",
+              effect_class=EffectClass.REVERSIBLE,
+              dependency_version=compilation.decision_digest,
+              precondition=lambda state: True,
+              postcondition=lambda state: True,
+          )
+          effect = issue_effect_certificate(
+              intent,
+              policy=EffectCommitPolicy(min_commit_planes=2),
+              semantic_contract_id="embodied/action/joint-order@0.1",
+          )
+          bundle = export_execution_bundle_v2(
+              compilation,
+              effect,
+              intent,
+              semantic_contract_id="embodied/action/joint-order@0.1",
+              adapters=(adapter,),
+              max_steps=3,
+          )
+          Path("consumer-fixture/proof-bundle-v2.json").write_text(
+              json.dumps(bundle, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Consume reusable dual-verifier proof Action
+        uses: ./semrepair_validation/proof_action
+        with:
+          bundle: consumer-fixture/proof-bundle-v2.json
