@@ -1,0 +1,98 @@
+name: CASJ-SemRepair Proof Bridge
+
+on:
+  push:
+    branches:
+      - "validation/casj-pusht-public-gate"
+    paths:
+      - ".github/workflows/casj-proof-bridge.yml"
+      - "casj_validation/casj/proof_certificate.py"
+      - "casj_validation/casj/trust_region.py"
+      - "casj_validation/semrepair_casj_verifier.py"
+      - "casj_validation/tests/test_proof_certificate.py"
+      - "casj_validation/tests/test_trust_region.py"
+      - "casj_validation/tests/test_semrepair_casj_bridge.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install CASJ validation package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ./casj_validation pytest
+      - name: Run trust and independent-verifier tests
+        run: |
+          python -m pytest -q \
+            casj_validation/tests/test_trust_region.py \
+            casj_validation/tests/test_proof_certificate.py \
+            casj_validation/tests/test_semrepair_casj_bridge.py
+
+  record:
+    needs: verify
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record cross-implementation proof evidence
+        env:
+          RUN_ID: ${{ github.run_id }}
+          VALIDATED_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          record = {
+              "schema_version": 1,
+              "workflow_run_id": int(os.environ["RUN_ID"]),
+              "validated_sha": os.environ["VALIDATED_SHA"],
+              "python_versions": ["3.10", "3.12", "3.13"],
+              "issuer": "casj.proof_certificate",
+              "independent_verifier": "semrepair_casj_verifier",
+              "properties": [
+                  "certificate canonical digest interoperability",
+                  "policy identity binding",
+                  "action-contract identity binding",
+                  "baseline-context identity binding",
+                  "support/intervention identity binding",
+                  "repair implementation and evidence identity binding",
+                  "finite operational radius enforcement",
+                  "out-of-radius fail-closed behavior"
+              ],
+              "counts_as_external_adoption": False,
+              "claim_boundary": (
+                  "Cross-implementation proof-certificate conformance inside the "
+                  "public validation repository; not maintained external adoption."
+              )
+          }
+          Path("/tmp/casj_semrepair_bridge.json").write_text(
+              json.dumps(record, indent=2, sort_keys=True) + "\n"
+          )
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          mkdir -p .github/evidence/casj
+          cp /tmp/casj_semrepair_bridge.json .github/evidence/casj/semrepair_proof_bridge.json
+          git add .github/evidence/casj/semrepair_proof_bridge.json
+          if git diff --cached --quiet; then
+            echo "Proof bridge evidence unchanged"
+          else
+            git commit -m "Record CASJ-SemRepair proof bridge ${RUN_ID}"
+            git push origin main
+          fi
