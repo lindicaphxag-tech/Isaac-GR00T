@@ -50,7 +50,7 @@ jobs:
           python -m pip install -e ./casj_validation
 
       - name: Validate selective-repair evaluator
-        run: python -m pytest -q casj_validation/tests/test_selective.py
+        run: python -m pytest -q casj_validation/tests/test_selective.py casj_validation/tests/test_trust_region.py
 
       - name: Run multi-state checkpoint-default assay
         run: |
