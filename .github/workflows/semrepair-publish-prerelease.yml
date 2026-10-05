@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: semrepair-v0.3.0rc1
-      RELEASE_TARGET: 77bd90c36360cdca9d43447789cccb137d2b6708
+      RELEASE_TARGET: 8cd7e7ad01e50aa18f42d333765f4fd242228d66
+      VALIDATED_TARGET: 77bd90c36360cdca9d43447789cccb137d2b6708
       VALIDATION_RUN: "37318890379"
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -36,7 +37,7 @@ jobs:
           conclusion="$(gh api "repos/${{ github.repository }}/actions/runs/$VALIDATION_RUN" --jq .conclusion)"
           head_sha="$(gh api "repos/${{ github.repository }}/actions/runs/$VALIDATION_RUN" --jq .head_sha)"
           test "$conclusion" = "success"
-          test "$head_sha" = "$RELEASE_TARGET"
+          test "$head_sha" = "$VALIDATED_TARGET"
 
       - name: Checkout frozen release target
         uses: actions/checkout@v4
@@ -47,6 +48,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Verify snapshot content matches validated target
+        run: |
+          git fetch origin semrepair-v0.3-rc1
+          git diff --exit-code "$VALIDATED_TARGET" "$RELEASE_TARGET" -- semrepair_validation LICENSE
 
       - name: Rebuild distribution from frozen target
         run: |
