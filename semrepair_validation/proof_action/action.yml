@@ -1,0 +1,29 @@
+name: Verify SemRepair proof bundle v0.2
+description: Independently verify one SemRepair v0.2 execution proof bundle with Python and Node reference verifiers.
+inputs:
+  bundle:
+    description: Path to a semrepair-execution-proof-bundle/v0.2 JSON file in the caller workspace.
+    required: true
+  python:
+    description: Python executable with Python 3.10+.
+    required: false
+    default: python3
+runs:
+  using: composite
+  steps:
+    - name: Verify proof bundle with independent Python verifier
+      shell: bash
+      env:
+        SEMREPAIR_BUNDLE: ${{ inputs.bundle }}
+        SEMREPAIR_PYTHON: ${{ inputs.python }}
+      run: |
+        export PYTHONPATH="${GITHUB_ACTION_PATH}/..${PYTHONPATH:+:${PYTHONPATH}}"
+        "${SEMREPAIR_PYTHON}" -m research.semantic_invariants.execution_bundle_wire_v2           --input "${SEMREPAIR_BUNDLE}" --json
+
+    - name: Verify proof bundle with independent Node verifier
+      shell: bash
+      env:
+        SEMREPAIR_BUNDLE: ${{ inputs.bundle }}
+      run: |
+        node --check "${GITHUB_ACTION_PATH}/../reference/verify_bundle_v2.mjs"
+        node "${GITHUB_ACTION_PATH}/../reference/verify_bundle_v2.mjs"           "${SEMREPAIR_BUNDLE}"
