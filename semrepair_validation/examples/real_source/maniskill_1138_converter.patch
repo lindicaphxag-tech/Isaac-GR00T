@@ -1,13 +1,18 @@
 diff --git a/mani_skill/trajectory/utils/actions/conversion.py b/mani_skill/trajectory/utils/actions/conversion.py
 --- a/mani_skill/trajectory/utils/actions/conversion.py
 +++ b/mani_skill/trajectory/utils/actions/conversion.py
-@@
- import numpy as np
+@@ -4,7 +4,6 @@
  import sapien
  import torch
  from tqdm.auto import tqdm
 -from transforms3d.quaternions import quat2axangle
-@@
+ 
+ from mani_skill.agents.controllers import (
+     PDEEPosController,
+@@ -48,12 +47,17 @@
+     return gym_utils.inv_scale_action(qvel, low, high)
+ 
+ 
 -def compact_axis_angle_from_quaternion(quat: np.ndarray) -> np.ndarray:
 -    theta, omega = quat2axangle(quat)
 -    # - 2 * np.pi to make the angle symmetrical around 0
@@ -25,7 +30,11 @@ diff --git a/mani_skill/trajectory/utils/actions/conversion.py b/mani_skill/traj
 +        .cpu()
 +        .numpy()
 +    )
-@@
+ 
+ 
+ def delta_pose_to_pd_ee_delta(
+@@ -75,6 +79,6 @@
+         )
      delta_pose = np.r_[
          delta_pose.p,
 -        compact_axis_angle_from_quaternion(delta_pose.q),
