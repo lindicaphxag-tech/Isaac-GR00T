@@ -49,6 +49,9 @@ jobs:
           python -m pip install -e "./lerobot-src[diffusion,pusht]"
           python -m pip install -e ./casj_validation
 
+      - name: Validate selective-repair evaluator
+        run: python -m pytest -q casj_validation/tests/test_selective.py
+
       - name: Run multi-state checkpoint-default assay
         run: |
           mkdir -p casj_validation/results
@@ -70,14 +73,16 @@ jobs:
           import json
           from pathlib import Path
 
+          from casj.selective import SelectiveRepairRecord, evaluate_selective_repair
+
           src = Path("casj_validation/results/pusht_selective_repair.json")
           data = json.loads(src.read_text())
+          records = []
           rows = []
           for key, result in data["snapshots"].items():
-              certs = result["certificates"]
-              accepted = bool(certs) and all(c["accepted"] for c in certs)
-              raw_ratio = result["casj_to_stale_ratio"]
-              raw_harm = raw_ratio > 1.0
+              accepted = bool(result["certificates"]) and all(
+                  cert["accepted"] for cert in result["certificates"]
+              )
               certified = result["rollout_branches"]["casj_certified"]
               fresh = result["rollout_branches"]["fresh"]
               exact_fallback = (
@@ -88,48 +93,39 @@ jobs:
                   and certified.get("final_block_position") == fresh.get("final_block_position")
                   and certified.get("final_block_angle") == fresh.get("final_block_angle")
               )
+              records.append(
+                  SelectiveRepairRecord(
+                      accepted=accepted,
+                      stale_loss=result["stale_mse"],
+                      raw_repair_loss=result["casj_repair_mse"],
+                      fallback_loss=0.0 if exact_fallback else result["stale_mse"],
+                      fallback_exact=exact_fallback,
+                      label=key,
+                  )
+              )
               rows.append({
                   "key": key,
                   "accepted": accepted,
-                  "raw_ratio": raw_ratio,
-                  "raw_harm": raw_harm,
                   "fallback_exactly_matches_fresh": exact_fallback,
-                  "stale_mse": result["stale_mse"],
-                  "global_mse": result["global_compensation_mse"],
-                  "raw_casj_mse": result["casj_repair_mse"],
               })
 
-          accepted_rows = [r for r in rows if r["accepted"]]
-          rejected_rows = [r for r in rows if not r["accepted"]]
-          harmful = [r for r in rows if r["raw_harm"]]
-          false_accepts = [r for r in accepted_rows if r["raw_harm"]]
-          protected = [r for r in rejected_rows if r["raw_harm"] and r["fallback_exactly_matches_fresh"]]
-          report = {
+          report = evaluate_selective_repair(records)
+          report.update({
               "schema_version": 1,
               "model_id": data["model_id"],
               "dataset_id": data["dataset_id"],
               "checkpoint_num_inference_steps": data["checkpoint_num_inference_steps"],
               "effective_num_inference_steps": data["effective_num_inference_steps"],
               "uses_checkpoint_default_inference_steps": data["uses_checkpoint_default_inference_steps"],
-              "n_states": len(rows),
-              "acceptance_rate": len(accepted_rows) / len(rows),
-              "raw_harm_rate": len(harmful) / len(rows),
-              "false_accept_rate": len(false_accepts) / max(len(accepted_rows), 1),
-              "rejected_harm_protection_rate": len(protected) / max(
-                  len([r for r in rejected_rows if r["raw_harm"]]), 1
-              ),
-              "fresh_exact_fallback_rate_on_rejection": sum(
-                  r["fallback_exactly_matches_fresh"] for r in rejected_rows
-              ) / max(len(rejected_rows), 1),
-              "rows": rows,
+              "decision_rows": rows,
               "claim_boundary": (
                   "Four-state public-checkpoint calibration assay. "
                   "Measures repair/refusal selectivity, not task-level policy performance "
                   "or external adoption."
               ),
-          }
+          })
           assert report["uses_checkpoint_default_inference_steps"] is True
-          assert report["n_states"] == 4
+          assert report["n"] == 4
           Path("casj_validation/results/pusht_selective_repair_summary.json").write_text(
               json.dumps(report, indent=2, sort_keys=True) + "\n"
           )
