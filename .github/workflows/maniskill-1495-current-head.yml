@@ -1,0 +1,94 @@
+name: ManiSkill #1495 exact-head composition gate
+
+on:
+  push:
+    branches:
+      - "validation/maniskill1495-current-head"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-head:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout evidence host
+        uses: actions/checkout@v4
+        with:
+          path: host
+
+      - name: Checkout exact PR #1495 head
+        uses: actions/checkout@v4
+        with:
+          repository: lindicaphxag-tech/ManiSkill
+          ref: cdd6db713ffe7edc3e0df3abfab51ea5320c1c0b
+          path: maniskill
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install exact PR head
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e ./maniskill
+
+      - name: Run submitted representation regressions
+        working-directory: maniskill
+        run: python -m pytest -q tests/test_action_conversion.py
+
+      - name: Confirm dependency #1472 remains externally visible
+        env:
+          PYTHONPATH: maniskill
+        run: |
+          mkdir -p evidence
+          python host/.github/evidence/maniskill_1495_current_head.py before-sign-fix \
+            | tee evidence/before-sign-fix.txt
+
+      - name: Apply only the exact #1472 controller-sign repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("maniskill/mani_skill/agents/controllers/pd_ee_pose.py")
+          text = path.read_text()
+          old = "rot_action = rot_action * self.config.rot_lower"
+          new = "rot_action = rot_action * self.config.rot_upper"
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"expected exactly one #1472 anchor, found {count}")
+          path.write_text(text.replace(old, new))
+          PY
+
+      - name: Verify composed production converter-controller semantics
+        env:
+          PYTHONPATH: maniskill
+        run: |
+          python host/.github/evidence/maniskill_1495_current_head.py after-sign-fix \
+            | tee evidence/after-sign-fix.txt
+
+      - name: Record immutable evidence metadata
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = {
+              "schema_version": 1,
+              "subject": "ManiSkill PR #1495 representation contract composed with dependency #1472",
+              "pr_1495_head": "cdd6db713ffe7edc3e0df3abfab51ea5320c1c0b",
+              "pr_1472_head": "eed9be164797d41540421bda8adb3840377d7087",
+              "dependency_application": "one-line rot_lower -> rot_upper semantic equivalent of #1472",
+              "claim": "representation-only PR remains red before sign dependency and becomes production-boundary green after that dependency",
+              "credit_boundary": "self-authored validation; zero maintained external-adoption credit",
+          }
+          Path("evidence/metadata.json").write_text(json.dumps(payload, indent=2) + "\n")
+          PY
+
+      - name: Upload exact-head evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: maniskill-1495-current-head
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
