@@ -1,0 +1,48 @@
+name: Stats provenance current-head validation
+
+on:
+  push:
+    branches:
+      - validation/stats-provenance-current-head
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prove production identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROD=5dba8a9a1bea181c51e3a9aedcfc5bdb16a1a40a
+          git merge-base --is-ancestor "$PROD" HEAD
+          test "$(git hash-object gr00t/data/stats.py)" = "184b1e332782ad3862294e7c4d1a47d5cd127f5c"
+          test "$(git hash-object tests/gr00t/data/test_generate_stats_cache_fingerprint.py)" = "60d1554c4a60aa1ef4896167db389781f75a73e1"
+          test "$(git hash-object tests/gr00t/data/test_stats_cache_fingerprint.py)" = "78737b1bb8f21bd9a780aef14d7b9e42b5c9712a"
+          changed="$(git diff --name-only "$PROD"..HEAD | sort)"
+          expected="$(printf '%s\n'             '.github/workflows/stats-provenance-current-head.yml'             'tests/gr00t/data/test_stats_source_provenance_current_head.py' | sort)"
+          test "$changed" = "$expected"
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install targeted dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Lint production and validation files
+        run: |
+          ruff check             gr00t/data/stats.py             tests/gr00t/data/test_generate_stats_cache_fingerprint.py             tests/gr00t/data/test_stats_cache_fingerprint.py             tests/gr00t/data/test_stats_source_provenance_current_head.py
+          ruff format --check             gr00t/data/stats.py             tests/gr00t/data/test_generate_stats_cache_fingerprint.py             tests/gr00t/data/test_stats_cache_fingerprint.py             tests/gr00t/data/test_stats_source_provenance_current_head.py
+
+      - name: Run causal witness
+        run: |
+          python -m pytest -q tests/gr00t/data/test_stats_source_provenance_current_head.py
+
+      - name: Run full targeted cache suite
+        run: |
+          python -m pytest -q             tests/gr00t/data/test_generate_stats_cache_fingerprint.py             tests/gr00t/data/test_stats_cache_fingerprint.py
