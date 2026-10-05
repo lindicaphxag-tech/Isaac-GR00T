@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "artifact": "SemRepair",
+  "candidate": "0.3.0rc3",
+  "base_branch": "semrepair-v0.3-rc3",
+  "purpose": "Trigger a PR-visible full release-candidate validation after rc3 packaging and metadata repairs.",
+  "expected_candidate_head": "1d6ef123669bb89e1a9c3fef3db706e488987138",
+  "claim_boundary": "Self-authored validation only. This record contributes zero maintained external-adoption credit and zero prospective-I2 credit."
+}
