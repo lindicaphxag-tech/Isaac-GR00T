@@ -1,0 +1,60 @@
+name: Publish SemRepair 0.3.0rc1 prerelease
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - semrepair-v0.3-rc1
+    paths:
+      - ".github/workflows/semrepair-publish-prerelease.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: semrepair-v0.3.0rc1
+      RELEASE_TARGET: 77bd90c36360cdca9d43447789cccb137d2b6708
+      VALIDATION_RUN: "37318890379"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Refuse duplicate release
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists"
+            exit 1
+          fi
+
+      - name: Verify immutable validation run succeeded
+        run: |
+          conclusion="$(gh api "repos/${{ github.repository }}/actions/runs/$VALIDATION_RUN" --jq .conclusion)"
+          head_sha="$(gh api "repos/${{ github.repository }}/actions/runs/$VALIDATION_RUN" --jq .head_sha)"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$RELEASE_TARGET"
+
+      - name: Checkout frozen release target
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TARGET }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rebuild distribution from frozen target
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build semrepair_validation
+          python -m pip install semrepair_validation/dist/*.whl
+          python - <<'PY'
+          import semrepair
+          assert semrepair.__version__ == "0.3.0rc1"
+          print(semrepair.__version__)
+          PY
+
+      - name: Create immutable prerelease tag and release
+        run: |
+          gh release create "$RELEASE_TAG"             --repo "${{ github.repository }}"             --target "$RELEASE_TARGET"             --title "SemRepair 0.3.0rc1 — Proof-Carrying Semantic Runtime"             --notes-file semrepair_validation/RELEASE_NOTES_0_3_0_RC1.md             --prerelease             semrepair_validation/dist/*
