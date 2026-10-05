@@ -1,4 +1,4 @@
-# SemRepair 0.3.0rc1
+# SemRepair 0.3.0rc2
 
 SemRepair is a research prototype for **proof-carrying semantic repair and
 runtime execution across embodied-AI software boundaries**.
@@ -40,10 +40,10 @@ Development release-candidate branch:
 
 ```bash
 python -m pip install \
-  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc1#subdirectory=semrepair_validation"
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc2#subdirectory=semrepair_validation"
 ```
 
-A fixed semver-style branch `semrepair-v0.3.0rc1` is frozen only after the
+A fixed semver-style branch `semrepair-v0.3.0rc2` is frozen only after the
 corresponding release-candidate commit passes the complete public workflow.
 
 The distribution name is `semrepair`:
@@ -70,6 +70,32 @@ semrepair-source \
   --manifest semrepair_validation/examples/maniskill_style/semrepair.json \
   --json
 ```
+
+## Language-neutral proof bundle
+
+0.3.0rc2 adds a canonical JSON authorization bundle for non-Python consumers.
+
+The reference verifier independently checks:
+
+- bundle / compilation / effect certificate digests;
+- adapter-registry and contextual-evidence identity;
+- selected semantic adapter-path replay;
+- bounded unique minimum-cost repair;
+- non-forgeable provenance/freshness constraints;
+- effect-intent identity;
+- exact compilation -> physical-effect dependency binding.
+
+CLI:
+
+```bash
+semrepair-proof-bundle --input proof-bundle.json --json
+```
+
+Schema:
+
+`semrepair_validation/schemas/semrepair-execution-proof-bundle-v0.1.schema.json`.
+
+The digests are integrity/dependency receipts, not digital signatures.
 
 ## Public validation
 
@@ -151,6 +177,11 @@ the regression/spec/tooling.
 
 ## Current claim boundary
 
-This is a **public release candidate**. It is not NVIDIA adoption, not a
-prospective I2 mechanism match, and not L8/L9 by itself. A GitHub tag/release has
-not yet been created.
+`0.3.0rc1` is the currently published immutable prerelease.
+
+`0.3.0rc2` is a development release-candidate branch adding the proof-bundle
+interoperability surface. Its new claims remain **validation-pending** until the
+rc2 public workflow is green.
+
+Neither release is NVIDIA adoption, a prospective I2 mechanism match, or L8/L9
+by itself.
