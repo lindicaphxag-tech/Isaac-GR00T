@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0-rc3
+
+This release candidate hardens the language-neutral proof bundle against
+cross-language numeric ambiguity.
+
+### Exact-decimal wire authorization
+
+- adds `semrepair-execution-proof-bundle/v0.2`;
+- removes binary floating-point values from the hashed wire surface;
+- encodes repair costs as canonical exponent-free decimal strings;
+- uses exact `Decimal` arithmetic for independent path replay and minimum-cost
+  uniqueness;
+- normalizes Unicode text to NFC before hashing;
+- separates producer-internal certificate digests from reproducible wire
+  digests;
+- adds a regression where `0.1 + 0.2` and `0.3` must remain an equal-cost
+  ambiguity rather than becoming a false unique repair;
+- keeps v0.1 available as a compatibility surface.
+
+### Claim boundary
+
+This is interoperability/self-validation work. It does not increment maintained
+external adoption or prospective I2 counts.
+
+# Changelog
+
 ## 0.3.0-rc2
 
 This release candidate adds a language-neutral proof-carrying execution bundle
