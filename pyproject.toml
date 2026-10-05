@@ -32,6 +32,7 @@ semrepair-effect-fault-assay = "research.semantic_invariants.semantic_effect_fau
 semrepair-adopt-init = "research.semantic_invariants.semrepair_adoption_cli:main"
 semrepair-adoption-check = "research.semantic_invariants.semrepair_adoption_check:main"
 semrepair-contract-compat = "research.semantic_invariants.semrepair_contract_compatibility:main"
+semrepair-repair-lattice = "research.semantic_invariants.semrepair_repair_lattice_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
