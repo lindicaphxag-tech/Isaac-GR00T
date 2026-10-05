@@ -1,5 +1,10 @@
 # SemRepair 0.3.0rc1
 
+> **Standalone public tree.** This branch contains only SemRepair. The surrounding
+> GitHub repository name is inherited from the public fork used to host the
+> original prerelease; SemRepair does not depend on GR00T at runtime. A future
+> dedicated repository can import this branch without restructuring the tree.
+
 SemRepair is a research prototype for **proof-carrying semantic repair and
 runtime execution across embodied-AI software boundaries**.
 
@@ -25,6 +30,13 @@ Install the immutable published tag:
 ```bash
 python -m pip install \
   "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3.0rc1#subdirectory=semrepair_validation"
+```
+
+Install this **standalone tree** directly from repository root:
+
+```bash
+python -m pip install \
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-standalone-v0.3.0rc1"
 ```
 
 Or install the published wheel from the GitHub prerelease.
