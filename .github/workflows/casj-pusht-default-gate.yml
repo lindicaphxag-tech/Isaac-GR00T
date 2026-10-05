@@ -1,0 +1,134 @@
+name: CASJ PushT checkpoint-default gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/casj-pusht-default-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: casj-pusht-default-gate
+  cancel-in-progress: false
+
+jobs:
+  checkpoint-default:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - name: Checkout frozen CASJ validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: validation/casj-pusht-public-gate
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache public checkpoint
+        uses: actions/cache@v4
+        with:
+          path: .cache/huggingface
+          key: casj-pusht-diffusion-v1
+
+      - name: Install pinned stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ./casj_validation
+          python -m pip install "lerobot[dataset,diffusion,pusht] @ git+https://github.com/huggingface/lerobot.git@8c920c4270460851cedd2737657584586d3dc66f"
+
+      - name: Run checkpoint-default assay
+        run: |
+          mkdir -p casj_evidence
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu \
+            --warmup-steps 0 \
+            --replicates 1 \
+            --heldout-pose 10 -6 0.35 \
+            --output casj_evidence/pusht_checkpoint_default.json
+
+      - name: Validate checkpoint-default identity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("casj_evidence/pusht_checkpoint_default.json").read_text())
+          assert report["model_id"] == "lerobot/diffusion_pusht"
+          assert report["checkpoint_num_inference_steps"] == 100
+          assert report["effective_num_inference_steps"] == 100
+          assert report["uses_checkpoint_default_inference_steps"] is True
+          assert report["snapshots"]
+          for key, result in report["snapshots"].items():
+              assert result["assay_status"] == "VALID_INPUT_PERTURBATION", key
+              assert result["paired_randomness_replay_error"] <= 1e-6, key
+          print(json.dumps(report["summary"], indent=2, sort_keys=True))
+          PY
+
+      - name: Upload checkpoint-default evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casj-pusht-checkpoint-default
+          path: casj_evidence
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Publish checkpoint-default gate state
+        if: always()
+        env:
+          GATE_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          result=Path("casj_evidence/pusht_checkpoint_default.json")
+          status={
+              "schema_version":1,
+              "gate":"casj-pusht-checkpoint-default",
+              "workflow_run_id":os.environ["RUN_ID"],
+              "workflow_trigger_sha":os.environ["WORKFLOW_SHA"],
+              "workflow_job_status_at_publish_step":os.environ["GATE_STATUS"],
+              "validation_branch":"validation/casj-pusht-public-gate",
+              "lerobot_commit":"8c920c4270460851cedd2737657584586d3dc66f",
+              "model_id":"lerobot/diffusion_pusht",
+              "dataset_id":"lerobot/pusht",
+              "expected_checkpoint_inference_steps":100,
+              "result_json_present":result.exists(),
+              "claim_boundary":"Single-state checkpoint-default mechanism gate. Not multi-seed performance, external adoption, or prospective I2."
+          }
+          Path("/tmp/casj_default_status.json").write_text(json.dumps(status,indent=2,sort_keys=True)+"\n")
+          PY
+          if [ -f casj_evidence/pusht_checkpoint_default.json ]; then
+            cp casj_evidence/pusht_checkpoint_default.json /tmp/casj_checkpoint_default.json
+          fi
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p .github/evidence/casj
+          cp /tmp/casj_default_status.json .github/evidence/casj/checkpoint_default_status.json
+          if [ -f /tmp/casj_checkpoint_default.json ]; then
+            cp /tmp/casj_checkpoint_default.json .github/evidence/casj/checkpoint_default.json
+          else
+            rm -f .github/evidence/casj/checkpoint_default.json
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/evidence/casj
+          if git diff --cached --quiet; then
+            echo "No evidence-state change."
+          else
+            git commit -m "Record CASJ checkpoint-default gate ${RUN_ID}"
+            git push origin main
+          fi
