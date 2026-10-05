@@ -1,0 +1,101 @@
+name: CASJ PushT Public Gate
+
+on:
+  push:
+    branches:
+      - "validation/casj-pusht-public-gate"
+    paths:
+      - ".github/workflows/casj-pusht-public-gate.yml"
+      - "casj_validation/**"
+  workflow_dispatch:
+
+jobs:
+  public-checkpoint-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      PYTHONPATH: ${{ github.workspace }}/casj_validation
+    steps:
+      - name: Checkout CASJ validation branch
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned LeRobot
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/lerobot
+          ref: 8c920c4270460851cedd2737657584586d3dc66f
+          path: lerobot-src
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned LeRobot PushT stack and CASJ
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./lerobot-src[diffusion,pusht]"
+          python -m pip install -e ./casj_validation
+
+      - name: Record environment identity
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          import torch
+          import lerobot
+          print("torch", torch.__version__)
+          print("lerobot", getattr(lerobot, "__version__", "unknown"))
+          for package in ("gym-pusht", "gymnasium", "pymunk", "diffusers"):
+              print(package, version(package))
+          PY
+
+      - name: Run paired public-checkpoint CASJ smoke
+        run: |
+          mkdir -p casj_validation/results
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu \
+            --seed 17 \
+            --num-inference-steps 4 \
+            --warmup-steps 0 \
+            --replicates 2 \
+            --epsilon 4.0 \
+            --angle-epsilon 0.02 \
+            --heldout-dx 10.0 \
+            --heldout-dy -6.0 \
+            --heldout-dtheta 0.35 \
+            --output casj_validation/results/pusht_public_smoke.json
+
+      - name: Validate machine-readable evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path("casj_validation/results/pusht_public_smoke.json")
+          data=json.loads(path.read_text())
+          assert data["model_id"] == "lerobot/diffusion_pusht"
+          assert data["dataset_id"] == "lerobot/pusht"
+          assert data["replicates_per_warmup"] == 2
+          assert data["effective_num_inference_steps"] == 4
+          assert data["uses_checkpoint_default_inference_steps"] is False
+          assert data["snapshots"], "no public-policy snapshots emitted"
+          for key, result in data["snapshots"].items():
+              assert result["assay_status"] == "VALID_INPUT_PERTURBATION", key
+              assert result["paired_randomness_replay_error"] <= 1e-6, key
+              assert "recovered_anchor_transport_mse" in result
+              assert "rollout_branches" in result
+          print("validated snapshots:", len(data["snapshots"]))
+          for key, group in data["summary"].items():
+              print(key, group["paired_casj_minus_global_mse"])
+          PY
+
+      - name: Upload public-checkpoint evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casj-pusht-public-checkpoint-smoke
+          path: casj_validation/results
+          if-no-files-found: warn
