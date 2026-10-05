@@ -29,6 +29,13 @@ type + effect compilation
 independent verification certificate
         |
         v
+proof-carrying semantic runtime
+        |
+        +--> stable physical-effect identity
+        +--> independent observation-plane evidence
+        +--> ambiguity-preserving commit / reconcile / block
+        |
+        v
 certified runtime mediation
 ```
 
@@ -62,6 +69,18 @@ Bounded core theorem checks:
 semrepair-core-theorems --json
 ```
 
+Production compiler vs independent exhaustive oracle:
+
+```bash
+semrepair-conformance --json
+```
+
+Proof-carrying runtime release gate:
+
+```bash
+semrepair-runtime-gate --depth 4 --json
+```
+
 Portable source-to-compiler example:
 
 ```bash
@@ -84,6 +103,19 @@ semantic-preservation / non-forgeability properties. It does not prove the
 entire Python compiler or general robot safety.
 
 ## Public evidence
+
+Current release-candidate validation:
+
+- head: `304f19661b21bf2a510f736b63f78d3bbe6d3aa9`;
+- workflow run: **37316616190**;
+- Python 3.10 / 3.12 / 3.13 package jobs: success;
+- wheel + sdist build: success;
+- public Git URL external-consumer install: success;
+- Lean core with explicit `sorry/admit` rejection: success;
+- production-vs-exhaustive conformance: **2017 cases**, valid;
+- bounded replay model in runtime gate: **4662 traces**;
+- proof-carrying runtime gate: **7/7 checks**;
+- pinned real-source GR00T and ManiSkill semantic-source jobs: success.
 
 The deterministic behavioral surface contains three distinct intervention
 classes:
