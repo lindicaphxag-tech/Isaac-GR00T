@@ -118,9 +118,7 @@ class TestPolicyServerClient:
     def test_get_action_rtc_options_roundtrip(self, server_client):
         client, _, policy = server_client
         obs = {"state": {"joint_pos": np.zeros(7, dtype=np.float32)}}
-        previous = {
-            "joint_pos": np.arange(24, dtype=np.float32).reshape(1, 8, 3)
-        }
+        previous = {"joint_pos": np.arange(24, dtype=np.float32).reshape(1, 8, 3)}
         options = {
             "rtc_previous_action": previous,
             "rtc_overlap_steps": 4,
