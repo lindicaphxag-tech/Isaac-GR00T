@@ -250,8 +250,7 @@ class Gr00tPolicy(BasePolicy):
         missing = sorted(rtc_parameter_keys.difference(model_options))
         if missing:
             raise ValueError(
-                "rtc_previous_action requires all RTC parameters; missing "
-                + ", ".join(missing)
+                "rtc_previous_action requires all RTC parameters; missing " + ", ".join(missing)
             )
         if not isinstance(rtc_previous_action, dict):
             raise TypeError("rtc_previous_action must be a dict of physical action arrays")
@@ -260,14 +259,12 @@ class Gr00tPolicy(BasePolicy):
         missing_action_keys = [key for key in expected_keys if key not in rtc_previous_action]
         if missing_action_keys:
             raise ValueError(
-                "rtc_previous_action is missing action keys: "
-                + ", ".join(missing_action_keys)
+                "rtc_previous_action is missing action keys: " + ", ".join(missing_action_keys)
             )
         extra_action_keys = sorted(set(rtc_previous_action).difference(expected_keys))
         if extra_action_keys:
             raise ValueError(
-                "rtc_previous_action contains unknown action keys: "
-                + ", ".join(extra_action_keys)
+                "rtc_previous_action contains unknown action keys: " + ", ".join(extra_action_keys)
             )
 
         first_video_key = next(iter(observation["video"]))
@@ -284,8 +281,7 @@ class Gr00tPolicy(BasePolicy):
                 )
             if value.ndim != 3:
                 raise ValueError(
-                    f"rtc_previous_action[{key!r}] must have shape (B, T, D), "
-                    f"got {value.shape}"
+                    f"rtc_previous_action[{key!r}] must have shape (B, T, D), got {value.shape}"
                 )
             if value.shape[0] != batch_size:
                 raise ValueError(
@@ -307,7 +303,10 @@ class Gr00tPolicy(BasePolicy):
                 f"got {action_horizon}"
             )
 
-        if "action_horizon" in model_options and int(model_options["action_horizon"]) != action_horizon:
+        if (
+            "action_horizon" in model_options
+            and int(model_options["action_horizon"]) != action_horizon
+        ):
             raise ValueError(
                 "action_horizon is inferred from rtc_previous_action; explicit value "
                 f"{model_options['action_horizon']} does not match inferred {action_horizon}"
@@ -317,9 +316,7 @@ class Gr00tPolicy(BasePolicy):
         frozen = int(model_options["rtc_frozen_steps"])
         ramp_rate = float(model_options["rtc_ramp_rate"])
         if not 0 < overlap <= action_horizon:
-            raise ValueError(
-                f"rtc_overlap_steps must be in [1, {action_horizon}], got {overlap}"
-            )
+            raise ValueError(f"rtc_overlap_steps must be in [1, {action_horizon}], got {overlap}")
         if not 0 <= frozen <= overlap:
             raise ValueError(
                 f"rtc_frozen_steps must be in [0, rtc_overlap_steps={overlap}], got {frozen}"
@@ -329,8 +326,7 @@ class Gr00tPolicy(BasePolicy):
 
         model_options["action_horizon"] = action_horizon
         unbatched_actions = [
-            {key: rtc_previous_action[key][i] for key in expected_keys}
-            for i in range(batch_size)
+            {key: rtc_previous_action[key][i] for key in expected_keys} for i in range(batch_size)
         ]
         return unbatched_actions, model_options
 
