@@ -15,12 +15,30 @@ class RepairVerificationFailed(RuntimeError):
 
 
 def repair_program_fingerprint(program: RepairProgram) -> str:
-    """Fingerprint the declared repair DSL program, not arbitrary Python code."""
+    """Fingerprint the certified executable repair DSL program.
+
+    A certificate must bind not only a semantic primitive name/family but also
+    the implementation identity of the callable that will run at deployment.
+    Anonymous/unversioned primitives remain usable for exploratory synthesis but
+    cannot receive an installable verification certificate.
+    """
+    missing = tuple(
+        operation.name
+        for operation in program.operations
+        if not operation.implementation_id
+    )
+    if missing:
+        raise RepairVerificationFailed(
+            "repair program contains primitives without implementation identity: "
+            f"{missing!r}"
+        )
+
     payload = [
         {
             "name": operation.name,
             "family": operation.family,
             "cost": operation.cost,
+            "implementation_id": operation.implementation_id,
         }
         for operation in program.operations
     ]
@@ -104,8 +122,10 @@ def certificate_matches_program(
     contract_id: str,
     program: RepairProgram,
 ) -> bool:
-    return (
-        certificate.status == "verified"
-        and certificate.contract_id == contract_id
-        and certificate.program_fingerprint == repair_program_fingerprint(program)
-    )
+    if certificate.status != "verified" or certificate.contract_id != contract_id:
+        return False
+    try:
+        fingerprint = repair_program_fingerprint(program)
+    except RepairVerificationFailed:
+        return False
+    return certificate.program_fingerprint == fingerprint
