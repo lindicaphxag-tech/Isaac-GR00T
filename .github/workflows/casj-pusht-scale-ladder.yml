@@ -1,0 +1,199 @@
+name: CASJ PushT Frozen Scale Ladder
+
+on:
+  push:
+    branches:
+      - "validation/casj-pusht-public-gate"
+    paths:
+      - ".github/workflows/casj-pusht-scale-ladder.yml"
+      - "casj_validation/casj/trust_region.py"
+      - "casj_validation/experiments/public_pusht_gate.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scale-ladder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      PYTHONPATH: ${{ github.workspace }}/casj_validation
+    steps:
+      - name: Checkout frozen validation branch
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned LeRobot
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/lerobot
+          ref: 8c920c4270460851cedd2737657584586d3dc66f
+          path: lerobot-src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache public checkpoint
+        uses: actions/cache@v4
+        with:
+          path: .cache/huggingface
+          key: casj-pusht-diffusion-v1
+
+      - name: Install pinned stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./lerobot-src[diffusion,pusht]"
+          python -m pip install -e ./casj_validation
+
+      - name: Validate trust-region algebra
+        run: python -m pytest -q casj_validation/tests/test_trust_region.py
+
+      - name: Run frozen scale ladder
+        run: |
+          mkdir -p casj_validation/results/scale_ladder
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu --seed 17 --warmup-steps 0 --replicates 1 \
+            --epsilon 4.0 --angle-epsilon 0.02 \
+            --heldout-dx 10.0 --heldout-dy -6.0 --heldout-dtheta 0.35 \
+            --output casj_validation/results/scale_ladder/eps4.json
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu --seed 17 --warmup-steps 0 --replicates 1 \
+            --epsilon 2.0 --angle-epsilon 0.01 \
+            --heldout-dx 10.0 --heldout-dy -6.0 --heldout-dtheta 0.35 \
+            --output casj_validation/results/scale_ladder/eps2.json
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu --seed 17 --warmup-steps 0 --replicates 1 \
+            --epsilon 1.0 --angle-epsilon 0.005 \
+            --heldout-dx 10.0 --heldout-dy -6.0 --heldout-dtheta 0.35 \
+            --output casj_validation/results/scale_ladder/eps1.json
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu --seed 17 --warmup-steps 0 --replicates 1 \
+            --epsilon 0.5 --angle-epsilon 0.0025 \
+            --heldout-dx 10.0 --heldout-dy -6.0 --heldout-dtheta 0.35 \
+            --output casj_validation/results/scale_ladder/eps0p5.json
+
+      - name: Summarize frozen scale ladder
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          root = Path("casj_validation/results/scale_ladder")
+          specs = [
+              ("eps4", 4.0, 0.02),
+              ("eps2", 2.0, 0.01),
+              ("eps1", 1.0, 0.005),
+              ("eps0p5", 0.5, 0.0025),
+          ]
+          rows = []
+          for label, eps, angle_eps in specs:
+              data = json.loads((root / f"{label}.json").read_text())
+              snapshot = next(iter(data["snapshots"].values()))
+              trusts = snapshot["directional_trust_regions"]
+              radii = [
+                  float(item["radius_fraction_of_requested_motion"])
+                  for item in trusts
+              ]
+              stabilities = [
+                  float(item["curvature_scale_stability"]) for item in trusts
+              ]
+              rows.append({
+                  "label": label,
+                  "epsilon_pixels": eps,
+                  "angle_epsilon_rad": angle_eps,
+                  "accepted_action_positions": sum(
+                      bool(item["accepted"]) for item in trusts
+                  ),
+                  "positions_certifying_full_requested_motion": sum(
+                      bool(item["accepted"])
+                      and float(item["radius_fraction_of_requested_motion"]) >= 1.0
+                      for item in trusts
+                  ),
+                  "min_trust_radius_fraction": min(radii),
+                  "max_trust_radius_fraction": max(radii),
+                  "min_curvature_scale_stability": min(stabilities),
+                  "max_curvature_scale_stability": max(stabilities),
+                  "raw_casj_to_stale_ratio": float(snapshot["casj_to_stale_ratio"]),
+                  "all_runtime_certificates_accept": all(
+                      bool(item["accepted"]) for item in snapshot["certificates"]
+                  ),
+                  "certified_fallback": snapshot["certified_fallback"],
+              })
+
+          summary = {
+              "schema_version": 1,
+              "model_id": "lerobot/diffusion_pusht",
+              "dataset_id": "lerobot/pusht",
+              "lerobot_commit": "8c920c4270460851cedd2737657584586d3dc66f",
+              "seed": 17,
+              "warmup_steps": 0,
+              "heldout_pose": [10.0, -6.0, 0.35],
+              "frozen_scale_ladder": [
+                  {"epsilon_pixels": 4.0, "angle_epsilon_rad": 0.02},
+                  {"epsilon_pixels": 2.0, "angle_epsilon_rad": 0.01},
+                  {"epsilon_pixels": 1.0, "angle_epsilon_rad": 0.005},
+                  {"epsilon_pixels": 0.5, "angle_epsilon_rad": 0.0025},
+              ],
+              "thresholds_unchanged": {
+                  "max_scale_instability": 0.15,
+                  "max_curvature_scale_instability": 0.25,
+                  "max_remainder_to_first_order": 0.25,
+                  "max_remainder_to_reference_scale": 0.05,
+              },
+              "rows": rows,
+              "claim_boundary": (
+                  "Single-state frozen scale diagnostic. It asks whether a stable "
+                  "local support-response scale exists without changing thresholds; "
+                  "it is not task-level efficacy or external adoption."
+              ),
+          }
+          (root / "summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload scale-ladder evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casj-pusht-scale-ladder
+          path: casj_validation/results/scale_ladder
+          if-no-files-found: error
+
+      - name: Publish frozen scale-ladder summary to main
+        if: success()
+        env:
+          RUN_ID: ${{ github.run_id }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          cp casj_validation/results/scale_ladder/summary.json /tmp/scale_ladder.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p = Path("/tmp/scale_ladder.json")
+          data = json.loads(p.read_text())
+          data["workflow_run_id"] = os.environ["RUN_ID"]
+          data["workflow_trigger_sha"] = os.environ["WORKFLOW_SHA"]
+          p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          mkdir -p .github/evidence/casj
+          cp /tmp/scale_ladder.json .github/evidence/casj/scale_ladder_warmup0.json
+          git add .github/evidence/casj/scale_ladder_warmup0.json
+          if git diff --cached --quiet; then
+            echo "Scale-ladder summary unchanged"
+          else
+            git commit -m "Record CASJ scale-ladder gate ${RUN_ID}"
+            git push origin main
+          fi
