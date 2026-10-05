@@ -1,0 +1,49 @@
+name: ManiSkill 1138 controller-roundtrip evidence
+
+on:
+  push:
+    branches:
+      - "evidence/maniskill-1138-controller-roundtrip"
+
+jobs:
+  pre-post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout evidence host
+        uses: actions/checkout@v4
+        with:
+          path: host
+
+      - name: Checkout audited ManiSkill main
+        uses: actions/checkout@v4
+        with:
+          repository: mani-skill/ManiSkill
+          ref: 62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3
+          path: maniskill
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ManiSkill base dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e ./maniskill
+
+      - name: Current-main witness must expose representation mismatch
+        env:
+          PYTHONPATH: maniskill
+        run: python host/.github/evidence/maniskill_1138_evidence.py broken
+
+      - name: Apply minimal converter/docs/regression patch
+        run: git -C maniskill apply ../host/.github/evidence/maniskill_1138.patch
+
+      - name: Patched production boundary must preserve orientation
+        env:
+          PYTHONPATH: maniskill
+        run: python host/.github/evidence/maniskill_1138_evidence.py fixed
+
+      - name: Run submitted standalone regression
+        working-directory: maniskill
+        run: python -m pytest -q tests/test_action_conversion.py
