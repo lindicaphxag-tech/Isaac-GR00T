@@ -410,7 +410,7 @@ When direct optimization is insufficient, use one or more of the following:
 
 **Recommended strategy**: `Asynchronous Inference + RTC` is usually the most effective.
 
-> **RTC status (experimental):** Asynchronous inference is supported today. RTC is currently only a low-level model primitive: `action_head.get_action(..., options={"rtc_overlap_steps": ..., "rtc_frozen_steps": ..., "rtc_ramp_rate": ...})` with the previous action fed back in (`gr00t/model/gr00t_n1d7/gr00t_n1d7.py`). It is **not wired into `Gr00tPolicy` or the server-client path** (there `options` is currently unused), and it has no tests or ready-made example — so the RTC steps below require manual integration.
+> **RTC status (experimental):** RTC can be invoked through the public `BasePolicy.get_action(..., options=...)` path for both direct `Gr00tPolicy` and `PolicyClient` usage. The caller supplies the previous **decoded physical action chunk** as `rtc_previous_action`; `Gr00tPolicy` re-encodes that chunk with the current observation state before passing it to the low-level RTC action head. Asynchronous scheduling remains the responsibility of the deployment loop.
 
 #### Real-Time Chunking (RTC) Details
 
@@ -446,19 +446,47 @@ In the RTC (Real-Time Chunking) framework, two key parameters control how adjace
 - **`overlap`**: The number of action steps retained from the previous prediction to constrain the current one, ensuring temporal consistency between consecutive chunks.
 - **`frozen`**: The number of steps that remain completely frozen (i.e., not updated by the new prediction), typically set to match the inference latency.
 
-Below is a simplified async inference + RTC loop. Note that official RTC support for GR00T is coming soon; the current implementation may require manual adaptation.
+The public policy call for the RTC inference itself is:
+
+```python
+actions, _ = policy.get_action(obs)  # first chunk
+
+rtc_options = {
+    "rtc_previous_action": actions,
+    "rtc_overlap_steps": overlap,
+    "rtc_frozen_steps": frozen,
+    "rtc_ramp_rate": 4.0,
+}
+next_actions, _ = policy.get_action(new_obs, options=rtc_options)
+```
+
+The same call works through `PolicyClient`; its ZMQ service preserves the nested NumPy action payload and the RTC options.
+
+`rtc_previous_action` must be the decoded action dictionary returned by the previous policy call (physical units, shape `B x T x D` for every action key). Do **not** pre-normalize it or manually convert it to a relative representation. The policy routes it through the normal action processor using `new_obs` as the current state, which keeps RTC consistent with checkpoints trained with relative actions.
+
+A simplified asynchronous scheduler can then overlap inference and execution:
 
 ```
-actions = policy.infer(obs)                        # blocking first call
+actions, _ = policy.get_action(obs)                         # blocking first call
 
 loop:
     for i in range(action_horizon):
         if i == action_horizon - overlap - 1:
-            future = async policy.infer(new_obs)   # non-blocking
+            future = async policy.get_action(
+                new_obs,
+                options={
+                    "rtc_previous_action": actions,
+                    "rtc_overlap_steps": overlap,
+                    "rtc_frozen_steps": frozen,
+                    "rtc_ramp_rate": 4.0,
+                },
+            )
         robot.execute(actions[i])
         if i == action_horizon - frozen - 1:
-            actions = future.get()                 # swap in next chunk
-            break                                  # discard frozen tail
+            actions, _ = future.get()                       # swap in RTC chunk
+            break
 ```
+
+The policy validates the RTC contract before inference: overlap must fit within the previous chunk, frozen steps cannot exceed overlap, and all previous-action keys must share the observation batch size and horizon.
 
 
