@@ -2,7 +2,7 @@
   "schema_version": 5,
   "artifact": "SemRepair",
   "version": "0.3.0rc3",
-  "surface": "release-candidate-pending-validation",
+  "surface": "validated-release-candidate",
   "repository": "lindicaphxag-tech/Isaac-GR00T",
   "development_branch": "semrepair-v0.3-rc3",
   "standalone_package_installable": true,
@@ -10,13 +10,13 @@
   "explicit_license_present": true,
   "formal_core_present": true,
   "proof_bundle_wire_format": "semrepair-execution-proof-bundle/v0.2",
-  "proof_bundle_validation": "pending-public-ci",
+  "proof_bundle_validation": "success",
   "maintained_external_adoptions": 0,
   "prospective_i2_matches": 0,
   "counts_as_versioned_public_release": false,
   "counts_as_l8": false,
   "counts_as_l9": false,
-  "validation_conclusion": "pending",
+  "validation_conclusion": "success",
   "inherited_validated_baseline": {
     "version": "0.3.0rc2",
     "development_branch": "semrepair-v0.3-rc2",
@@ -36,10 +36,9 @@
     "no maintained external adoption"
   ],
   "remaining_release_blockers": [
-    "complete rc3 public CI must be green",
-    "rc3 has not been tagged or released"
+    "GitHub release/tag has not been created"
   ],
-  "evidence_boundary": "rc3 is a candidate until its public workflow is fully green. It remains self-authored artifact evidence and contributes zero maintained-adoption and zero prospective-I2 credit.",
+  "evidence_boundary": "0.3.0rc3 passed the complete public validation workflow. The immutable semrepair-v0.3.0rc3 branch is frozen at the validated code head. This remains self-authored artifact evidence and contributes zero maintained-adoption and zero prospective-I2 credit.",
   "python_matrix": [
     "3.10",
     "3.12",
@@ -57,26 +56,28 @@
     "packaged_schema_v0_2": true,
     "float_free_wire_surface": true,
     "exact_decimal_path_verification": true,
-    "node_reference_verifier": "pending-public-ci",
-    "node_third_party_dependencies": 0
+    "node_reference_verifier": "success",
+    "node_third_party_dependencies": 0,
+    "proof_bundle_validation": "success",
+    "public_validation_run": 37360627545
   },
   "native_execution": {
     "maniskill": {
       "status": "success",
-      "artifact_id": 11352879806,
-      "sha256": "8b00a6061e1f6dc4569db4e40e8b7c61df0aec07bf596de6f7c04bb32d795654",
+      "artifact_id": 11367170061,
+      "sha256": "07279f22dc2a845a96affaf55f9441ff1cd7d075f3caa4c65c8ad84a083436aa",
       "claim_boundary": "Pinned upstream production converter-controller representation boundary; retrospective and not maintained upstream adoption."
     },
     "mujoco": {
       "status": "success",
-      "artifact_id": 11354160530,
-      "sha256": "0918ecc438a845ab1c265534426f49faa8f583f0634867de4dbd98751e8dcb07",
+      "artifact_id": 11365684293,
+      "sha256": "9a79b1ddc3c81afadbab3dc46ac55a6199b448094a710013466e68d7254c2731",
       "claim_boundary": "Native MuJoCo controlled closed-loop semantic-corruption assay; not an upstream MuJoCo defect or adoption."
     }
   },
   "distribution_artifact": {
-    "id": 11353671569,
-    "sha256": "2b0ce413fa6f743224a3b59232aae5ac33f533d7477614833a78e8c75df26643"
+    "id": 11366328488,
+    "sha256": "94ec6a30fc1b34364b6e15f7c42d40dd31ee36c123e4a4ee31ba6a7263928276"
   },
   "rc3_delta": [
     "exact-decimal language-neutral execution proof bundle v0.2",
@@ -86,5 +87,10 @@
     "producer-digest versus wire-digest separation",
     "0.1+0.2 versus 0.3 false-uniqueness regression",
     "independent zero-dependency Node.js verifier"
-  ]
+  ],
+  "validated_code_head": "45066dc1a7e5dfc62e26cdf90d40b08ff3be57b5",
+  "validation_run": 37360627545,
+  "validation_pr": 8,
+  "immutable_branch": "semrepair-v0.3.0rc3",
+  "immutable_branch_head": "45066dc1a7e5dfc62e26cdf90d40b08ff3be57b5"
 }
