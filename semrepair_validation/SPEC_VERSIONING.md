@@ -8,7 +8,7 @@ The Python package follows semantic versioning once a stable 1.0 surface is
 declared. Until then, 0.x versions may change APIs, but every release candidate
 must state breaking changes explicitly.
 
-Current software version: **0.3.0-rc1**.
+Current software version: **0.3.0-rc2**.
 
 ## Manifest schema
 
@@ -35,6 +35,20 @@ A new schema version is required when:
 - assignability semantics change;
 - a non-forgeable field becomes forgeable or vice versa;
 - effect/refinement authorization changes.
+
+## Execution proof bundle schema
+
+The language-neutral proof-carrying execution bundle currently uses:
+
+```text
+semrepair-execution-proof-bundle/v0.1
+```
+
+Its canonical JSON, digest rules, non-forgeable adapter constraints, and
+minimum-cost verification profile are versioned independently of the Python API.
+A breaking change to those semantics requires a new bundle schema identifier.
+
+The v0.1 digests are integrity/dependency receipts, not digital signatures.
 
 ## Semantic type compatibility
 
