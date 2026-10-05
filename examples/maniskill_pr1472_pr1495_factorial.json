@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "subject": "mani-skill delta-pose converter -> PDEEPoseController",
+  "metric": "orientation_error_deg",
+  "objective": "minimize",
+  "repairs": [
+    "pr1472-controller-sign",
+    "pr1495-xyz-euler"
+  ],
+  "tolerance": 1e-9,
+  "outcomes": [
+    {
+      "repairs": [],
+      "value": 5.076696288575132,
+      "evidence_id": "github-actions:37370267001/old-converter+old-controller"
+    },
+    {
+      "repairs": [
+        "pr1472-controller-sign"
+      ],
+      "value": 64.74733765443057,
+      "evidence_id": "github-actions:37370267001/old-converter+pr1472-controller"
+    },
+    {
+      "repairs": [
+        "pr1495-xyz-euler"
+      ],
+      "value": 66.12800471585737,
+      "evidence_id": "github-actions:37370267001/pr1495-converter+old-controller"
+    },
+    {
+      "repairs": [
+        "pr1472-controller-sign",
+        "pr1495-xyz-euler"
+      ],
+      "value": 0.000004829673078902934,
+      "evidence_id": "github-actions:37370267001/pr1495-converter+pr1472-controller"
+    }
+  ],
+  "provenance": {
+    "repository": "lindicaphxag-tech/ManiSkill",
+    "workflow_run_id": 37370267001,
+    "upstream_prs": [
+      "mani-skill/ManiSkill#1472",
+      "mani-skill/ManiSkill#1495"
+    ],
+    "interpretation": "public 2x2 causal mechanism witness; not maintainer adoption or learned-policy task success"
+  }
+}
