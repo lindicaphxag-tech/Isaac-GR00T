@@ -203,18 +203,40 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -e upstream-maniskill
-      - name: Execute production converter-controller representation boundary
+      - name: Execute current production converter-controller boundary
         env:
           PYTHONPATH: upstream-maniskill
         run: |
           set -o pipefail
           mkdir -p evidence
-          python semrepair-host/semrepair_validation/examples/real_source/maniskill_native_boundary.py             --json | tee evidence/maniskill-1138-native-boundary.json
-      - name: Upload native ManiSkill boundary evidence
+          python semrepair-host/semrepair_validation/examples/real_source/maniskill_native_boundary.py \
+            --expect current-broken --json \
+            | tee evidence/maniskill-1138-native-before.json
+
+      - name: Apply exact minimal converter patch
+        run: |
+          git -C upstream-maniskill apply --check \
+            ../semrepair-host/semrepair_validation/examples/real_source/maniskill_1138_converter.patch
+          git -C upstream-maniskill apply \
+            ../semrepair-host/semrepair_validation/examples/real_source/maniskill_1138_converter.patch
+          git -C upstream-maniskill diff --check
+
+      - name: Execute patched production converter-controller boundary
+        env:
+          PYTHONPATH: upstream-maniskill
+        run: |
+          set -o pipefail
+          python semrepair-host/semrepair_validation/examples/real_source/maniskill_native_boundary.py \
+            --expect patched-green --json \
+            | tee evidence/maniskill-1138-native-after.json
+
+      - name: Upload native ManiSkill red-green evidence
         uses: actions/upload-artifact@v4
         with:
           name: semrepair-maniskill-1138-native-boundary
-          path: evidence/maniskill-1138-native-boundary.json
+          path: |
+            evidence/maniskill-1138-native-before.json
+            evidence/maniskill-1138-native-after.json
           if-no-files-found: error
           retention-days: 30
 
