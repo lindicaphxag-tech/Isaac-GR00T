@@ -12,21 +12,21 @@
     {
       "repairs": [],
       "value": 5.076696288575132,
-      "evidence_id": "github-actions:37370267001/old-converter+old-controller"
+      "evidence_id": "github-actions:37373888924/old-converter+old-controller"
     },
     {
       "repairs": [
         "pr1472-controller-sign"
       ],
       "value": 64.74733765443057,
-      "evidence_id": "github-actions:37370267001/old-converter+pr1472-controller"
+      "evidence_id": "github-actions:37373888924/old-converter+pr1472-controller"
     },
     {
       "repairs": [
         "pr1495-xyz-euler"
       ],
       "value": 66.12800471585737,
-      "evidence_id": "github-actions:37370267001/pr1495-converter+old-controller"
+      "evidence_id": "github-actions:37373888924/pr1495-converter+old-controller"
     },
     {
       "repairs": [
@@ -34,16 +34,19 @@
         "pr1495-xyz-euler"
       ],
       "value": 0.000004829673078902934,
-      "evidence_id": "github-actions:37370267001/pr1495-converter+pr1472-controller"
+      "evidence_id": "github-actions:37373888924/pr1495-converter+pr1472-controller"
     }
   ],
   "provenance": {
     "repository": "lindicaphxag-tech/ManiSkill",
-    "workflow_run_id": 37370267001,
+    "workflow_run_id": 37373888924,
     "upstream_prs": [
       "mani-skill/ManiSkill#1472",
       "mani-skill/ManiSkill#1495"
     ],
-    "interpretation": "public 2x2 causal mechanism witness; not maintainer adoption or learned-policy task success"
+    "interpretation": "public exact-current-PR-head 2x2 causal mechanism witness; not maintainer adoption or learned-policy task success",
+    "pr1495_head": "cdd6db713ffe7edc3e0df3abfab51ea5320c1c0b",
+    "status_context": "fork/causal-closure",
+    "exact_production_identities_proved": true
   }
 }
