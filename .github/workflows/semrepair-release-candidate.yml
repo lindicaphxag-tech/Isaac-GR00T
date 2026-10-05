@@ -141,3 +141,49 @@ jobs:
           path: evidence/maniskill-1138-source-audit.json
           if-no-files-found: error
           retention-days: 30
+
+  real-source-groot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SemRepair release candidate
+        uses: actions/checkout@v4
+        with:
+          path: semrepair-host
+      - name: Checkout pinned upstream GR00T source
+        uses: actions/checkout@v4
+        with:
+          repository: NVIDIA/Isaac-GR00T
+          ref: 51d4c89f72fda44cbf77285c6a8114b52676b8a1
+          path: upstream-groot
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SemRepair
+        run: python -m pip install -e semrepair-host/semrepair_validation
+      - name: Infer real GR00T ActionRepresentation closure
+        run: |
+          mkdir -p evidence
+          semrepair-mode-closure \
+            --enum-source upstream-groot/gr00t/data/types.py \
+            --runtime-source upstream-groot/gr00t/data/state_action/state_action_processor.py \
+            --enum-name ActionRepresentation \
+            --default ABSOLUTE \
+            --json | tee evidence/groot-action-representation-closure.json
+      - name: Assert frozen source relation
+        run: |
+          python - <<'PY'
+          import json
+          report = json.load(open("evidence/groot-action-representation-closure.json"))
+          assert report["declared"] == ["ABSOLUTE", "DELTA", "RELATIVE"]
+          assert report["handled"] == ["RELATIVE"]
+          assert report["explicit_default"] == ["ABSOLUTE"]
+          assert report["unresolved"] == ["DELTA"]
+          assert report["closed"] is False
+          PY
+      - name: Upload GR00T real-source evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-groot-real-source
+          path: evidence/groot-action-representation-closure.json
+          if-no-files-found: error
+          retention-days: 30
