@@ -142,6 +142,32 @@ class TestActionHeadGetAction:
         out = head.get_action(_make_backbone_output(config), action_input)
         assert not out["action_pred"].requires_grad
 
+    def test_rtc_frozen_prefix_preserves_previous_chunk_tail(self, action_head):
+        head, config = action_head
+        batch_size = 2
+        action_input = _make_action_input(config, batch_size=batch_size)
+        previous = action_input["action"].clone()
+        overlap = 3
+        frozen = 2
+
+        out = head.get_action(
+            _make_backbone_output(config, batch_size=batch_size),
+            action_input,
+            options={
+                "action_horizon": config.action_horizon,
+                "rtc_overlap_steps": overlap,
+                "rtc_frozen_steps": frozen,
+                "rtc_ramp_rate": 4.0,
+            },
+        )
+
+        expected = previous[
+            :,
+            config.action_horizon - overlap : config.action_horizon - overlap + frozen,
+            :,
+        ]
+        torch.testing.assert_close(out["action_pred"][:, :frozen], expected, rtol=0, atol=0)
+
     def test_get_action_single_sample(self, action_head):
         head, config = action_head
         action_input = _make_action_input(config, batch_size=1)
