@@ -1,0 +1,24 @@
+{
+  "claim_boundary": "Cross-implementation proof-certificate conformance inside the public validation repository; not maintained external adoption.",
+  "counts_as_external_adoption": false,
+  "independent_verifier": "semrepair_casj_verifier",
+  "issuer": "casj.proof_certificate",
+  "properties": [
+    "certificate canonical digest interoperability",
+    "policy identity binding",
+    "action-contract identity binding",
+    "baseline-context identity binding",
+    "support/intervention identity binding",
+    "repair implementation and evidence identity binding",
+    "finite operational radius enforcement",
+    "out-of-radius fail-closed behavior"
+  ],
+  "python_versions": [
+    "3.10",
+    "3.12",
+    "3.13"
+  ],
+  "schema_version": 1,
+  "validated_sha": "1d4ffda5dad56828c35780b36f96c4547944b12c",
+  "workflow_run_id": 37368957461
+}
