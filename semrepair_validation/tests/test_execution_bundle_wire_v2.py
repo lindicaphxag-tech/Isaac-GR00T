@@ -223,3 +223,52 @@ def test_noncanonical_producer_selected_cost_is_rejected():
 
     assert not report["valid"]
     assert report["checks"]["producer_selected_cost_decimal"] is False
+
+
+def test_utf8_key_order_is_cross_language_stable():
+    astral = "\U00010000"
+    private_bmp = "\ue000"
+    assert canonical_wire_json({astral: 1, private_bmp: 2}) == (
+        "{\"\\ue000\":2,\"𐀀\":1}".replace("\\ue000", private_bmp)
+    )
+
+
+def test_wire_rejects_integer_outside_cross_language_safe_range():
+    bundle = _bundle()
+    bundle["evidence_identity"]["big"] = 2**53
+    with pytest.raises(ValueError, match="safe range"):
+        wire_digest(bundle)
+
+
+def test_effect_class_tamper_fails_closed_even_after_redigest():
+    bundle = _bundle()
+    bundle["effect_certificate"]["effect_class"] = "teleport"
+    bundle["intent"]["effect_class"] = "teleport"
+    bundle = _rebind(bundle)
+
+    report = verify_execution_bundle_v2(bundle)
+
+    assert not report["valid"]
+    assert report["checks"]["effect_class"] is False
+
+
+def test_effect_policy_threshold_cannot_be_zero():
+    bundle = _bundle()
+    bundle["effect_certificate"]["policy"]["min_commit_planes"] = 0
+    bundle = _rebind(bundle)
+
+    report = verify_execution_bundle_v2(bundle)
+
+    assert not report["valid"]
+    assert report["checks"]["effect_policy"] is False
+
+
+def test_unknown_semantic_record_field_is_rejected():
+    bundle = _bundle()
+    bundle["compilation_certificate"]["target"]["mystery_axis"] = "x"
+    bundle = _rebind(bundle)
+
+    report = verify_execution_bundle_v2(bundle)
+
+    assert not report["valid"]
+    assert report["checks"]["semantic_records"] is False
