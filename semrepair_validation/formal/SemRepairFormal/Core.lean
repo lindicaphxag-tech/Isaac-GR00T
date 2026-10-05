@@ -59,6 +59,86 @@ theorem pureStep_preserves_freshness
     rfl
   · simp [pureStep, hr] at h
 
+
+def runPureSteps (v : CoreValue) : List PureRule → Option CoreValue
+  | [] => some v
+  | r :: rs =>
+      match pureStep v r with
+      | none => none
+      | some mid => runPureSteps mid rs
+
+theorem runPureSteps_preserves_meaning
+    (rules : List PureRule) (v out : CoreValue)
+    (h : runPureSteps v rules = some out) :
+    out.meaning = v.meaning := by
+  induction rules generalizing v with
+  | nil =>
+      simp [runPureSteps] at h
+      cases h
+      rfl
+  | cons r rs ih =>
+      cases hstep : pureStep v r with
+      | none =>
+          simp [runPureSteps, hstep] at h
+      | some mid =>
+          simp [runPureSteps, hstep] at h
+          have hHead : mid.meaning = v.meaning :=
+            pureStep_preserves_meaning v mid r hstep
+          have hTail : out.meaning = mid.meaning :=
+            ih mid h
+          exact hTail.trans hHead
+
+theorem runPureSteps_preserves_provenance
+    (rules : List PureRule) (v out : CoreValue)
+    (h : runPureSteps v rules = some out) :
+    out.ty.provenance = v.ty.provenance := by
+  induction rules generalizing v with
+  | nil =>
+      simp [runPureSteps] at h
+      cases h
+      rfl
+  | cons r rs ih =>
+      cases hstep : pureStep v r with
+      | none =>
+          simp [runPureSteps, hstep] at h
+      | some mid =>
+          simp [runPureSteps, hstep] at h
+          have hHead : mid.ty.provenance = v.ty.provenance :=
+            pureStep_preserves_provenance v mid r hstep
+          have hTail : out.ty.provenance = mid.ty.provenance :=
+            ih mid h
+          exact hTail.trans hHead
+
+theorem runPureSteps_preserves_freshness
+    (rules : List PureRule) (v out : CoreValue)
+    (h : runPureSteps v rules = some out) :
+    out.ty.freshness = v.ty.freshness := by
+  induction rules generalizing v with
+  | nil =>
+      simp [runPureSteps] at h
+      cases h
+      rfl
+  | cons r rs ih =>
+      cases hstep : pureStep v r with
+      | none =>
+          simp [runPureSteps, hstep] at h
+      | some mid =>
+          simp [runPureSteps, hstep] at h
+          have hHead : mid.ty.freshness = v.ty.freshness :=
+            pureStep_preserves_freshness v mid r hstep
+          have hTail : out.ty.freshness = mid.ty.freshness :=
+            ih mid h
+          exact hTail.trans hHead
+
+theorem runPureSteps_cannot_forge_execution
+    (rules : List PureRule) (v out : CoreValue)
+    (hRun : runPureSteps v rules = some out)
+    (hRequested : v.ty.provenance = "requested") :
+    out.ty.provenance ≠ "executed" := by
+  have hPreserved := runPureSteps_preserves_provenance rules v out hRun
+  rw [hPreserved, hRequested]
+  decide
+
 structure EventRule where
   name : String
   fromProvenance : String
