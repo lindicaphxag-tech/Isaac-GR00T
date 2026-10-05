@@ -297,10 +297,12 @@ class Gr00tPolicy(BasePolicy):
             )
         action_horizon = horizons.pop()
         configured_horizon = len(self.modality_configs["action"].delta_indices)
-        if not 0 < action_horizon <= configured_horizon:
+        if action_horizon != configured_horizon:
             raise ValueError(
-                f"rtc_previous_action horizon must be in [1, {configured_horizon}], "
-                f"got {action_horizon}"
+                "rtc_previous_action must be the complete decoded chunk returned by the "
+                f"previous policy call, with horizon {configured_horizon}; got {action_horizon}. "
+                "Use rtc_overlap_steps to choose how much of its tail participates in RTC "
+                "instead of slicing the chunk before passing it back."
             )
 
         if (
