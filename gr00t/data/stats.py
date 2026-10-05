@@ -56,41 +56,22 @@ LE_ROBOT_REL_STATS_FILENAME = "meta/relative_stats.json"
 logger = logging.getLogger(__name__)
 
 
-_SOURCE_SAMPLE_BYTES = 64 * 1024
+_SOURCE_HASH_CHUNK_BYTES = 1024 * 1024
 
 
 def _compute_parquet_source_digest(path: Path) -> str:
-    """Return a portable, lightweight digest for one parquet source shard.
+    """Return a portable content digest for one parquet source shard.
 
-    Full-file hashing makes every cache hit O(dataset bytes), which defeats the
-    purpose of keeping precomputed normalization statistics.  This digest reads
-    only fixed-size boundary samples plus the parquet footer metadata when
-    present.  It is intentionally a source-change detector, not a cryptographic
-    guarantee that every interior byte is identical.
+    Cache validity is a correctness boundary: statistics such as mean, std and
+    quantiles depend on every relevant value, so a sampled digest can miss an
+    interior-only rewrite that preserves file size and footer metadata. Stream
+    the whole parquet shard through SHA-256 instead. This is I/O-only and avoids
+    materializing the file in memory.
     """
-    size = path.stat().st_size
     hasher = hashlib.sha256()
-    hasher.update(str(size).encode("ascii"))
-
     with path.open("rb") as f:
-        head = f.read(min(size, _SOURCE_SAMPLE_BYTES))
-        hasher.update(head)
-
-        if size > _SOURCE_SAMPLE_BYTES:
-            tail_start = max(0, size - _SOURCE_SAMPLE_BYTES)
-            f.seek(tail_start)
-            hasher.update(f.read())
-
-        if size >= 8:
-            f.seek(size - 8)
-            trailer = f.read(8)
-            if trailer[4:] == b"PAR1":
-                footer_size = int.from_bytes(trailer[:4], "little")
-                footer_start = size - 8 - footer_size
-                if 0 <= footer_start <= size - 8:
-                    f.seek(footer_start)
-                    hasher.update(f.read(footer_size + 8))
-
+        while chunk := f.read(_SOURCE_HASH_CHUNK_BYTES):
+            hasher.update(chunk)
     return "sha256:" + hasher.hexdigest()
 
 
@@ -103,9 +84,9 @@ def _compute_dataset_source_fingerprint(dataset_path: Path | str) -> str | None:
     normalizes new samples with stale ranges.
 
     The source manifest is portable across machines: it uses each shard's
-    relative path, byte size, and a lightweight content/footer digest rather
-    than filesystem mtime. Adding, removing, replacing, or commonly rewriting a
-    shard therefore invalidates the cache without hashing the full dataset.
+    relative path, byte size, and full content digest rather than filesystem
+    mtime. Adding, removing, replacing, or rewriting a shard therefore
+    invalidates the cache, including same-size interior-only changes.
     """
     dataset_path = Path(dataset_path)
     entries = []
