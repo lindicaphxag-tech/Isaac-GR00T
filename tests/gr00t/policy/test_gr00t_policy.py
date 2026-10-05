@@ -349,16 +349,47 @@ class _NumpyLanguageSimPolicy:
             ),
         }
         self.last_observation = None
+        self.last_options = None
 
     def get_modality_config(self):
         return self.modality_configs
 
     def get_action(self, observation, options=None):
         self.last_observation = observation
+        self.last_options = options
         return {"action": np.zeros((1, 1, 2), dtype=np.float32)}, {}
 
     def reset(self, options=None):
         return {}
+
+
+def test_sim_policy_wrapper_translates_rtc_previous_action_namespace():
+    from gr00t.policy.gr00t_policy import Gr00tSimPolicyWrapper
+
+    policy = _NumpyLanguageSimPolicy()
+    wrapper = Gr00tSimPolicyWrapper(policy)
+    observation = {
+        "video.camera": np.zeros((1, 1, 256, 256, 3), dtype=np.uint8),
+        "state.state": np.zeros((1, 1, 3), dtype=np.float32),
+        "annotation.human.action.task_description": np.array(["follow the instruction"]),
+    }
+    previous = {"action.action": np.ones((1, 1, 2), dtype=np.float32)}
+    options = {
+        "rtc_previous_action": previous,
+        "rtc_overlap_steps": 1,
+        "rtc_frozen_steps": 0,
+        "rtc_ramp_rate": 4.0,
+    }
+
+    wrapper.get_action(observation, options=options)
+
+    assert set(policy.last_options["rtc_previous_action"]) == {"action"}
+    np.testing.assert_array_equal(
+        policy.last_options["rtc_previous_action"]["action"],
+        previous["action.action"],
+    )
+    # Do not mutate the caller-owned options/action namespace.
+    assert set(options["rtc_previous_action"]) == {"action.action"}
 
 
 def test_sim_policy_wrapper_accepts_numpy_language_batches():
