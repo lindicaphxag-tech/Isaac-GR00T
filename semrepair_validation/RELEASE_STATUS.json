@@ -1,65 +1,44 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "artifact": "SemRepair",
-  "version": "0.3.0rc1",
-  "surface": "public-release-candidate",
+  "version": "0.3.0rc2",
+  "surface": "development-release-candidate",
   "repository": "lindicaphxag-tech/Isaac-GR00T",
-  "development_branch": "semrepair-v0.3-rc1",
-  "intended_fixed_branch": "semrepair-v0.3.0rc1",
+  "development_branch": "semrepair-v0.3-rc2",
   "standalone_package_installable": true,
   "citation_metadata_present": true,
   "explicit_license_present": true,
   "formal_core_present": true,
-  "real_stack_closed_loop": true,
+  "proof_bundle_wire_format": "semrepair-execution-proof-bundle/v0.1",
+  "proof_bundle_validation": "pending",
   "maintained_external_adoptions": 0,
   "prospective_i2_matches": 0,
   "counts_as_versioned_public_release": false,
   "counts_as_l8": false,
   "counts_as_l9": false,
-  "latest_fully_green_code_head": "b24d33ce816e2967b3ec8701d30a2213ecf72991",
-  "validation_run_id": 37326497957,
-  "validation_run_url": "https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37326497957",
-  "validation_conclusion": "success",
-  "python_matrix": [
-    "3.10",
-    "3.12",
-    "3.13"
+  "validation_conclusion": "pending",
+  "inherited_validated_baseline": {
+    "version": "0.3.0rc1",
+    "release_tag": "semrepair-v0.3.0rc1",
+    "release_id": 403794471,
+    "release_target": "8cd7e7ad01e50aa18f42d333765f4fd242228d66",
+    "published_validation_run": 37323937866
+  },
+  "rc2_delta": [
+    "language-neutral execution proof bundle",
+    "JSON Schema",
+    "independent bundle verifier",
+    "non-forgeable wire adapter checks",
+    "bounded unique minimum-cost path verification",
+    "installed proof-bundle CLI"
   ],
-  "quantitative_evidence": {
-    "production_conformance_cases": 2017,
-    "production_conformance_valid": true,
-    "replay_model_traces_checked": 4662,
-    "runtime_release_checks_passed": 7,
-    "runtime_release_checks_total": 7,
-    "maniskill_before_so3_error_degrees": 12.928503532766667,
-    "maniskill_after_so3_error_degrees": 0.009230733916873379,
-    "maniskill_sapien_floor_degrees": 0.009230733916873379
-  },
-  "native_execution": {
-    "maniskill": {
-      "status": "success",
-      "patch_gate": "pre -> git apply exact patch -> post",
-      "artifact_id": 11351603467,
-      "sha256": "48120ac10ccf5fa53c6170d36044013751e82653aeeb2477247a05158912488f",
-      "claim_boundary": "Pinned upstream production converter-controller representation boundary; retrospective and not maintained upstream adoption."
-    },
-    "mujoco": {
-      "status": "success",
-      "artifact_id": 11352960143,
-      "sha256": "be76e8cc87af4acf1973e6fc0b5b0af8606a35656f4b84d6f72bd8b0a9b9492c",
-      "claim_boundary": "Native MuJoCo controlled closed-loop semantic-corruption assay; not an upstream MuJoCo defect or adoption."
-    }
-  },
-  "distribution_artifact": {
-    "id": 11352536976,
-    "sha256": "6d2df40c93fecd6a59c7007148aa76618c461b4d07d33a0b08e97740f28f67af"
-  },
   "remaining_l8_blockers": [
     "no resolved prospective I2 mechanism matches",
     "no maintained external adoption"
   ],
   "remaining_release_blockers": [
-    "no GitHub tag/release has been created"
+    "rc2 public validation has not yet completed",
+    "rc2 has not been tagged or released"
   ],
-  "evidence_boundary": "Self-authored public validation establishes method/artifact maturity only; it does not count as maintained external adoption."
+  "evidence_boundary": "rc1 validated evidence is inherited as a baseline only; rc2 interoperability claims require their own green public workflow."
 }
