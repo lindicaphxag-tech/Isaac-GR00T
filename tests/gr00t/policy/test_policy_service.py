@@ -37,8 +37,10 @@ class MockPolicy:
     def __init__(self):
         self.strict = False
         self._reset_count = 0
+        self.last_options = None
 
     def get_action(self, observation, options=None):
+        self.last_options = options
         # Echo back a dummy action dict derived from observation keys
         action = {"joint_pos": np.zeros(7, dtype=np.float32)}
         info = {"mock": True}
@@ -112,6 +114,29 @@ class TestPolicyServerClient:
         action, info = result
         assert "joint_pos" in action
         np.testing.assert_array_equal(action["joint_pos"], np.zeros(7, dtype=np.float32))
+
+    def test_get_action_rtc_options_roundtrip(self, server_client):
+        client, _, policy = server_client
+        obs = {"state": {"joint_pos": np.zeros(7, dtype=np.float32)}}
+        previous = {
+            "joint_pos": np.arange(24, dtype=np.float32).reshape(1, 8, 3)
+        }
+        options = {
+            "rtc_previous_action": previous,
+            "rtc_overlap_steps": 4,
+            "rtc_frozen_steps": 2,
+            "rtc_ramp_rate": 3.0,
+        }
+
+        client.get_action(obs, options=options)
+
+        assert policy.last_options["rtc_overlap_steps"] == 4
+        assert policy.last_options["rtc_frozen_steps"] == 2
+        assert policy.last_options["rtc_ramp_rate"] == 3.0
+        np.testing.assert_array_equal(
+            policy.last_options["rtc_previous_action"]["joint_pos"],
+            previous["joint_pos"],
+        )
 
     def test_reset(self, server_client):
         client, _, policy = server_client
