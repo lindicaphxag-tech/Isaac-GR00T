@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - semrepair-standalone-v0.3.0rc1
+      - semrepair-standalone-main
   workflow_dispatch:
 
 permissions:
