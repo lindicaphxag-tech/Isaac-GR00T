@@ -4,9 +4,9 @@
   "development_version": "0.4.0a0",
   "public_repository": "lindicaphxag-tech/Isaac-GR00T",
   "public_branch": "semrepair-standalone-main",
-  "validated_head": "522db2c8c07a6d035caa15484f77312f12374291",
+  "validated_head": "d6c89553c9778d139e2cd9b79eb2fad84f57d608",
   "validation": {
-    "workflow_run_id": 37387667570,
+    "workflow_run_id": 37388039152,
     "conclusion": "success",
     "python_versions": [
       "3.10",
@@ -18,7 +18,10 @@
     "wheel_and_sdist": true,
     "evidence_clis": true,
     "lean_build": true,
-    "incomplete_proofs_rejected": true
+    "incomplete_proofs_rejected": true,
+    "native_mujoco_masking": true,
+    "native_mujoco_version": "3.15.0",
+    "native_mujoco_steps": 240
   },
   "method_axis": {
     "name": "semantic observability and atomic repair under compensating boundary faults",
@@ -67,5 +70,22 @@
     "maintained_external_repositories": 0,
     "l8_claim": false,
     "l9_claim": false
+  },
+  "physical_exact_masking_bridge": {
+    "assay": "examples/native_mujoco_complete_masking.py",
+    "workflow_run_id": 37388039152,
+    "correct_vs_both_faulty_exact_equal": true,
+    "correct_vs_both_repaired_exact_equal": true,
+    "producer_only_repair_trajectory_linf": 5.969498771552663,
+    "dispatch_only_repair_trajectory_linf": 5.969498771552663,
+    "masking_mode": "complete",
+    "repair_interaction_digest": "930f68562130235cc173f556d45e64478ceade288ea54c3bb4f7958da9c7197a",
+    "atomic_certificate_digest": "11500e1fcd4f7f27495dea67d9ac82cbccd2fabd5872132bd94fb00bbebe90ab",
+    "singleton_hotfix_rejected": true,
+    "authorized_repairs": [
+      "dispatch-order-repair",
+      "producer-order-repair"
+    ],
+    "claim_boundary": "Controlled self-authored native-MuJoCo semantic-corruption assay; not an upstream MuJoCo defect, independent adoption, or prospective I2 evidence."
   }
 }
