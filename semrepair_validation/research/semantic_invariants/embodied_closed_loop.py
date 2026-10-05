@@ -19,6 +19,7 @@ from .embodied_semantic_types import (
     synthesize_unique_adapter_plan,
 )
 
+
 Vector = tuple[float, ...]
 
 
@@ -59,8 +60,15 @@ def policy_action_in_order(
     return tuple(canonical[index] for index in policy_order)
 
 
-def permutation_transform(source_order: Sequence[int], target_order: Sequence[int]):
-    source_position = {label: position for position, label in enumerate(source_order)}
+def permutation_transform(
+    source_order: Sequence[int],
+    target_order: Sequence[int],
+):
+    """Return a value transform between two index-label orderings."""
+
+    source_position = {
+        label: position for position, label in enumerate(source_order)
+    }
     if set(source_position) != set(target_order):
         raise ValueError("source and target orders must contain the same labels")
 
@@ -79,10 +87,17 @@ class ClosedLoopOutcome:
     adapter_applied: tuple[str, ...]
 
 
-def run_joint_order_case(*, repaired: bool, steps: int = 3) -> ClosedLoopOutcome:
+def run_joint_order_case(
+    *,
+    repaired: bool,
+    steps: int = 3,
+) -> ClosedLoopOutcome:
     policy_order = (1, 0)
     controller_order = (0, 1)
-    env = LinearJointReachEnv(state=(0.0, 0.0), target=(1.0, -0.5))
+    env = LinearJointReachEnv(
+        state=(0.0, 0.0),
+        target=(1.0, -0.5),
+    )
     trajectory: list[Vector] = [env.state]
     applied: tuple[str, ...] = ()
 
@@ -98,11 +113,18 @@ def run_joint_order_case(*, repaired: bool, steps: int = 3) -> ClosedLoopOutcome
     target_type = source_type.updated(ordering="controller-order")
     semantic_adapter = SemanticAdapter(
         "policy-to-controller-order",
-        requires={"ordering": "policy-order", "embodiment": "two-joint-proxy"},
+        requires={
+            "ordering": "policy-order",
+            "embodiment": "two-joint-proxy",
+        },
         produces={"ordering": "controller-order"},
         effects=("reorder",),
     )
-    plan = synthesize_unique_adapter_plan(source_type, target_type, [semantic_adapter])
+    plan = synthesize_unique_adapter_plan(
+        source_type,
+        target_type,
+        [semantic_adapter],
+    )
     runtime = RuntimeAdapter[Vector](
         name="policy-to-controller-order",
         transform=permutation_transform(policy_order, controller_order),
@@ -110,7 +132,11 @@ def run_joint_order_case(*, repaired: bool, steps: int = 3) -> ClosedLoopOutcome
     )
 
     for _ in range(steps):
-        policy_action = policy_action_in_order(env.state, env.target, policy_order)
+        policy_action = policy_action_in_order(
+            env.state,
+            env.target,
+            policy_order,
+        )
         if repaired:
             execution = execute_adapter_plan(
                 policy_action,
