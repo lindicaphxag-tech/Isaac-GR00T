@@ -21,4 +21,4 @@ jobs:
       - name: Install dependency-light runtime requirements
         run: python -m pip install --upgrade pip numpy gymnasium
       - name: Validate production MultiStep boundary semantics
-        run: python .github/validation/validate_multistep_boundary.py
+        run: PYTHONPATH=. python .github/validation/validate_multistep_boundary.py
