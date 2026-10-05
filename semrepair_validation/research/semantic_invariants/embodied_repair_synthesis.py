@@ -91,6 +91,7 @@ class RepairPrimitive:
     family: str
     cost: int
     apply_fn: Callable[[Vector, Context], Vector]
+    implementation_id: str | None = None
 
     def apply(self, value: Vector, context: Context) -> Vector:
         return tuple(float(item) for item in self.apply_fn(value, context))
@@ -158,6 +159,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                 apply_fn=lambda value, context, order=order: tuple(
                     value[index] for index in order
                 ),
+                implementation_id=f"builtin-v0:permute:{order}",
             )
         )
 
@@ -174,6 +176,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                     item * sign
                     for item, sign in zip(value, signs, strict=True)
                 ),
+                implementation_id=f"builtin-v0:sign:{signs}",
             )
         )
 
@@ -186,6 +189,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                 apply_fn=lambda value, context, scale=scale: tuple(
                     scale * item for item in value
                 ),
+                implementation_id=f"builtin-v0:scale:{scale:g}",
             )
         )
 
@@ -199,6 +203,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                     apply_fn=lambda value, context: _matrix_to_euler_xyz(
                         _axis_angle_to_matrix(value)
                     ),
+                    implementation_id="builtin-v0:axis-angle-to-euler-xyz",
                 ),
                 RepairPrimitive(
                     name="com-velocity->link-velocity",
@@ -212,6 +217,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                             strict=True,
                         )
                     ),
+                    implementation_id="builtin-v0:com-velocity-to-link-velocity",
                 ),
                 RepairPrimitive(
                     name="link-velocity->com-velocity",
@@ -225,6 +231,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                             strict=True,
                         )
                     ),
+                    implementation_id="builtin-v0:link-velocity-to-com-velocity",
                 ),
             ]
         )
