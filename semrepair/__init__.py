@@ -1,4 +1,30 @@
-"""Public SemRepair release-candidate API."""
+"""Public SemRepair development API."""
+
+
+from research.semantic_invariants.embodied_atomic_repair import (
+    AtomicRepairAuthorization,
+    AtomicRepairBundleCertificate,
+    AtomicRepairEvidenceMismatch,
+    AtomicRepairRequired,
+    authorize_repair_deployment,
+    certify_atomic_repair_bundle,
+    required_atomic_closure,
+)
+from research.semantic_invariants.embodied_repair_interactions import (
+    RepairInteractionCertificate,
+    RepairOutcome,
+    analyze_repair_lattice,
+)
+from research.semantic_invariants.embodied_semantic_observability import (
+    SemanticObservabilityCertificate,
+    analyze_semantic_observability,
+)
+from research.semantic_invariants.embodied_semantic_transport import (
+    MonomialSemanticTransport,
+    SemanticTransportFactor,
+    TransportCancellationCertificate,
+    analyze_transport_cancellation,
+)
 
 from research.semantic_invariants.embodied_repair_runtime import SemanticRepairMediator
 from research.semantic_invariants.embodied_repair_verification import (
@@ -26,9 +52,25 @@ from research.semantic_invariants.embodied_semantic_types import (
     synthesize_unique_adapter_plan,
 )
 
-__version__ = "0.3.0rc1"
+__version__ = "0.4.0a0"
 
 __all__ = [
+    "AtomicRepairAuthorization",
+    "AtomicRepairBundleCertificate",
+    "AtomicRepairEvidenceMismatch",
+    "AtomicRepairRequired",
+    "MonomialSemanticTransport",
+    "RepairInteractionCertificate",
+    "RepairOutcome",
+    "SemanticObservabilityCertificate",
+    "SemanticTransportFactor",
+    "TransportCancellationCertificate",
+    "analyze_repair_lattice",
+    "analyze_semantic_observability",
+    "analyze_transport_cancellation",
+    "authorize_repair_deployment",
+    "certify_atomic_repair_bundle",
+    "required_atomic_closure",
     "CompilationResult",
     "FieldInferenceSpec",
     "RepairVerificationCertificate",

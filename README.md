@@ -1,4 +1,4 @@
-# SemRepair 0.3.0rc1
+# SemRepair 0.4.0a0 development
 
 > **Standalone public tree.** This branch contains only SemRepair. The surrounding
 > GitHub repository name is inherited from the public fork used to host the
@@ -12,6 +12,30 @@ It targets failures where tensors remain shape/dtype-valid while physical
 meaning changes silently: rotation representation, joint ordering, clock/scope,
 action provenance, sensor freshness, dependency provenance, and physical-effect
 completion under crash/replay.
+
+## Development line: semantic observability and atomic repair
+
+The standalone `main` development line extends the published 0.3.0rc1 kernel
+with a narrowly scoped interaction model for **compensating semantic faults**.
+
+The claim is **not** that fault masking, higher-order faults, or diagnosability
+are new. The development contribution is the composition of:
+
+1. algebraic semantic transports for ordering/sign/per-axis scale boundaries;
+2. constructive observability analysis that either synthesizes an external
+   basis witness or proves that an exactly canceling chain is endpoint-
+   indistinguishable and therefore requires an internal evidence tap;
+3. complete factorial repair-lattice analysis with non-monotone-edge and
+   interaction detection;
+4. implementation-bound atomic repair authorization that rejects a partial
+   hotfix when the measured interaction evidence requires a repair bundle; and
+5. a Lean theorem for the exact-cancellation core: if two non-identity
+   transports cancel end-to-end, repairing either boundary alone unmasks the
+   remaining fault, while repairing both restores the identity specification.
+
+The real ManiSkill #1472/#1495 2x2 witness is a **partial-masking empirical
+case**, not an exact instance of the Lean theorem. The theorem and empirical
+case are deliberately kept separate.
 
 ## Published prerelease
 
@@ -32,12 +56,22 @@ python -m pip install \
   "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3.0rc1#subdirectory=semrepair_validation"
 ```
 
-Install this **standalone tree** directly from repository root:
+Install the frozen standalone rc1 tree directly from repository root:
 
 ```bash
 python -m pip install \
   "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-standalone-v0.3.0rc1"
 ```
+
+Install the post-rc1 standalone development line:
+
+```bash
+python -m pip install \
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-standalone-main"
+```
+
+The development line reports package version `0.4.0a0`; it is **not** a
+published release and must not be cited as 0.3.0rc1 evidence.
 
 Or install the published wheel from the GitHub prerelease.
 
