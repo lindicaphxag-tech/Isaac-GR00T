@@ -1,11 +1,7 @@
-# casj-trigger-4
+# casj-trigger-5
 name: CASJ public PushT checkpoint gate
 
 on:
-  pull_request:
-    paths:
-      - "casj_validation/**"
-      - ".github/workflows/casj-pusht-public-gate.yml"
   push:
     branches: [main]
     paths:
@@ -13,22 +9,30 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: casj-public-pusht-gate
+  cancel-in-progress: false
 
 jobs:
   public-checkpoint-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
       HF_HOME: ${{ github.workspace }}/.cache/huggingface
       TOKENIZERS_PARALLELISM: "false"
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout frozen CASJ validation branch
+        uses: actions/checkout@v4
         with:
           ref: validation/casj-pusht-public-gate
+          fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
@@ -49,14 +53,20 @@ jobs:
         run: |
           python - <<'PY'
           import importlib.metadata as md
-          for package in ["lerobot", "gym-pusht", "gymnasium", "pymunk", "torch"]:
+          for package in ["lerobot", "gym-pusht", "gymnasium", "pymunk", "torch", "diffusers"]:
               print(package, md.version(package))
           PY
 
       - name: Run public checkpoint end-to-end smoke
         run: |
           mkdir -p casj_evidence
-          python casj_validation/experiments/public_pusht_gate.py             --device cpu             --num-inference-steps 2             --warmup-steps 0             --replicates 1             --heldout-pose 10 -6 0.35             --output casj_evidence/pusht_public_smoke.json
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu \
+            --num-inference-steps 2 \
+            --warmup-steps 0 \
+            --replicates 1 \
+            --heldout-pose 10 -6 0.35 \
+            --output casj_evidence/pusht_public_smoke.json
 
       - name: Validate evidence boundary
         run: |
@@ -71,16 +81,78 @@ jobs:
           assert report["effective_num_inference_steps"] == 2
           assert report["uses_checkpoint_default_inference_steps"] is False
           assert report["snapshots"]
-          for result in report["snapshots"].values():
-              assert result["assay_status"] == "VALID_INPUT_PERTURBATION"
-              assert result["paired_randomness_replay_error"] <= 1e-6
+          for key, result in report["snapshots"].items():
+              assert result["assay_status"] == "VALID_INPUT_PERTURBATION", key
+              assert result["paired_randomness_replay_error"] <= 1e-6, key
+              assert "recovered_anchor_transport_mse" in result, key
+              assert "rollout_branches" in result, key
           print(json.dumps(report["summary"], indent=2, sort_keys=True))
           PY
 
       - name: Upload public-checkpoint evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: casj-pusht-public-checkpoint-smoke
-          path: casj_evidence/pusht_public_smoke.json
-          if-no-files-found: error
+          path: casj_evidence
+          if-no-files-found: warn
           retention-days: 90
+
+      - name: Publish machine-readable gate state to main
+        if: always()
+        env:
+          GATE_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          result = Path("casj_evidence/pusht_public_smoke.json")
+          status = {
+              "schema_version": 1,
+              "gate": "casj-pusht-public-checkpoint-smoke",
+              "workflow_run_id": os.environ["RUN_ID"],
+              "workflow_trigger_sha": os.environ["WORKFLOW_SHA"],
+              "workflow_job_status_at_publish_step": os.environ["GATE_STATUS"],
+              "validation_branch": "validation/casj-pusht-public-gate",
+              "lerobot_commit": "8c920c4270460851cedd2737657584586d3dc66f",
+              "model_id": "lerobot/diffusion_pusht",
+              "dataset_id": "lerobot/pusht",
+              "effective_inference_steps": 2,
+              "checkpoint_default_inference": False,
+              "result_json_present": result.exists(),
+              "claim_boundary": (
+                  "CPU feasibility smoke only. Not checkpoint-default performance, "
+                  "not external adoption, and not a prospective I2 case."
+              ),
+          }
+          Path("/tmp/casj_gate_status.json").write_text(
+              json.dumps(status, indent=2, sort_keys=True) + "\n"
+          )
+          PY
+
+          if [ -f casj_evidence/pusht_public_smoke.json ]; then
+            cp casj_evidence/pusht_public_smoke.json /tmp/casj_pusht_public_smoke.json
+          fi
+
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p .github/evidence/casj
+          cp /tmp/casj_gate_status.json .github/evidence/casj/public_pusht_smoke_status.json
+          if [ -f /tmp/casj_pusht_public_smoke.json ]; then
+            cp /tmp/casj_pusht_public_smoke.json .github/evidence/casj/public_pusht_smoke.json
+          else
+            rm -f .github/evidence/casj/public_pusht_smoke.json
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/evidence/casj
+          if git diff --cached --quiet; then
+            echo "No evidence-state change to publish."
+          else
+            git commit -m "Record CASJ public PushT gate run ${RUN_ID}"
+            git push origin main
+          fi
