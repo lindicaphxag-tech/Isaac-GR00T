@@ -3,7 +3,7 @@
   "artifact": "SemRepair",
   "candidate": "0.3.0rc3",
   "base_branch": "semrepair-v0.3-rc3",
-  "purpose": "Trigger a PR-visible full release-candidate validation after rc3 packaging, public-API, and exact-wire repairs.",
-  "expected_candidate_head": "b9170e435f76f6d285705061bed2eee846981e7a",
+  "purpose": "Trigger a PR-visible full release-candidate validation after rc3 public-API, exact-wire, metadata, and compile-surface repairs.",
+  "expected_candidate_head": "b4f17edd6feb21ec1e3a4592afe084d2958aa58d",
   "claim_boundary": "Self-authored validation only. This record contributes zero maintained external-adoption credit and zero prospective-I2 credit."
 }
