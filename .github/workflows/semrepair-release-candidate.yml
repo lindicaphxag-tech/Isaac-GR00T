@@ -157,6 +157,41 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  native-maniskill-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SemRepair release candidate
+        uses: actions/checkout@v4
+        with:
+          path: semrepair-host
+      - name: Checkout pinned ManiSkill source
+        uses: actions/checkout@v4
+        with:
+          repository: mani-skill/ManiSkill
+          ref: 62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3
+          path: upstream-maniskill
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CPU PyTorch and frozen ManiSkill
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e upstream-maniskill
+      - name: Execute production converter-controller representation boundary
+        env:
+          PYTHONPATH: upstream-maniskill
+        run: |
+          mkdir -p evidence
+          python semrepair-host/semrepair_validation/examples/real_source/maniskill_native_boundary.py             --json | tee evidence/maniskill-1138-native-boundary.json
+      - name: Upload native ManiSkill boundary evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-maniskill-1138-native-boundary
+          path: evidence/maniskill-1138-native-boundary.json
+          if-no-files-found: error
+          retention-days: 30
+
   real-source-groot:
     runs-on: ubuntu-latest
     steps:
