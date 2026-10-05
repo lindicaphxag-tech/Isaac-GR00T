@@ -159,6 +159,11 @@ class TestActionHeadExplicitNoise:
     def test_same_noise_is_independent_of_global_rng_state(self, action_head):
         head, config = action_head
         backbone_output = _make_backbone_output(config)
+        # process_backbone_output updates BatchFeature in place, so paired
+        # inference must use independent containers with identical tensor values.
+        backbone_output_pair = BatchFeature(
+            data={key: value.clone() for key, value in backbone_output.items()}
+        )
         action_input = _make_action_input(config)
         del action_input["action"]
 
@@ -173,7 +178,9 @@ class TestActionHeadExplicitNoise:
         torch.manual_seed(1)
         first = head.get_action(backbone_output, action_input, noise=noise)["action_pred"]
         torch.manual_seed(9999)
-        second = head.get_action(backbone_output, action_input, noise=noise)["action_pred"]
+        second = head.get_action(
+            backbone_output_pair, action_input, noise=noise
+        )["action_pred"]
 
         torch.testing.assert_close(first, second, rtol=0, atol=0)
 
