@@ -231,6 +231,20 @@ class TestGr00tPolicyRTC:
                 },
             )
 
+    def test_rtc_rejects_sliced_previous_chunk(self, policy):
+        obs = _make_observation()
+        previous = self._rtc_previous_action(horizon=8)
+        with pytest.raises(ValueError, match="complete decoded chunk"):
+            policy.get_action(
+                obs,
+                options={
+                    "rtc_previous_action": previous,
+                    "rtc_overlap_steps": 4,
+                    "rtc_frozen_steps": 2,
+                    "rtc_ramp_rate": 4.0,
+                },
+            )
+
     def test_rtc_rejects_wrong_previous_action_dtype(self, policy):
         obs = _make_observation()
         previous = self._rtc_previous_action()
