@@ -1,0 +1,29 @@
+{
+  "dataset_files": [
+    ".gitattributes",
+    "README.md",
+    "data/chunk-000/file-000.parquet",
+    "meta/episodes/chunk-000/file-000.parquet",
+    "meta/info.json",
+    "meta/stats.json",
+    "meta/tasks.parquet"
+  ],
+  "dataset_id": "lerobot/pusht_keypoints",
+  "dataset_revision": "ace8c161a68bc025c21a5f29f85b86a9a2c5e64b",
+  "dot_source_repo": "IliaLarchenko/lerobot",
+  "dot_source_revision": "42cca283322bbb68b6d3f1b4a436ada5b5d3393a",
+  "method_results_observed": false,
+  "model_files": [
+    ".gitattributes",
+    "README.md",
+    "config.json",
+    "config.yaml",
+    "model.safetensors",
+    "replay.mp4",
+    "train_config.json"
+  ],
+  "model_id": "IliaLarchenko/dot_pusht_keypoints_best",
+  "model_revision": "d31e0a1bb5b9d3183e546d0a80c8ec6e4d12b2d2",
+  "purpose": "revision-discovery-only; no CASJ method output is computed",
+  "schema_version": 1
+}
