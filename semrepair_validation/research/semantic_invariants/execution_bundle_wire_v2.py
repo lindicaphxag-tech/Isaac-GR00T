@@ -33,6 +33,7 @@ EFFECT_SCHEMA = "semantic-effect-commit-certificate/v0.1"
 CANONICALIZATION_PROFILE = "semrepair-wire-c14n/v0.1"
 SPEC_VERSION = "0.2"
 DECIMAL_TAG = "$semrepair_decimal"
+MAX_SAFE_INTEGER = 9_007_199_254_740_991
 
 SEMANTIC_FIELDS = (
     "role",
