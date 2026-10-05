@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "subject": "NVIDIA/Isaac-GR00T PR #786 exact-current-head validation",
+  "upstream_pr_head": "5486a86a08c5c69f3ced44ac44a02272e7e874e2",
+  "validation_base": "validation/pr786-current-head-v2",
+  "claim_boundary": "Self-authored validation only; zero maintained external-adoption credit."
+}
