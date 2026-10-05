@@ -44,7 +44,11 @@ from casj import (
     recover_two_scale_casj,
     transport_planar_anchor,
 )
-from casj.pusht_assay import estimate_directional_curvature_via_query
+from casj.continuation import certify_path_integrated_transport
+from casj.pusht_assay import (
+    estimate_directional_curvature_via_query,
+    estimate_pathwise_directional_derivative_via_query,
+)
 from casj.pusht_state import PushTSnapshot, capture_snapshot, restore_snapshot
 from lerobot.datasets import LeRobotDatasetMetadata
 from lerobot.policies.diffusion import DiffusionPolicy
@@ -437,6 +441,29 @@ def evaluate_snapshot(
     )
     coarse_fraction = 2.0 * fine_fraction
 
+    pi_casj_certificate = certify_path_integrated_transport(
+        lambda tau: estimate_pathwise_directional_derivative_via_query(
+            policy_query=policy_query,
+            history=history,
+            randomness=randomness,
+            support_delta=heldout_delta,
+            path_fraction=tau,
+            fine_step_fraction=fine_fraction,
+            coarse_step_fraction=coarse_fraction,
+        ),
+        reference_action_scale=max(float(np.linalg.norm(casj_delta)), 1.0),
+        coarse_intervals=2,
+    )
+    pi_casj_repaired = baseline + pi_casj_certificate.correction
+    pi_casj_certified_chunk = (
+        pi_casj_repaired.copy()
+        if pi_casj_certificate.accepted
+        else fresh.copy()
+    )
+    pi_casj_certified_fallback = (
+        None if pi_casj_certificate.accepted else "fresh_requery"
+    )
+
     directional_fine = estimate_directional_curvature_via_query(
         policy_query=policy_query,
         history=history,
@@ -457,6 +484,7 @@ def evaluate_snapshot(
     stale_mse = float(np.mean((baseline - fresh) ** 2))
     global_mse = float(np.mean((global_comp - fresh) ** 2))
     casj_mse = float(np.mean((casj_repaired - fresh) ** 2))
+    pi_casj_mse = float(np.mean((pi_casj_repaired - fresh) ** 2))
     anchor_transport_chunk = np.stack(
         [
             transport_planar_anchor(
@@ -611,6 +639,12 @@ def evaluate_snapshot(
         "casj_raw_linear": execute_chunk_branch(
             env, start_state=disturbed_state, chunk=casj_repaired
         ),
+        "pi_casj_raw": execute_chunk_branch(
+            env, start_state=disturbed_state, chunk=pi_casj_repaired
+        ),
+        "pi_casj_certified": execute_chunk_branch(
+            env, start_state=disturbed_state, chunk=pi_casj_certified_chunk
+        ),
         "recovered_anchor_transport": (
             execute_chunk_branch(
                 env,
@@ -661,6 +695,23 @@ def evaluate_snapshot(
         "stale_mse": stale_mse,
         "global_compensation_mse": global_mse,
         "casj_repair_mse": casj_mse,
+        "pi_casj_repair_mse": pi_casj_mse,
+        "pi_casj_to_stale_ratio": pi_casj_mse / max(stale_mse, 1e-12),
+        "pi_casj_certificate": {
+            "accepted": pi_casj_certificate.accepted,
+            "richardson_error_norm": pi_casj_certificate.richardson_error_norm,
+            "error_to_correction": pi_casj_certificate.error_to_correction,
+            "error_to_reference_scale": pi_casj_certificate.error_to_reference_scale,
+            "max_local_scale_instability": (
+                pi_casj_certificate.max_local_scale_instability
+            ),
+            "coarse_intervals": pi_casj_certificate.coarse_intervals,
+            "fine_intervals": pi_casj_certificate.fine_intervals,
+            "derivative_nodes": pi_casj_certificate.derivative_queries,
+            "policy_queries": 4 * pi_casj_certificate.derivative_queries,
+            "reason": pi_casj_certificate.reason,
+        },
+        "pi_casj_certified_fallback": pi_casj_certified_fallback,
         "recovered_anchor_transport_mse": anchor_transport_mse,
         "casj_to_stale_ratio": casj_mse / max(stale_mse, 1e-12),
         "global_to_stale_ratio": global_mse / max(stale_mse, 1e-12),
@@ -697,6 +748,8 @@ def evaluate_snapshot(
         "baseline_chunk": baseline.tolist(),
         "fresh_chunk": fresh.tolist(),
         "casj_repaired_chunk": casj_repaired.tolist(),
+        "pi_casj_repaired_chunk": pi_casj_repaired.tolist(),
+        "pi_casj_certified_chunk": pi_casj_certified_chunk.tolist(),
         "recovered_anchor_transport_chunk": (
             anchor_transport_chunk.tolist() if anchor_transport_available else None
         ),
@@ -869,6 +922,8 @@ def main():
                         "stale_mse": result["stale_mse"],
                         "global_compensation_mse": result["global_compensation_mse"],
                         "casj_repair_mse": result["casj_repair_mse"],
+                        "pi_casj_repair_mse": result["pi_casj_repair_mse"],
+                        "pi_casj_accepted": result["pi_casj_certificate"]["accepted"],
                         "recovered_anchor_transport_mse": result[
                             "recovered_anchor_transport_mse"
                         ],
@@ -894,6 +949,7 @@ def main():
                 "stale_mse",
                 "global_compensation_mse",
                 "casj_repair_mse",
+                "pi_casj_repair_mse",
                 "recovered_anchor_transport_mse",
             )
             summary["n"] = len(rows)
