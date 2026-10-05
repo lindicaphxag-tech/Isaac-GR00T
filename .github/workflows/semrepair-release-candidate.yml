@@ -33,6 +33,8 @@ jobs:
       - run: python -m pip install --upgrade pip pytest build
       - name: Install SemRepair release candidate
         run: python -m pip install -e semrepair_validation
+      - name: Compile packaged Python surface
+        run: python -m compileall -q semrepair_validation/semrepair semrepair_validation/research
       - name: Run public test surface
         run: python -m pytest -q semrepair_validation/tests
       - name: Create evidence directory
