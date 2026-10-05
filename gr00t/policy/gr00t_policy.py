@@ -197,22 +197,142 @@ class Gr00tPolicy(BasePolicy):
             unbatched_obs.append(unbatched_value)
         return unbatched_obs
 
-    def _to_vla_step_data(self, observation: dict[str, Any]) -> VLAStepData:
-        """Convert a single observation into a VLAStepData object for processing.
+    def _to_vla_step_data(
+        self,
+        observation: dict[str, Any],
+        actions: dict[str, np.ndarray] | None = None,
+    ) -> VLAStepData:
+        """Convert one observation into processor input.
 
-        Args:
-            observation: Single observation dict with video, state, and language
-
-        Returns:
-            VLAStepData object ready for processor input
+        actions is normally empty at inference. RTC is the exception: the
+        previous decoded action chunk is supplied in physical units and sent
+        through the regular processor together with the current state. This
+        deliberately re-applies relative-action conversion and normalization at
+        the new observation instead of reusing a stale model-space action.
         """
         return VLAStepData(
             images=observation["video"],
             states=observation["state"],
-            actions={},  # No ground truth actions during inference
+            actions={} if actions is None else actions,
             text=observation["language"][self.language_key][0],
             embodiment=self.embodiment_tag,
         )
+
+    def _prepare_inference_options(
+        self,
+        observation: dict[str, Any],
+        options: dict[str, Any] | None,
+    ) -> tuple[list[dict[str, np.ndarray]] | None, dict[str, Any] | None]:
+        """Validate public RTC options and prepare model-facing options.
+
+        Public RTC accepts the previous action chunk in the same decoded,
+        physical-unit dictionary format returned by get_action. The raw chunk
+        never reaches the model options. Instead, it is unbatched and
+        re-encoded by the normal processor path against the current state.
+        """
+        if options is None:
+            return None, None
+
+        model_options = dict(options)
+        rtc_previous_action = model_options.pop("rtc_previous_action", None)
+        rtc_parameter_keys = {"rtc_overlap_steps", "rtc_frozen_steps", "rtc_ramp_rate"}
+        supplied_rtc_parameters = rtc_parameter_keys.intersection(model_options)
+
+        if rtc_previous_action is None:
+            if supplied_rtc_parameters:
+                names = ", ".join(sorted(supplied_rtc_parameters))
+                raise ValueError(
+                    f"RTC options ({names}) require 'rtc_previous_action' from the previous "
+                    "policy output."
+                )
+            return None, model_options
+
+        missing = sorted(rtc_parameter_keys.difference(model_options))
+        if missing:
+            raise ValueError(
+                "rtc_previous_action requires all RTC parameters; missing "
+                + ", ".join(missing)
+            )
+        if not isinstance(rtc_previous_action, dict):
+            raise TypeError("rtc_previous_action must be a dict of physical action arrays")
+
+        expected_keys = list(self.modality_configs["action"].modality_keys)
+        missing_action_keys = [key for key in expected_keys if key not in rtc_previous_action]
+        if missing_action_keys:
+            raise ValueError(
+                "rtc_previous_action is missing action keys: "
+                + ", ".join(missing_action_keys)
+            )
+        extra_action_keys = sorted(set(rtc_previous_action).difference(expected_keys))
+        if extra_action_keys:
+            raise ValueError(
+                "rtc_previous_action contains unknown action keys: "
+                + ", ".join(extra_action_keys)
+            )
+
+        first_video_key = next(iter(observation["video"]))
+        batch_size = observation["video"][first_video_key].shape[0]
+
+        horizons: set[int] = set()
+        for key in expected_keys:
+            value = rtc_previous_action[key]
+            if not isinstance(value, np.ndarray):
+                raise TypeError(f"rtc_previous_action[{key!r}] must be a numpy array")
+            if value.dtype != np.float32:
+                raise TypeError(
+                    f"rtc_previous_action[{key!r}] must have dtype float32, got {value.dtype}"
+                )
+            if value.ndim != 3:
+                raise ValueError(
+                    f"rtc_previous_action[{key!r}] must have shape (B, T, D), "
+                    f"got {value.shape}"
+                )
+            if value.shape[0] != batch_size:
+                raise ValueError(
+                    f"rtc_previous_action[{key!r}] batch size {value.shape[0]} "
+                    f"does not match observation batch size {batch_size}"
+                )
+            horizons.add(int(value.shape[1]))
+
+        if len(horizons) != 1:
+            raise ValueError(
+                "All rtc_previous_action keys must use the same action horizon; "
+                f"got {sorted(horizons)}"
+            )
+        action_horizon = horizons.pop()
+        configured_horizon = len(self.modality_configs["action"].delta_indices)
+        if not 0 < action_horizon <= configured_horizon:
+            raise ValueError(
+                f"rtc_previous_action horizon must be in [1, {configured_horizon}], "
+                f"got {action_horizon}"
+            )
+
+        if "action_horizon" in model_options and int(model_options["action_horizon"]) != action_horizon:
+            raise ValueError(
+                "action_horizon is inferred from rtc_previous_action; explicit value "
+                f"{model_options['action_horizon']} does not match inferred {action_horizon}"
+            )
+
+        overlap = int(model_options["rtc_overlap_steps"])
+        frozen = int(model_options["rtc_frozen_steps"])
+        ramp_rate = float(model_options["rtc_ramp_rate"])
+        if not 0 < overlap <= action_horizon:
+            raise ValueError(
+                f"rtc_overlap_steps must be in [1, {action_horizon}], got {overlap}"
+            )
+        if not 0 <= frozen <= overlap:
+            raise ValueError(
+                f"rtc_frozen_steps must be in [0, rtc_overlap_steps={overlap}], got {frozen}"
+            )
+        if not np.isfinite(ramp_rate) or ramp_rate <= 0.0:
+            raise ValueError(f"rtc_ramp_rate must be finite and > 0, got {ramp_rate}")
+
+        model_options["action_horizon"] = action_horizon
+        unbatched_actions = [
+            {key: rtc_previous_action[key][i] for key in expected_keys}
+            for i in range(batch_size)
+        ]
+        return unbatched_actions, model_options
 
     def check_observation(self, observation: dict[str, Any]) -> None:
         """Validate that the observation has the correct structure and types.
@@ -390,20 +510,29 @@ class Gr00tPolicy(BasePolicy):
         5. Decode and unnormalize actions
 
         Args:
-            observation: Batched observation dictionary
-            options: Optional parameters (currently unused)
+            observation: Batched observation dictionary.
+            options: Optional model-inference parameters. RTC accepts
+                rtc_previous_action in the decoded physical action format
+                returned by this policy, plus rtc_overlap_steps,
+                rtc_frozen_steps and rtc_ramp_rate.
 
         Returns:
             Tuple of (actions_dict, info_dict)
         """
-        # Step 1: Split batched observation into individual observations
+        # Step 1: Split batched observation into individual observations and
+        # validate/prepare any public inference options.
         unbatched_observations = self._unbatch_observation(observation)
+        rtc_actions, model_options = self._prepare_inference_options(observation, options)
         processed_inputs = []
 
-        # Step 2: Process each observation through the VLA processor
+        # Step 2: Process each observation through the VLA processor. For RTC,
+        # feed the previous physical action chunk through this same path so it
+        # is re-normalized / made relative to the current state before reaching
+        # the action head.
         states = []
-        for obs in unbatched_observations:
-            vla_step_data = self._to_vla_step_data(obs)
+        for i, obs in enumerate(unbatched_observations):
+            previous_action = None if rtc_actions is None else rtc_actions[i]
+            vla_step_data = self._to_vla_step_data(obs, actions=previous_action)
             states.append(vla_step_data.states)  # dict[str, np.ndarray[np.float32, (T, D)]]
             messages = [{"type": MessageType.EPISODE_STEP.value, "content": vla_step_data}]
             processed_inputs.append(self.processor(messages))
@@ -412,9 +541,11 @@ class Gr00tPolicy(BasePolicy):
         collated_inputs = self.collate_fn(processed_inputs)
         collated_inputs = _rec_to_dtype(collated_inputs, dtype=torch.bfloat16)
 
-        # Step 4: Run model inference to predict actions
+        # Step 4: Run model inference to predict actions. Model options never
+        # contain the raw physical previous chunk; that chunk was encoded above
+        # into the collated action input by the processor.
         with torch.inference_mode():
-            model_pred = self.model.get_action(**collated_inputs)
+            model_pred = self.model.get_action(**collated_inputs, options=model_options)
         normalized_action = model_pred["action_pred"].float()
 
         # Step 5: Decode actions from normalized space back to physical units
