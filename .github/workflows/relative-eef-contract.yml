@@ -19,4 +19,7 @@ jobs:
       - name: Run relative EEF reference contract
         env:
           PYTHONPATH: .
-        run: python -m pytest -q tests/gr00t/data/state_action/test_relative_eef_reference_contract.py
+        run: >-
+          python -m pytest -q
+          --confcutdir=tests/gr00t/data/state_action
+          tests/gr00t/data/state_action/test_relative_eef_reference_contract.py
