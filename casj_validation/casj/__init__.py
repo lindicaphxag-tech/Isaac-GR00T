@@ -109,6 +109,8 @@ __all__ = [
     "transport_joint_chunk",
     "transport_pose_chunk",
     "transport_spatial_chunk",
+    "SelectiveRepairRecord",
+    "evaluate_selective_repair",
 ]
 
 from .geometry import (
@@ -159,3 +161,4 @@ from .action_charts import (
     so3_exp,
     so3_log,
 )
+from .selective import SelectiveRepairRecord, evaluate_selective_repair
