@@ -47,6 +47,7 @@ jobs:
         env:
           PYTHONPATH: maniskill
         run: |
+          set -o pipefail
           mkdir -p evidence
           python host/.github/evidence/maniskill_1495_current_head.py before-sign-fix \
             | tee evidence/before-sign-fix.txt
@@ -69,6 +70,7 @@ jobs:
         env:
           PYTHONPATH: maniskill
         run: |
+          set -o pipefail
           python host/.github/evidence/maniskill_1495_current_head.py after-sign-fix \
             | tee evidence/after-sign-fix.txt
 
