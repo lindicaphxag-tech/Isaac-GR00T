@@ -1,0 +1,68 @@
+name: SemRepair v0.3 release candidate
+
+on:
+  push:
+    branches:
+      - semrepair-v0.3-rc1
+    paths:
+      - "semrepair_validation/**"
+      - ".github/workflows/semrepair-release-candidate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest build
+      - name: Install SemRepair release candidate
+        run: python -m pip install -e semrepair_validation
+      - name: Run public test surface
+        run: python -m pytest -q semrepair_validation/tests
+      - name: Run source-to-compiler example
+        run: |
+          semrepair-source             --manifest semrepair_validation/examples/maniskill_style/semrepair.json             --json
+      - name: Emit behavioral evidence
+        run: semrepair-behavior --json
+      - name: Run bounded theorem checks
+        run: semrepair-core-theorems --json
+      - name: Build wheel and sdist
+        run: python -m build semrepair_validation
+      - name: Check installed dependencies
+        run: python -m pip check
+
+  lean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Lean toolchain
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh             | sh -s -- --default-toolchain none -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.elan/bin:$PATH"
+          cd semrepair_validation/formal
+          elan toolchain install "$(cat lean-toolchain)"
+          elan default "$(cat lean-toolchain)"
+          lean --version
+      - name: Reject incomplete proofs
+        run: |
+          if grep -R -nE '\b(sorry|admit)\b' semrepair_validation/formal/SemRepairFormal; then
+            echo "Incomplete proof placeholder found"
+            exit 1
+          fi
+      - name: Build formal core
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          cd semrepair_validation/formal
+          lake update
+          lake build
