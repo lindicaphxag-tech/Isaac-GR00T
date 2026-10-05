@@ -72,7 +72,13 @@ def verify_embodied_execution_bundle(
 
     reasons: list[str] = []
     if not semantic.valid:
-        reasons.append("semantic compilation proof failed")
+        if semantic.reasons:
+            reasons.extend(
+                f"semantic compilation proof failed: {reason}"
+                for reason in semantic.reasons
+            )
+        else:
+            reasons.append("semantic compilation proof failed")
     if not effect_integrity:
         reasons.append("effect certificate integrity failed")
     if not effect_matches:
