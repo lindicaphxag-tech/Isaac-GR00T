@@ -179,6 +179,28 @@ SHA-256
 The separate normalized-rotation sign issue (#1469/#1472) is intentionally
 outside this claim.
 
+### Native MuJoCo exact-masking / atomic-deployment witness
+
+A dedicated public CI job executes a controlled two-joint model through real
+`mujoco.MjModel`, `MjData`, and `mj_step` for 240 steps.
+
+Two intentionally wrong joint-order boundaries are composed so they cancel
+before physical dispatch. The result is deliberately counterintuitive:
+
+- both faults present: trajectory is **exactly equal** to the correct chain;
+- repair producer only: trajectory L∞ error **5.9694988**;
+- repair dispatch only: trajectory L∞ error **5.9694988**;
+- repair both: trajectory is **exactly equal** to the correct chain.
+
+The same factorial evidence is classified as `complete` masking, then bound
+to an implementation-specific atomic certificate. The runtime gate rejects a
+singleton hotfix and authorizes the complete pair.
+
+Public workflow run: `37388039152`.
+
+This is a controlled native-MuJoCo semantic-corruption assay. It is **not** a
+MuJoCo bug report, external adoption, or prospective evidence.
+
 ### Native MuJoCo closed loop
 
 A real `MjModel` / `MjData` loop executes `mujoco.mj_step`, injects a
