@@ -201,3 +201,25 @@ def test_wire_digest_detects_semantic_tamper():
     assert not report["valid"]
     assert report["checks"]["bundle_digest"] is False
     assert report["checks"]["compilation_wire_digest"] is False
+
+
+def test_binary_float_escape_is_rejected_even_after_redigest():
+    bundle = _bundle()
+    bundle["evidence_identity"]["unsafe"] = 0.1
+    bundle = _rebind(bundle)
+
+    report = verify_execution_bundle_v2(bundle)
+
+    assert not report["valid"]
+    assert report["checks"]["float_free_wire_surface"] is False
+
+
+def test_noncanonical_producer_selected_cost_is_rejected():
+    bundle = _bundle()
+    bundle["compilation_certificate"]["producer_selected_cost_decimal"] = "1.0"
+    bundle = _rebind(bundle)
+
+    report = verify_execution_bundle_v2(bundle)
+
+    assert not report["valid"]
+    assert report["checks"]["producer_selected_cost_decimal"] is False
