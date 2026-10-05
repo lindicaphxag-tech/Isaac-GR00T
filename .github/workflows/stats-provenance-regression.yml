@@ -1,0 +1,27 @@
+name: Stats provenance regression
+
+on:
+  push:
+    branches:
+      - validation/stats-provenance-content-complete
+  workflow_dispatch:
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Lint touched Python files
+        run: |
+          ruff check gr00t/data/stats.py tests/gr00t/data/test_generate_stats_cache_fingerprint.py tests/gr00t/data/test_stats_cache_fingerprint.py
+          ruff format --check gr00t/data/stats.py tests/gr00t/data/test_generate_stats_cache_fingerprint.py tests/gr00t/data/test_stats_cache_fingerprint.py
+      - name: Run focused cache regressions
+        run: |
+          python -m pytest -q             tests/gr00t/data/test_generate_stats_cache_fingerprint.py             tests/gr00t/data/test_stats_cache_fingerprint.py
