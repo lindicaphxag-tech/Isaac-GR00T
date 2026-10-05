@@ -279,6 +279,11 @@ class TestSinCosEncoding:
                 direct_action[key],
                 atol=1e-5,
             )
+            np.testing.assert_allclose(
+                recovered_action[key],
+                raw_action[key],
+                atol=1e-4,
+            )
 
     def test_combined_unapply_sincos_without_raw_state_still_fails_closed(
         self,
