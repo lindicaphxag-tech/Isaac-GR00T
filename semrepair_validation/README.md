@@ -43,9 +43,8 @@ python -m pip install \
   "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc3#subdirectory=semrepair_validation"
 ```
 
-A fixed semver-style branch `semrepair-v0.3.0rc3` should be frozen only after the
-corresponding release-candidate commit passes the complete public workflow.
-Until then, use an exact reviewed commit SHA for reproducible rc3 evaluation.
+For reproducible rc3 evaluation, use the frozen branch `semrepair-v0.3.0rc3`
+or the exact validated commit `45066dc1a7e5dfc62e26cdf90d40b08ff3be57b5`.
 
 The distribution name is `semrepair`:
 
@@ -101,10 +100,11 @@ The digests are integrity/dependency receipts, not digital signatures.
 
 ## Public validation
 
-Latest fully green inherited baseline validation (0.3.0rc2):
+Latest fully green release-candidate validation (0.3.0rc3):
 
-- validated code head: `094e5d96c74440410f9bfeff1ec6413985483c2b`;
-- workflow run: **37329404920**;
+- validated code head: `45066dc1a7e5dfc62e26cdf90d40b08ff3be57b5`;
+- immutable branch: `semrepair-v0.3.0rc3`;
+- workflow run: **37360627545**;
 - Python 3.10 / 3.12 / 3.13: success;
 - wheel + sdist: success;
 - install from public Git URL in a consumer-style job: success;
@@ -183,11 +183,10 @@ the regression/spec/tooling.
 
 `0.3.0rc1` is the currently published immutable prerelease.
 
-`0.3.0rc2` is the latest **green public release candidate** baseline.
-
-`0.3.0rc3` is the current moving release candidate. It adds exact-decimal v0.2
-wire authorization and remains pending until the complete rc3 public workflow
-is green and an immutable branch/tag is frozen.
+`0.3.0rc3` is the latest **fully green public release candidate**. Its exact
+validated code is frozen on `semrepair-v0.3.0rc3`; the moving development branch
+may continue to receive bookkeeping/documentation updates. A GitHub tag/release
+has not yet been created.
 
 None of these release states are NVIDIA adoption, a prospective I2 mechanism
 match, or L8/L9 by themselves.
