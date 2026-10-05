@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "artifact": "SemRepair",
+  "version": "0.3.0rc1",
+  "status": "validated-content-freeze",
+  "validated_content_head": "8f56978b8a62e6f161a7120b85a0548eff884976",
+  "validation_workflow_run_id": 37320554593,
+  "validation_conclusion": "success",
+  "freeze_rule": "Commits after validated_content_head may record release diagnostics/metadata only; method or package changes require a new full validation head.",
+  "publish_attempt": {
+    "workflow_run_id": 37320696287,
+    "result": "blocked",
+    "http_status": 403,
+    "reason": "Resource not accessible by integration"
+  },
+  "counts_as_github_release": false,
+  "counts_as_external_adoption": false,
+  "claim_boundary": "This freezes validated release-candidate content. It is not a GitHub tag/release and does not satisfy maintained external adoption."
+}
