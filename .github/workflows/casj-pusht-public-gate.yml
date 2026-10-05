@@ -1,6 +1,10 @@
 name: CASJ PushT Public Gate
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/casj-pusht-public-gate.yml"
+      - "casj_validation/**"
   push:
     branches:
       - "validation/casj-pusht-public-gate"
