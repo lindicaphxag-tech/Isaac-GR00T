@@ -36,8 +36,8 @@ jobs:
           PYTHONPATH: maniskill
         run: python host/.github/evidence/maniskill_1138_evidence.py broken
 
-      - name: Apply minimal converter/docs/regression patch
-        run: git -C maniskill apply ../host/.github/evidence/maniskill_1138.patch
+      - name: Apply exact-anchor converter/docs/regression repair
+        run: python host/.github/evidence/maniskill_1138_apply.py maniskill
 
       - name: Patched production boundary must preserve orientation
         env:
