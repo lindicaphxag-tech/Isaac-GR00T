@@ -100,7 +100,7 @@ def run_freshness_feedback(
 
     path_length = sum(
         abs(right - left)
-        for left, right in zip(states, states[1:], strict=True)
+        for left, right in zip(states, states[1:])
     )
     return FreshnessRollout(
         mode="freshness-guarded" if guarded else "stale-unguarded",
