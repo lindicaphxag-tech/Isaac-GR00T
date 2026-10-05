@@ -1,4 +1,5 @@
 # clean-head-v1
+# current-head revalidation 2026-10-05T20Z
 name: Validate GR00T PR 786 boundary semantics
 
 on:
