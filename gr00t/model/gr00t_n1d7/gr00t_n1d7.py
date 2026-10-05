@@ -340,7 +340,13 @@ class Gr00tN1d7ActionHead(nn.Module):
             backbone_features: [B, seq_len, backbone_embedding_dim]
             state_features: [B, state_horizon, input_embedding_dim]
             embodiment_id: [B] (embodiment IDs)
-            backbone_output: Output from the backbone model
+            backbone_output: Output from the backbone model.
+            action_input: Action-head inputs, including state / embodiment and
+                optionally a previous action chunk for RTC.
+            options: Optional RTC settings.
+            noise: Optional initial flow-matching action noise. When provided,
+                the tensor is cloned before use so RTC cannot mutate the caller's
+                reusable noise.
         """
         vl_embeds = backbone_features
 
@@ -471,6 +477,9 @@ class Gr00tN1d7ActionHead(nn.Module):
             action_input: Input containing:
                 - state: [B, state_dim]
                 - embodiment_id: [B] (embodiment IDs)
+            options: Optional RTC settings.
+            noise: Optional initial flow-matching action noise. Reusing the same
+                tensor allows paired inference without resetting global RNG state.
 
         Returns:
             BatchFeature containing:
