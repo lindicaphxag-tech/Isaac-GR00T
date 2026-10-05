@@ -13,6 +13,7 @@ from .embodied_repair_verification import (
     certificate_matches_program,
 )
 
+
 Context = Mapping[str, Any]
 
 
@@ -59,25 +60,35 @@ def _digest_payload(payload: Mapping[str, Any]) -> str:
 
 
 class SemanticRepairMediator:
-    """Apply only independently verified repair programs at runtime."""
+    """Apply only independently verified repair programs at runtime.
+
+    The mediator records requested and actually executed semantics separately.
+    A caller may provide a post-repair guard representing an existing safety
+    layer. The guard always observes the repaired action that would be executed.
+    """
 
     def __init__(
         self,
         *,
         contract_id: str,
         program: RepairProgram,
-        verification_status: str,
+        certificate: RepairVerificationCertificate,
         guard: Callable[[Vector, Context], bool] | None = None,
     ) -> None:
         if not contract_id:
             raise ValueError("contract_id must be non-empty")
-        if verification_status != "verified":
+        if not certificate_matches_program(
+            certificate,
+            contract_id=contract_id,
+            program=program,
+        ):
             raise RepairNotVerifiedError(
-                "runtime installation requires verification_status='verified'"
+                "runtime installation requires a valid program-bound verification certificate"
             )
         self.contract_id = contract_id
         self.program = program
-        self.verification_status = verification_status
+        self.verification_status = certificate.status
+        self.verification_certificate = certificate
         self.guard = guard
 
     @classmethod
@@ -89,6 +100,7 @@ class SemanticRepairMediator:
         certificate: RepairVerificationCertificate,
         guard: Callable[[Vector, Context], bool] | None = None,
     ) -> "SemanticRepairMediator":
+        """Install a repair only when an independent certificate matches it."""
         if not certificate_matches_program(
             certificate,
             contract_id=contract_id,
@@ -100,7 +112,7 @@ class SemanticRepairMediator:
         return cls(
             contract_id=contract_id,
             program=program,
-            verification_status=certificate.status,
+            certificate=certificate,
             guard=guard,
         )
 
@@ -144,5 +156,6 @@ class SemanticRepairMediator:
         *,
         context: Context | None = None,
     ) -> bool:
+        """Re-run the repair and ensure the executed semantic action is stable."""
         replayed = self.program.apply(receipt.requested, context or {})
         return replayed == receipt.executed
