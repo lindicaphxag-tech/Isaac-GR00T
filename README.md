@@ -105,6 +105,26 @@ The runtime fails closed when semantics cannot be justified. In particular,
 requested→executed and stale→fresh are event-owned transitions and cannot be
 forged by a pure adapter.
 
+## Repair-interaction CLI
+
+A host project can analyze a complete factorial repair experiment without
+integrating the full runtime:
+
+```bash
+semrepair-repair-lattice \
+  --input examples/maniskill_pr1472_pr1495_factorial.json \
+  --json
+```
+
+The included ManiSkill example is bound to public workflow run
+`37370267001`. It classifies the #1472/#1495 pair as **partial masking**:
+each singleton repair makes the old end-to-end orientation metric much worse,
+while the pair closes the representation/sign chain to approximately
+`4.83e-06°`.
+
+This command classifies supplied evidence; it does not upgrade self-authored
+measurements into maintainer adoption or prospective evidence.
+
 ## One-command evidence
 
 ```bash
