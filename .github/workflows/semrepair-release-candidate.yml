@@ -33,23 +33,29 @@ jobs:
         run: mkdir -p semrepair_validation/artifacts
       - name: Run source-to-compiler example
         run: |
+          set -o pipefail
           semrepair-source \
             --manifest semrepair_validation/examples/maniskill_style/semrepair.json \
             --json | tee semrepair_validation/artifacts/source-example.json
       - name: Emit behavioral evidence
         run: |
+          set -o pipefail
           semrepair-behavior --json | tee semrepair_validation/artifacts/behavioral-evidence.json
       - name: Run bounded theorem checks
         run: |
+          set -o pipefail
           semrepair-core-theorems --json | tee semrepair_validation/artifacts/core-theorems.json
       - name: Run production compiler conformance
         run: |
+          set -o pipefail
           semrepair-conformance --json | tee semrepair_validation/artifacts/compiler-conformance.json
       - name: Run proof-carrying runtime release gate
         run: |
+          set -o pipefail
           semrepair-runtime-gate --depth 4 --json | tee semrepair_validation/artifacts/runtime-release-gate.json
       - name: Run physical-effect fault injection assay
         run: |
+          set -o pipefail
           semrepair-effect-fault-assay --json | tee semrepair_validation/artifacts/physical-effect-fault-assay.json
       - name: Build wheel and sdist
         run: python -m build semrepair_validation
@@ -144,6 +150,7 @@ jobs:
         run: python -m pip install -e semrepair-host/semrepair_validation
       - name: Compile real ManiSkill producer-consumer boundary
         run: |
+          set -o pipefail
           mkdir -p evidence
           semrepair-source \
             --manifest semrepair-host/semrepair_validation/examples/real_source/maniskill_1138.json \
@@ -182,6 +189,7 @@ jobs:
         env:
           PYTHONPATH: upstream-maniskill
         run: |
+          set -o pipefail
           mkdir -p evidence
           python semrepair-host/semrepair_validation/examples/real_source/maniskill_native_boundary.py             --json | tee evidence/maniskill-1138-native-boundary.json
       - name: Upload native ManiSkill boundary evidence
@@ -212,6 +220,7 @@ jobs:
         run: python -m pip install -e semrepair-host/semrepair_validation
       - name: Infer real GR00T ActionRepresentation closure
         run: |
+          set -o pipefail
           mkdir -p evidence
           semrepair-mode-closure \
             --enum-source upstream-groot/gr00t/data/types.py \
@@ -258,6 +267,7 @@ jobs:
         run: python -m pip install -e semrepair-host/semrepair_validation
       - name: Compare sync and async source-effect signatures
         run: |
+          set -o pipefail
           mkdir -p evidence
           semrepair-effect-parity \
             --reference-source upstream-lerobot/src/lerobot/rollout/inference/sync.py \
@@ -299,6 +309,7 @@ jobs:
           python -m pip install "mujoco==3.14.0"
       - name: Run native MuJoCo closed-loop semantic corruption and repair
         run: |
+          set -o pipefail
           mkdir -p evidence
           python semrepair_validation/examples/mujoco_native/mujoco_semrepair_closed_loop.py \
             --json | tee evidence/mujoco-native-closed-loop.json
