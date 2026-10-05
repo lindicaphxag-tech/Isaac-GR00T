@@ -80,10 +80,27 @@ def compact_axis_angle_from_matrix(matrix: Matrix3) -> Vector3:
 
 
 def angular_distance_radians(a: Matrix3, b: Matrix3) -> float:
-    """Geodesic SO(3) distance between two rotation matrices."""
+    """Geodesic SO(3) distance with an explicit matched-repeat numerical floor.
+
+    Floating-point matrix multiplication can make R.T @ R have a trace a few
+    ulps below 3, turning an exact self-comparison into a tiny non-zero angle.
+    Treat elementwise-identical (or machine-floor-equivalent) matrices as zero
+    before applying acos.  This is a numerical floor, not a task tolerance.
+    """
+    max_abs_delta = max(
+        abs(a[i][j] - b[i][j])
+        for i in range(3)
+        for j in range(3)
+    )
+    if max_abs_delta <= 1.0e-14:
+        return 0.0
+
     relative = _matmul(_transpose(a), b)
     trace = relative[0][0] + relative[1][1] + relative[2][2]
-    return acos(_clip((trace - 1.0) / 2.0))
+    cosine = _clip((trace - 1.0) / 2.0)
+    if cosine >= 1.0 - 1.0e-15:
+        return 0.0
+    return acos(cosine)
 
 
 @dataclass(frozen=True)
