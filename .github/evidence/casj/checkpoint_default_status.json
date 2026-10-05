@@ -1,0 +1,14 @@
+{
+  "claim_boundary": "Single-state checkpoint-default mechanism gate. Not multi-seed performance, external adoption, or prospective I2.",
+  "dataset_id": "lerobot/pusht",
+  "expected_checkpoint_inference_steps": 100,
+  "gate": "casj-pusht-checkpoint-default",
+  "lerobot_commit": "8c920c4270460851cedd2737657584586d3dc66f",
+  "model_id": "lerobot/diffusion_pusht",
+  "result_json_present": true,
+  "schema_version": 1,
+  "validation_branch": "validation/casj-pusht-public-gate",
+  "workflow_job_status_at_publish_step": "success",
+  "workflow_run_id": "37362314084",
+  "workflow_trigger_sha": "96f66189573a1abb206b693b0bba2bbe3955b952"
+}
