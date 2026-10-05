@@ -51,15 +51,23 @@ identity = Pose.create_from_pq(
 )
 target = controller.compute_target_pose(identity, physical)
 
-dot = torch.abs(torch.sum(expected_quat[0] * target.q[0]))
-dot = float(torch.clamp(dot, 0.0, 1.0))
-error_deg = math.degrees(2.0 * math.acos(dot))
+expected_q = expected_quat[0].to(dtype=torch.float64)
+actual_q = target.q[0].to(dtype=torch.float64)
+expected_q = expected_q / torch.linalg.vector_norm(expected_q)
+actual_q = actual_q / torch.linalg.vector_norm(actual_q)
+if torch.dot(expected_q, actual_q) < 0:
+    actual_q = -actual_q
+# Chordal form is well conditioned for tiny quaternion differences:
+# ||q1-q2|| = 2 sin(theta/4) for unit quaternions modulo sign.
+chordal = float(torch.linalg.vector_norm(expected_q - actual_q))
+error_deg = math.degrees(4.0 * math.asin(min(1.0, chordal / 2.0)))
 position_error = float(
     torch.linalg.vector_norm(target.p[0] - torch.tensor([0.01, -0.02, 0.03], dtype=dtype))
 )
 
 print(
     f"mode={mode} orientation_error_deg={error_deg:.9f} "
+    f"quaternion_chordal_error={chordal:.12g} "
     f"position_error={position_error:.12g}"
 )
 
