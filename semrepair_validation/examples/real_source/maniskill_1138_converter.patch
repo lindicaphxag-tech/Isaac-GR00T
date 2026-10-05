@@ -1,0 +1,34 @@
+diff --git a/mani_skill/trajectory/utils/actions/conversion.py b/mani_skill/trajectory/utils/actions/conversion.py
+--- a/mani_skill/trajectory/utils/actions/conversion.py
++++ b/mani_skill/trajectory/utils/actions/conversion.py
+@@
+ import numpy as np
+ import sapien
+ import torch
+ from tqdm.auto import tqdm
+-from transforms3d.quaternions import quat2axangle
+@@
+-def compact_axis_angle_from_quaternion(quat: np.ndarray) -> np.ndarray:
+-    theta, omega = quat2axangle(quat)
+-    # - 2 * np.pi to make the angle symmetrical around 0
+-    if omega > np.pi:
+-        omega = omega - 2 * np.pi
+-    return omega * theta
++def xyz_euler_from_quaternion(quat: np.ndarray) -> np.ndarray:
++    """Convert a quaternion to the XYZ-Euler representation used by PDEEPoseController."""
++    quat_tensor = torch.as_tensor(quat)
++    return (
++        rotation_conversions.matrix_to_euler_angles(
++            rotation_conversions.quaternion_to_matrix(quat_tensor),
++            "XYZ",
++        )
++        .cpu()
++        .numpy()
++    )
+@@
+     delta_pose = np.r_[
+         delta_pose.p,
+-        compact_axis_angle_from_quaternion(delta_pose.q),
++        xyz_euler_from_quaternion(delta_pose.q),
+     ]
+     return gym_utils.inv_scale_action(delta_pose, low.cpu().numpy(), high.cpu().numpy())
