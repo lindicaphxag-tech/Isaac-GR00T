@@ -111,6 +111,9 @@ __all__ = [
     "transport_spatial_chunk",
     "SelectiveRepairRecord",
     "evaluate_selective_repair",
+    "DirectionalTrustRegion",
+    "certify_directional_trust_region",
+    "trust_region_accepts",
 ]
 
 from .geometry import (
@@ -162,3 +165,5 @@ from .action_charts import (
     so3_log,
 )
 from .selective import SelectiveRepairRecord, evaluate_selective_repair
+
+from .trust_region import DirectionalTrustRegion, certify_directional_trust_region, trust_region_accepts
