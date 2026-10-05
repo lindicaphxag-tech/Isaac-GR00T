@@ -197,3 +197,49 @@ jobs:
           path: evidence/groot-action-representation-closure.json
           if-no-files-found: error
           retention-days: 30
+
+  real-source-lerobot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SemRepair release candidate
+        uses: actions/checkout@v4
+        with:
+          path: semrepair-host
+      - name: Checkout pinned LeRobot source
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/lerobot
+          ref: 8c920c4270460851cedd2737657584586d3dc66f
+          path: upstream-lerobot
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SemRepair
+        run: python -m pip install -e semrepair-host/semrepair_validation
+      - name: Compare sync and async source-effect signatures
+        run: |
+          mkdir -p evidence
+          semrepair-effect-parity \
+            --reference-source upstream-lerobot/src/lerobot/rollout/inference/sync.py \
+            --reference-source upstream-lerobot/src/lerobot/policies/utils.py \
+            --alternative-source upstream-lerobot/src/lerobot/async_inference/policy_server.py \
+            --alternative-source upstream-lerobot/src/lerobot/async_inference/helpers.py \
+            --json | tee evidence/lerobot-sync-async-effect-parity.json
+      - name: Assert frozen effect asymmetry without defect overclaim
+        run: |
+          python - <<'PY'
+          import json
+          report = json.load(open("evidence/lerobot-sync-async-effect-parity.json"))
+          assert "policy_preprocess" in report["shared_effects"]
+          assert report["reference_only"] == []
+          assert report["alternative_only"] == ["image_resize_to_policy_shape"]
+          assert report["symmetric"] is False
+          assert "before classifying a defect" in report["claim_boundary"]
+          PY
+      - name: Upload LeRobot real-source evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-lerobot-real-source
+          path: evidence/lerobot-sync-async-effect-parity.json
+          if-no-files-found: error
+          retention-days: 30
