@@ -129,6 +129,21 @@ jobs:
         run: semrepair-effect-fault-assay --json
       - name: Run installed behavioral evidence
         run: semrepair-behavior --json
+      - name: Exercise external adoption scaffold
+        run: |
+          rm -rf /tmp/semrepair-adoption
+          semrepair-adopt-init \
+            --repository example/robot-stack \
+            --contract-id embodied/representation/controller-roundtrip@0.2 \
+            --semantic-layer controller/action-representation \
+            --integration-type native-regression \
+            --maintained-path test_semantic_contract.py \
+            --output-dir /tmp/semrepair-adoption
+          semrepair-adoption-check \
+            --manifest /tmp/semrepair-adoption/semrepair-adoption.json \
+            --repository-root /tmp/semrepair-adoption \
+            --json
+          grep -q NotImplementedError /tmp/semrepair-adoption/test_semantic_contract.py
 
   real-source-maniskill:
     runs-on: ubuntu-latest
