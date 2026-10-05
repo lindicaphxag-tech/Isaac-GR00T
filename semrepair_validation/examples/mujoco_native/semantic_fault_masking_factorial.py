@@ -22,6 +22,12 @@ from math import sqrt
 
 import mujoco
 
+from research.semantic_invariants.embodied_semantic_transport import (
+    MonomialSemanticTransport,
+    SemanticTransportFactor,
+    analyze_transport_cancellation,
+)
+
 
 MODEL_XML = """
 <mujoco model="semantic_fault_masking">
@@ -116,6 +122,22 @@ def run_case(
 
 
 def build_report() -> dict[str, object]:
+    swap = MonomialSemanticTransport((1, 0), (1.0, 1.0))
+    static = analyze_transport_cancellation(
+        (
+            SemanticTransportFactor(
+                "producer-order",
+                swap,
+                "controlled-fault/producer-order",
+            ),
+            SemanticTransportFactor(
+                "dispatch-order",
+                swap,
+                "controlled-fault/dispatch-order",
+            ),
+        )
+    )
+
     # Baseline under investigation: two independent semantic faults coexist.
     both_faults = run_case(
         producer_swap_fault=True,
@@ -151,6 +173,12 @@ def build_report() -> dict[str, object]:
         "faults": {
             "A": "producer joint-order packing swap",
             "B": "actuator dispatch-order swap",
+        },
+        "static_prediction": {
+            "structurally_masked": static.structurally_masked,
+            "net_is_identity": static.net.is_identity(),
+            "repair_one_unmasks": static.repair_one_unmasks,
+            "evidence_digest": static.digest,
         },
         "factorial_cells": {
             "fault_A+fault_B": both_faults,
@@ -200,6 +228,15 @@ def main() -> None:
             f"repair-B-only={lattice['dispatch_repair_only']:.6g}, "
             f"both-repairs={lattice['both_repairs']:.6g}"
         )
+
+    static = report["static_prediction"]
+    if not static["structurally_masked"] or not static["net_is_identity"]:
+        raise SystemExit("static transport algebra did not predict cancellation")
+    if tuple(static["repair_one_unmasks"]) != (
+        "producer-order",
+        "dispatch-order",
+    ):
+        raise SystemExit("static pre-screen did not identify both unmasking repairs")
 
     lattice = report["repair_lattice"]
     if not lattice["single_repair_paradox"]:
