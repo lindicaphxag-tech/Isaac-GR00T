@@ -32,8 +32,8 @@ import numpy as np
 import torch
 
 from lerobot.datasets import LeRobotDatasetMetadata
-from lerobot.policies import make_pre_post_processors
 from lerobot.policies.diffusion import DiffusionPolicy
+from lerobot.policies.diffusion.processor_diffusion import make_diffusion_pre_post_processors
 from lerobot.utils.constants import OBS_IMAGE, OBS_STATE
 
 from casj import (
