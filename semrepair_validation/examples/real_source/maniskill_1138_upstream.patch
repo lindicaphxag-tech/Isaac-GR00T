@@ -1,0 +1,102 @@
+diff --git a/mani_skill/trajectory/utils/actions/conversion.py b/mani_skill/trajectory/utils/actions/conversion.py
+--- a/mani_skill/trajectory/utils/actions/conversion.py
++++ b/mani_skill/trajectory/utils/actions/conversion.py
+@@
+ import numpy as np
+ import sapien
+ import torch
+ from tqdm.auto import tqdm
+-from transforms3d.quaternions import quat2axangle
+@@
+-def compact_axis_angle_from_quaternion(quat: np.ndarray) -> np.ndarray:
+-    theta, omega = quat2axangle(quat)
+-    # - 2 * np.pi to make the angle symmetrical around 0
+-    if omega > np.pi:
+-        omega = omega - 2 * np.pi
+-    return omega * theta
++def xyz_euler_from_quaternion(quat: np.ndarray) -> np.ndarray:
++    """Convert a quaternion to the XYZ-Euler representation used by PDEEPoseController."""
++    quat_tensor = torch.as_tensor(quat)
++    return (
++        rotation_conversions.matrix_to_euler_angles(
++            rotation_conversions.quaternion_to_matrix(quat_tensor),
++            "XYZ",
++        )
++        .cpu()
++        .numpy()
++    )
+@@
+     delta_pose = np.r_[
+         delta_pose.p,
+-        compact_axis_angle_from_quaternion(delta_pose.q),
++        xyz_euler_from_quaternion(delta_pose.q),
+     ]
+     return gym_utils.inv_scale_action(delta_pose, low.cpu().numpy(), high.cpu().numpy())
+diff --git a/tests/test_action_conversion.py b/tests/test_action_conversion.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_action_conversion.py
+@@
++from math import acos, degrees
++from types import SimpleNamespace
++
++import pytest
++import sapien
++import torch
++
++from mani_skill.agents.controllers import PDEEPoseController
++from mani_skill.trajectory.utils.actions.conversion import delta_pose_to_pd_ee_delta
++from mani_skill.utils import gym_utils
++from mani_skill.utils.geometry import rotation_conversions
++from mani_skill.utils.structs.pose import Pose
++
++
++@pytest.mark.parametrize(
++    "euler",
++    (
++        (0.3, 0.2, -0.4),
++        (0.5, 0.5, 0.5),
++        (0.8, -0.4, 0.6),
++    ),
++)
++def test_pd_ee_delta_converter_matches_controller_rotation_semantics(euler):
++    """Converter output must reconstruct the intended controller rotation."""
++    dtype = torch.float64
++    expected_euler = torch.tensor([euler], dtype=dtype)
++    expected_quat = rotation_conversions.matrix_to_quaternion(
++        rotation_conversions.euler_angles_to_matrix(expected_euler, "XYZ")
++    )[0]
++
++    controller = object.__new__(PDEEPoseController)
++    controller.config = SimpleNamespace(
++        use_delta=True,
++        normalize_action=True,
++        frame="root_translation:root_aligned_body_rotation",
++    )
++    controller.action_space_low = torch.tensor([-1.0] * 6, dtype=dtype)
++    controller.action_space_high = torch.tensor([1.0] * 6, dtype=dtype)
++
++    delta_pose = sapien.Pose(
++        [0.0, 0.0, 0.0],
++        expected_quat.detach().cpu().numpy(),
++    )
++    normalized = delta_pose_to_pd_ee_delta(controller, delta_pose)
++    physical = gym_utils.clip_and_scale_action(
++        torch.as_tensor(normalized, dtype=dtype),
++        controller.action_space_low,
++        controller.action_space_high,
++    ).unsqueeze(0)
++
++    identity = Pose.create_from_pq(
++        torch.zeros((1, 3), dtype=dtype),
++        torch.tensor([[1.0, 0.0, 0.0, 0.0]], dtype=dtype),
++    )
++    actual = PDEEPoseController.compute_target_pose(
++        controller,
++        identity,
++        physical,
++    ).q[0]
++
++    dot = float(torch.abs(torch.sum(expected_quat * actual)).clamp(0.0, 1.0))
++    error_degrees = degrees(2.0 * acos(dot))
++    assert error_degrees < 0.02
