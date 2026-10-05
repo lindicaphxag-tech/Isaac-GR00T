@@ -140,8 +140,8 @@ jobs:
           assert semrepair.__version__ == "0.3.0rc1"
           print("published-wheel", semrepair.__version__)
           PY
-          semrepair-core-theorem-check --json > /tmp/published-wheel-theorem.json
-          semrepair-compiler-conformance --json > /tmp/published-wheel-conformance.json
+          semrepair-core-theorems --json > /tmp/published-wheel-theorem.json
+          semrepair-conformance --json > /tmp/published-wheel-conformance.json
 
           python -m pip uninstall -y semrepair
           python -m pip install "git+https://github.com/${{ github.repository }}.git@$RELEASE_TAG#subdirectory=semrepair_validation"
@@ -150,8 +150,8 @@ jobs:
           assert semrepair.__version__ == "0.3.0rc1"
           print("public-tag", semrepair.__version__)
           PY
-          semrepair-core-theorem-check --json > /tmp/public-tag-theorem.json
-          semrepair-compiler-conformance --json > /tmp/public-tag-conformance.json
+          semrepair-core-theorems --json > /tmp/public-tag-theorem.json
+          semrepair-conformance --json > /tmp/public-tag-conformance.json
 
       - name: Persist release diagnostics
         if: always()
