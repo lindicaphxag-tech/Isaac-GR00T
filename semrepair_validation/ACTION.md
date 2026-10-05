@@ -1,31 +1,32 @@
 # SemRepair GitHub Action
 
-This directory is also a composite GitHub Action.
+SemRepair ships a composite GitHub Action so another robotics repository can run
+the proof-carrying runtime gate without vendoring the research implementation.
 
-A robotics repository can add SemRepair to CI without vendoring the research
-runtime:
+After the fixed release branch is frozen, prefer:
 
 ```yaml
-- uses: lindicaphxag-tech/Isaac-GR00T/semrepair_validation@semrepair-v0.3-rc1
+- uses: lindicaphxag-tech/Isaac-GR00T/semrepair_validation@semrepair-v0.3.0rc1
   with:
     manifest: semrepair-adoption.json
     repository-root: .
-    model-depth: 3
+    model-depth: "3"
 ```
 
-The action performs two independent checks:
+Until that branch exists, the moving development RC is
+`semrepair-v0.3-rc1`.
 
-1. installs the SemRepair package from the action checkout and runs the
-   proof-carrying semantic-runtime release gate;
-2. if `manifest` is supplied, validates the consumer repository's adoption
-   manifest and verifies that its declared maintained path exists inside the
-   checked-out repository.
+For maximum reproducibility, pin the Action to the reviewed commit SHA used by
+your integration.
 
-A green action run is **not** external-adoption credit by itself. The independent
-repository must intentionally retain its native regression/spec/tooling. The
-SemRepair ledger verifies that external fact separately.
+The Action:
 
-For a minimal candidate manifest, first run:
+1. installs SemRepair from its own action checkout;
+2. runs `semrepair-runtime-gate`;
+3. optionally validates a consumer-side `semrepair-adoption.json`;
+4. verifies that the declared maintained path exists in the consumer repository.
+
+Generate an adoption skeleton with:
 
 ```bash
 semrepair-adopt-init \
@@ -36,5 +37,9 @@ semrepair-adopt-init \
   --maintained-path tests/test_semantic_contract.py
 ```
 
-Then replace the generated failing placeholder with a real repository-native
-semantic regression.
+The generated regression intentionally fails until replaced with real
+repository-native semantic evidence.
+
+A green self-test or self-authored consumer fixture is **not** external-adoption
+credit. External adoption requires the independent repository to retain the
+native regression/spec/tooling.

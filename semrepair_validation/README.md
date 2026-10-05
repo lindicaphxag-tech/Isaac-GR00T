@@ -1,54 +1,52 @@
-# SemRepair 0.3.0-rc1
+# SemRepair 0.3.0rc1
 
-SemRepair is a research prototype for **semantic type-and-effect compilation**
-across embodied-AI and robot-learning software boundaries.
+SemRepair is a research prototype for **proof-carrying semantic repair and
+runtime execution across embodied-AI software boundaries**.
 
-It targets failures where ordinary tensor shape and dtype remain valid while
-physical meaning changes silently: rotation representation, joint ordering,
-clock/scope, action provenance, sensor freshness, and related cross-layer
-semantics.
+It targets failures where tensors remain shape/dtype-valid while physical
+meaning changes silently: rotation representation, joint ordering, clock/scope,
+action provenance, sensor freshness, dependency provenance, and physical-effect
+completion under crash/replay.
 
-## Method path
+## Core execution path
 
 ```text
 source / config / runtime evidence
-        |
-        v
-hidden semantic inference
-        |
-        v
-type + effect compilation
-        |
-        +--> certified explicit adapter
-        +--> bounded repair candidate
-        +--> proof obligation
-        +--> owner-boundary runtime refinement
-        +--> fail closed
-        |
-        v
-independent verification certificate
-        |
-        v
-proof-carrying semantic runtime
-        |
-        +--> stable physical-effect identity
-        +--> independent observation-plane evidence
-        +--> ambiguity-preserving commit / reconcile / block
-        |
-        v
-certified runtime mediation
+        ↓
+semantic type + effect inference
+        ↓
+typed repair synthesis
+        ↓
+independent repair verification
+        ↓
+semantic compilation certificate
+        ↓
+proof-carrying runtime authorization
+        ↓
+physical-effect dispatch
+        ↓
+independent observation-plane evidence
+        ↓
+COMMITTED / ABORTED / AMBIGUOUS
 ```
 
-## Install this public release candidate
+The runtime fails closed when semantics cannot be justified. In particular,
+requested→executed and stale→fresh are event-owned transitions and cannot be
+forged by a pure adapter.
 
-From the repository root:
+## Install
+
+Development release-candidate branch:
 
 ```bash
-python -m pip install -e semrepair_validation
+python -m pip install \
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc1#subdirectory=semrepair_validation"
 ```
 
-The distribution name is `semrepair`. A stable convenience import is also
-provided:
+A fixed semver-style branch `semrepair-v0.3.0rc1` is frozen only after the
+corresponding release-candidate commit passes the complete public workflow.
+
+The distribution name is `semrepair`:
 
 ```python
 import semrepair
@@ -57,31 +55,15 @@ print(semrepair.__version__)
 
 ## One-command evidence
 
-Behavioral assays:
-
 ```bash
 semrepair-behavior --json
-```
-
-Bounded core theorem checks:
-
-```bash
 semrepair-core-theorems --json
-```
-
-Production compiler vs independent exhaustive oracle:
-
-```bash
 semrepair-conformance --json
-```
-
-Proof-carrying runtime release gate:
-
-```bash
 semrepair-runtime-gate --depth 4 --json
+semrepair-effect-fault-assay --json
 ```
 
-Portable source-to-compiler example:
+Source-boundary example:
 
 ```bash
 semrepair-source \
@@ -89,75 +71,86 @@ semrepair-source \
   --json
 ```
 
-The example infers an axis-angle producer and XYZ-Euler consumer from Python
-source and synthesizes the explicit two-hop representation repair.
+## Public validation
 
-## Formal core
+Latest fully green release-candidate code validation:
 
-The release candidate also carries a Lean 4 core under
-`semrepair_validation/formal`. Public CI rejects `sorry` / `admit` and builds
-the pinned formal project.
+- validated code head: `b24d33ce816e2967b3ec8701d30a2213ecf72991`;
+- workflow run: **37326497957**;
+- Python 3.10 / 3.12 / 3.13: success;
+- wheel + sdist: success;
+- install from public Git URL in a consumer-style job: success;
+- reusable composite Action consumer smoke: success;
+- Lean core build with explicit `sorry` / `admit` rejection: success;
+- production compiler vs independent exhaustive oracle: **2017 cases**, valid;
+- bounded replay model: **4662 traces**;
+- proof-carrying runtime release gate: **7/7 checks**;
+- pinned real-source GR00T / LeRobot / ManiSkill audits: success;
+- native MuJoCo closed-loop semantic-corruption / repair assay: success;
+- native ManiSkill production converter→controller **red→green patch gate**:
+  success.
 
-The formal claims are intentionally narrow: the current core mechanizes selected
-semantic-preservation / non-forgeability properties. It does not prove the
-entire Python compiler or general robot safety.
+### Native ManiSkill #1138 representation boundary
 
-## Public evidence
+The public job executes the real frozen ManiSkill production functions:
 
-Current release-candidate validation:
+```text
+mani_skill.trajectory.utils.actions.conversion.delta_pose_to_pd_ee_delta
+→
+mani_skill.agents.controllers.PDEEPoseController.compute_target_pose
+```
 
-- head: `304f19661b21bf2a510f736b63f78d3bbe6d3aa9`;
-- workflow run: **37316616190**;
-- Python 3.10 / 3.12 / 3.13 package jobs: success;
-- wheel + sdist build: success;
-- public Git URL external-consumer install: success;
-- Lean core with explicit `sorry/admit` rejection: success;
-- production-vs-exhaustive conformance: **2017 cases**, valid;
-- bounded replay model in runtime gate: **4662 traces**;
-- proof-carrying runtime gate: **7/7 checks**;
-- pinned real-source GR00T and ManiSkill semantic-source jobs: success.
+For target XYZ Euler `(0.5, 0.5, 0.5)` rad:
 
-The deterministic behavioral surface contains three distinct intervention
-classes:
+- current frozen source: **12.9285035°** SO(3) error;
+- after applying the exact minimal converter patch: **0.0092307°**;
+- SAPIEN pose round-trip numerical floor in the same assay: **0.0092307°**.
 
-1. **joint ordering** — compile and install an explicit reorder adapter;
-2. **rotation representation + sign** — synthesize, independently verify, and
-   certificate-gate a composed repair;
-3. **sensor freshness** — refuse a fake stale->fresh cast and require an
-   owner-boundary resample/refinement.
+The before/after JSON evidence is retained in workflow artifact
+`semrepair-maniskill-1138-native-boundary` (artifact id **11351603467**,
+SHA-256 `48120ac10ccf5fa53c6170d36044013751e82653aeeb2477247a05158912488f`).
 
-## Source lineage
+This validates the representation boundary only. The separate normalized
+rotation-sign issue (#1469/#1472) is intentionally outside this claim.
 
-This branch is a public release-candidate staging surface derived from the
-private research repository:
+### Native MuJoCo closed loop
 
-- source repository: `lindicaphxag-tech/lindicaphxag-tech`
-- source branch: `research/invariantbench-l8`
-- current source lineage head used for this release work:
-  `fdc527015491cfb2c790371bb953202a8dfc1c94`
+The public workflow constructs real `MjModel` / `MjData`, executes
+`mujoco.mj_step`, injects a hidden joint-order semantic corruption, and checks
+the explicit compiled permutation repair.
 
-It is deliberately isolated from the NVIDIA upstream-facing fix branches and
-does not modify NVIDIA production code.
+Artifact:
+`semrepair-mujoco-native-closed-loop` (id **11352960143**, SHA-256
+`be76e8cc87af4acf1973e6fc0b5b0af8606a35656f4b84d6f72bd8b0a9b9492c`).
+
+## Formal claim boundary
+
+The release candidate includes a Lean 4 formal core and bounded executable
+theorem/conformance checks. It does **not** claim a proof of the entire Python
+implementation or general robot safety.
+
+## External adoption
+
+A repository can consume SemRepair through either:
+
+- the package / CLI;
+- a source-boundary manifest;
+- a repository-native regression generated by `semrepair-adopt-init`;
+- the composite GitHub Action in `semrepair_validation/action.yml`.
+
+Self-authored consumer smoke tests remain **zero external-adoption credit**.
+L8/L9 adoption changes only when an independently maintained repository retains
+the regression/spec/tooling.
 
 ## Citation and license
 
-- citation metadata: `semrepair_validation/CITATION.cff`
-- license: Apache-2.0 in `semrepair_validation/LICENSE`
-- changelog: `semrepair_validation/CHANGELOG.md`
-- machine-readable status: `semrepair_validation/RELEASE_STATUS.json`
+- `semrepair_validation/CITATION.cff`
+- `semrepair_validation/LICENSE`
+- `semrepair_validation/CHANGELOG.md`
+- `semrepair_validation/RELEASE_STATUS.json`
 
-## Claim boundary
+## Current claim boundary
 
-This is a **public release candidate**, not a maintained NVIDIA/Isaac-GR00T
-integration.
-
-It does **not** count as:
-
-- NVIDIA adoption;
-- a prospective I2 mechanism match;
-- project-native real-stack closed-loop validation;
-- L8 achieved;
-- L9 achieved;
-- a GitHub tagged Release.
-
-Those gates stay false until external evidence exists.
+This is a **public release candidate**. It is not NVIDIA adoption, not a
+prospective I2 mechanism match, and not L8/L9 by itself. A GitHub tag/release has
+not yet been created.

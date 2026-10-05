@@ -1,27 +1,45 @@
-# Release handoff — 0.3.0rc1
+# Release handoff — SemRepair 0.3.0rc1
 
-All technical release prerequisites are present on branch
-`semrepair-v0.3-rc1`.
+The technical release-candidate surface is validated.
 
-Recommended GitHub release fields:
+Latest fully green code validation:
 
-- tag: `semrepair-v0.3.0rc1`
-- target: `e015dff78a3177f61b500947c9a46bdb57fe9beb`
-- title: `SemRepair 0.3.0rc1 — Proof-Carrying Semantic Runtime`
-- prerelease: yes
-- notes: use `semrepair_validation/RELEASE_NOTES_0_3_0_RC1.md`
+- code head: `b24d33ce816e2967b3ec8701d30a2213ecf72991`
+- workflow: `37326497957`
+- conclusion: success
 
-Verified before release:
+Recommended release sequence:
 
-- LICENSE present;
-- CITATION.cff present;
+1. let the documentation-only release-freeze commit complete CI;
+2. freeze branch `semrepair-v0.3.0rc1` at that green commit;
+3. create tag `semrepair-v0.3.0rc1` from the fixed branch;
+4. create GitHub prerelease titled
+   `SemRepair 0.3.0rc1 — Proof-Carrying Semantic Runtime`;
+5. use `semrepair_validation/RELEASE_NOTES_0_3_0_RC1.md`.
+
+Verified surfaces include:
+
+- LICENSE and CITATION.cff;
 - package version 0.3.0rc1;
-- wheel/sdist build succeeds;
-- public Git install succeeds;
-- Python 3.10/3.12/3.13 validation succeeds;
-- Lean formal build succeeds with incomplete-proof rejection;
-- native ManiSkill boundary succeeds;
-- native MuJoCo closed-loop assay succeeds.
+- Python 3.10 / 3.12 / 3.13;
+- wheel + sdist;
+- public Git consumer install;
+- composite Action consumer smoke;
+- Lean build with incomplete-proof rejection;
+- production/compiler conformance;
+- proof-carrying runtime release gate;
+- physical-effect fault assay;
+- real-source GR00T / LeRobot / ManiSkill;
+- native MuJoCo closed loop;
+- native ManiSkill exact-patch red→green gate.
 
-The connected GitHub tool available in this session does not expose tag/release
-creation, so no release/tag is claimed here.
+Native ManiSkill measurement:
+
+```text
+before patch: 12.9285035° SO(3) error
+after patch:   0.0092307°
+SAPIEN floor:  0.0092307°
+```
+
+The connected GitHub tool exposes release reads but not tag/release creation, so
+no GitHub tag/release is claimed by this handoff.
