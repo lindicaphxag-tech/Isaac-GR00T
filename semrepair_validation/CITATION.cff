@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this SemRepair research artifact, please cite the software."
+title: "SemRepair: Semantic Type-and-Effect Compilation for Embodied AI"
+version: "0.3.0-rc1"
+type: software
+authors:
+  - name: "lindicaphxag-tech"
+repository-code: "https://github.com/lindicaphxag-tech/Isaac-GR00T"
+keywords:
+  - embodied AI
+  - robotics
+  - semantic types
+  - program synthesis
+  - runtime verification
+abstract: >-
+  SemRepair infers hidden physical semantics at embodied-learning software
+  boundaries, type-checks producer-consumer composition, synthesizes bounded
+  repairs for forgeable mismatches, and requires evidence-backed refinement for
+  event-owned semantics such as executed-action provenance and sensor freshness.

@@ -1,0 +1,6 @@
+name = "semrepair_formal"
+version = "0.1.0"
+defaultTargets = ["SemRepairFormal"]
+
+[[lean_lib]]
+name = "SemRepairFormal"

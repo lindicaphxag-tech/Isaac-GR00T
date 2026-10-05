@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "artifact": "SemRepair",
+  "version": "0.3.0rc1",
+  "surface": "public-release-candidate",
+  "repository": "lindicaphxag-tech/Isaac-GR00T",
+  "branch": "semrepair-v0.3-rc1",
+  "standalone_package_installable": true,
+  "citation_metadata_present": true,
+  "explicit_license_present": true,
+  "formal_core_present": true,
+  "real_stack_closed_loop": false,
+  "maintained_external_adoptions": 0,
+  "prospective_i2_matches": 0,
+  "counts_as_versioned_public_release": false,
+  "counts_as_l8": false,
+  "counts_as_l9": false,
+  "remaining_release_blockers": [
+    "dedicated standalone repository not yet available through the connected GitHub tool",
+    "no GitHub tag/release has been created",
+    "no maintained external adoption",
+    "no project-native real-stack closed-loop validation"
+  ],
+  "validated_head_sha": "304f19661b21bf2a510f736b63f78d3bbe6d3aa9",
+  "validation_run_id": 37316616190,
+  "validation_run_url": "https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37316616190",
+  "validation_conclusion": "success",
+  "python_matrix": [
+    "3.10",
+    "3.12",
+    "3.13"
+  ],
+  "validation_surfaces": {
+    "editable_install": true,
+    "public_test_surface": true,
+    "source_to_compiler_example": true,
+    "behavioral_evidence": true,
+    "bounded_theorem_checker": true,
+    "production_conformance": true,
+    "proof_carrying_runtime_release_gate": true,
+    "wheel_and_sdist": true,
+    "pip_dependency_check": true,
+    "lean_formal_core": true,
+    "public_git_external_consumer": true,
+    "pinned_real_source_groot": true,
+    "pinned_real_source_maniskill": true
+  },
+  "quantitative_evidence": {
+    "production_conformance_cases": 2017,
+    "production_conformance_valid": true,
+    "replay_model_traces_checked": 4662,
+    "runtime_release_checks_passed": 7,
+    "runtime_release_checks_total": 7,
+    "external_consumer_version": "0.3.0rc1",
+    "wheel_sha256": "38a4833011b7bb45c616d64a800bb54ee63bfa3d80d15020fe9992f7f0312b6e"
+  },
+  "proof_carrying_runtime_validated": true,
+  "external_consumer_install_validated": true,
+  "release_candidate_artifact_uploaded": true,
+  "release_candidate_artifact_id": 11347149478
+}

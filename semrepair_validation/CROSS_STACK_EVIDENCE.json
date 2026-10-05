@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "artifact": "SemRepair",
+  "purpose": "Cross-stack executable evidence. Entries require pinned upstream source and a public CI run; source-only evidence is not counted as behavioral validation or adoption.",
+  "entries": [
+    {
+      "id": "maniskill-1138-source-representation",
+      "repository": "mani-skill/ManiSkill",
+      "source_commit": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+      "semantic_layer": "controller/action representation",
+      "method_surface": "source semantic type inference -> boundary compilation",
+      "expected_relation": "axis-angle producer conflicts with XYZ-Euler consumer",
+      "public_ci_required": true,
+      "behavioral_validation": false,
+      "external_adoption": false,
+      "prospective": false
+    },
+    {
+      "id": "groot-action-representation-closure",
+      "repository": "NVIDIA/Isaac-GR00T",
+      "source_commit": "51d4c89f72fda44cbf77285c6a8114b52676b8a1",
+      "semantic_layer": "configuration/runtime mode closure",
+      "method_surface": "enum declaration + runtime branch inference",
+      "expected_relation": "RELATIVE handled; ABSOLUTE explicit baseline; DELTA unresolved",
+      "public_ci_required": true,
+      "behavioral_validation": false,
+      "external_adoption": false,
+      "prospective": false
+    },
+    {
+      "id": "lerobot-sync-async-effect-parity",
+      "repository": "huggingface/lerobot",
+      "source_commit": "8c920c4270460851cedd2737657584586d3dc66f",
+      "semantic_layer": "policy/VLA execution-path preprocessing",
+      "method_surface": "source semantic-effect signature parity",
+      "expected_relation": "async source path has policy-shape resize effect absent from sync path",
+      "public_ci_required": true,
+      "behavioral_validation": false,
+      "external_adoption": false,
+      "prospective": false
+    }
+  ],
+  "claim_boundary": "Three pinned real-source stacks are staged for public executable audit. This registry does not count a case until its corresponding public CI job is green, and source asymmetry alone is not a defect/adoption claim."
+}
