@@ -22,38 +22,247 @@
     "spec_version": {"const": "0.2"},
     "canonicalization_profile": {"const": "semrepair-wire-c14n/v0.1"},
     "semantic_contract_id": {"type": "string", "minLength": 1},
-    "bundle_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "compilation_certificate": {"$ref": "#/$defs/compilation"},
+    "effect_certificate": {"$ref": "#/$defs/effect"},
+    "intent": {"$ref": "#/$defs/intent"},
+    "adapter_registry": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/adapter"}
+    },
+    "evidence_identity": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
     "verification_profile": {
       "type": "object",
       "required": ["max_steps"],
-      "properties": {"max_steps": {"type": "integer", "minimum": 0}},
+      "properties": {
+        "max_steps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
       "additionalProperties": false
     },
-    "adapter_registry": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "name", "requires", "produces", "cost_decimal", "effects", "required_evidence"
-        ],
-        "properties": {
-          "name": {"type": "string", "minLength": 1},
-          "requires": {"type": "object"},
-          "produces": {"type": "object"},
-          "cost_decimal": {
-            "type": "string",
-            "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
-          },
-          "effects": {"type": "array", "items": {"type": "string"}},
-          "required_evidence": {"type": "array", "items": {"type": "string"}}
-        },
-        "additionalProperties": false
-      }
+    "bindings": {"$ref": "#/$defs/bindings"},
+    "bundle_digest": {"$ref": "#/$defs/digest"}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     },
-    "evidence_identity": {"type": "object"},
-    "compilation_certificate": {"type": "object"},
-    "effect_certificate": {"type": "object"},
-    "intent": {"type": "object"},
+    "decimal_cost": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+    },
+    "semantic_type": {
+      "type": "object",
+      "required": [
+        "role",
+        "entity",
+        "frame",
+        "representation",
+        "mode",
+        "convention",
+        "unit",
+        "clock",
+        "scope",
+        "freshness",
+        "provenance",
+        "ordering",
+        "embodiment"
+      ],
+      "properties": {
+        "role": {"type": ["string", "null"]},
+        "entity": {"type": ["string", "null"]},
+        "frame": {"type": ["string", "null"]},
+        "representation": {"type": ["string", "null"]},
+        "mode": {"type": ["string", "null"]},
+        "convention": {"type": ["string", "null"]},
+        "unit": {"type": ["string", "null"]},
+        "clock": {"type": ["string", "null"]},
+        "scope": {"type": ["string", "null"]},
+        "freshness": {"type": ["string", "null"]},
+        "provenance": {"type": ["string", "null"]},
+        "ordering": {"type": ["string", "null"]},
+        "embodiment": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "semantic_partial": {
+      "type": "object",
+      "properties": {
+        "role": {"type": "string"},
+        "entity": {"type": "string"},
+        "frame": {"type": "string"},
+        "representation": {"type": "string"},
+        "mode": {"type": "string"},
+        "convention": {"type": "string"},
+        "unit": {"type": "string"},
+        "clock": {"type": "string"},
+        "scope": {"type": "string"},
+        "freshness": {"type": "string"},
+        "provenance": {"type": "string"},
+        "ordering": {"type": "string"},
+        "embodiment": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "adapter": {
+      "type": "object",
+      "required": [
+        "name",
+        "requires",
+        "produces",
+        "cost_decimal",
+        "effects",
+        "required_evidence"
+      ],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "requires": {"$ref": "#/$defs/semantic_partial"},
+        "produces": {"$ref": "#/$defs/semantic_partial"},
+        "cost_decimal": {"$ref": "#/$defs/decimal_cost"},
+        "effects": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "required_evidence": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "min_commit_planes",
+        "min_abort_planes",
+        "require_fresh_evidence",
+        "allow_idempotent_retry"
+      ],
+      "properties": {
+        "min_commit_planes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "min_abort_planes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "require_fresh_evidence": {"type": "boolean"},
+        "allow_idempotent_retry": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "compilation": {
+      "type": "object",
+      "required": [
+        "schema",
+        "compiler_version",
+        "producer_registry_digest",
+        "producer_evidence_digest",
+        "source",
+        "target",
+        "inferred_source",
+        "refined_source",
+        "selected_adapter_path",
+        "producer_selected_cost_decimal",
+        "repair_candidate",
+        "repair_families",
+        "refinement_records",
+        "effects",
+        "producer_decision_digest"
+      ],
+      "properties": {
+        "schema": {"const": "embodied-semantic-compilation-certificate/v0.1"},
+        "compiler_version": {"type": "string"},
+        "producer_registry_digest": {"$ref": "#/$defs/digest"},
+        "producer_evidence_digest": {"$ref": "#/$defs/digest"},
+        "source": {"$ref": "#/$defs/semantic_type"},
+        "target": {"$ref": "#/$defs/semantic_type"},
+        "inferred_source": {"$ref": "#/$defs/semantic_type"},
+        "refined_source": {"$ref": "#/$defs/semantic_type"},
+        "selected_adapter_path": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "producer_selected_cost_decimal": {
+          "oneOf": [
+            {"$ref": "#/$defs/decimal_cost"},
+            {"type": "null"}
+          ]
+        },
+        "repair_candidate": {"type": ["string", "null"]},
+        "repair_families": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "refinement_records": {
+          "type": "array",
+          "items": {"type": "object"}
+        },
+        "effects": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "producer_decision_digest": {"$ref": "#/$defs/digest"}
+      },
+      "additionalProperties": false
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "schema",
+        "effect_id",
+        "action_name",
+        "effect_class",
+        "dependency_version",
+        "policy",
+        "semantic_contract_id",
+        "issuer_version",
+        "producer_decision_digest"
+      ],
+      "properties": {
+        "schema": {"const": "semantic-effect-commit-certificate/v0.1"},
+        "effect_id": {"type": "string", "minLength": 1},
+        "action_name": {"type": "string", "minLength": 1},
+        "effect_class": {
+          "enum": ["idempotent", "reversible", "irreversible"]
+        },
+        "dependency_version": {"$ref": "#/$defs/digest"},
+        "policy": {"$ref": "#/$defs/policy"},
+        "semantic_contract_id": {"type": "string", "minLength": 1},
+        "issuer_version": {"type": "string"},
+        "producer_decision_digest": {"$ref": "#/$defs/digest"}
+      },
+      "additionalProperties": false
+    },
+    "intent": {
+      "type": "object",
+      "required": [
+        "effect_id",
+        "action_name",
+        "effect_class",
+        "dependency_version"
+      ],
+      "properties": {
+        "effect_id": {"type": "string", "minLength": 1},
+        "action_name": {"type": "string", "minLength": 1},
+        "effect_class": {
+          "enum": ["idempotent", "reversible", "irreversible"]
+        },
+        "dependency_version": {"$ref": "#/$defs/digest"}
+      },
+      "additionalProperties": false
+    },
     "bindings": {
       "type": "object",
       "required": [
@@ -63,13 +272,12 @@
         "effect_digest"
       ],
       "properties": {
-        "adapter_registry_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "evidence_identity_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "compilation_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "effect_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        "adapter_registry_digest": {"$ref": "#/$defs/digest"},
+        "evidence_identity_digest": {"$ref": "#/$defs/digest"},
+        "compilation_digest": {"$ref": "#/$defs/digest"},
+        "effect_digest": {"$ref": "#/$defs/digest"}
       },
       "additionalProperties": false
     }
-  },
-  "additionalProperties": false
+  }
 }
