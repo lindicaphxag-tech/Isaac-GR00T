@@ -40,11 +40,10 @@ Development release-candidate branch:
 
 ```bash
 python -m pip install \
-  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc2#subdirectory=semrepair_validation"
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc3#subdirectory=semrepair_validation"
 ```
 
-A fixed semver-style branch `semrepair-v0.3.0rc2` is frozen only after the
-corresponding release-candidate commit passes the complete public workflow.
+A fixed semver-style branch `semrepair-v0.3.0rc3` should be frozen only after the\ncorresponding release-candidate commit passes the complete public workflow.\nUntil then, use an exact reviewed commit SHA for reproducible rc3 evaluation.
 
 The distribution name is `semrepair`:
 
@@ -93,13 +92,13 @@ semrepair-proof-bundle --input proof-bundle.json --json
 
 Schema:
 
-`semrepair_validation/schemas/semrepair-execution-proof-bundle-v0.1.schema.json`.
+`semrepair_validation/schemas/semrepair-execution-proof-bundle-v0.2.schema.json`\n(v0.1 remains available as the compatibility surface).
 
 The digests are integrity/dependency receipts, not digital signatures.
 
 ## Public validation
 
-Latest fully green release-candidate code validation:
+Latest fully green inherited baseline validation (0.3.0rc2):
 
 - validated code head: `094e5d96c74440410f9bfeff1ec6413985483c2b`;
 - workflow run: **37329404920**;
@@ -181,8 +180,4 @@ the regression/spec/tooling.
 
 `0.3.0rc1` is the currently published immutable prerelease.
 
-`0.3.0rc2` is a **green public release candidate** adding the proof-bundle
-interoperability surface. It is not yet tagged or released.
-
-Neither release is NVIDIA adoption, a prospective I2 mechanism match, or L8/L9
-by itself.
+`0.3.0rc2` is the latest **green public release candidate** baseline.\n\n`0.3.0rc3` is the current moving release candidate. It adds exact-decimal v0.2\nwire authorization and remains pending until the complete rc3 public workflow\nis green and an immutable branch/tag is frozen.\n\nNone of these release states are NVIDIA adoption, a prospective I2 mechanism\nmatch, or L8/L9 by themselves.
