@@ -1,0 +1,26 @@
+name: Validate MultiStep boundary semantics
+
+on:
+  push:
+    branches:
+      - validation/multistep-boundary-public-ci
+  workflow_dispatch:
+
+jobs:
+  focused-boundary-contract:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependency-light test requirements
+        run: python -m pip install --upgrade pip pytest numpy gymnasium
+      - name: Run MultiStep boundary contract tests
+        run: |
+          python -m pytest -q tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py \
+            -k "episode_boundary_flags or max_episode_steps or terminate_on_success"
