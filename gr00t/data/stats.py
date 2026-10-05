@@ -246,9 +246,10 @@ def _stale_features(
 
     A feature is considered fresh iff its stat-dict has all six fields and its
     fingerprint in ``__fingerprints__`` matches the canonical hash for its
-    current ``info.json`` schema. Anything else (missing info entry, missing
-    stat entry, missing stat field, missing fingerprint, mismatched
-    fingerprint) is treated as stale and recomputed.
+    current ``info.json`` schema and, when present, the current parquet
+    source manifest. Anything else (missing info entry, missing stat entry,
+    missing stat field, missing fingerprint, mismatched fingerprint) is treated
+    as stale and recomputed.
     """
     if stats is None:
         return list(lowdim_features)
@@ -278,8 +279,8 @@ def check_stats_validity(dataset_path: Path | str, features: list[str]):
     """Return True iff every feature in ``features`` has a fingerprint-matching cached entry.
 
     A True result means ``generate_stats`` can skip recomputation entirely. We
-    re-derive the expected fingerprint from the *current* ``info.json`` so any
-    schema drift since the cache was written invalidates it.
+    re-derive the expected fingerprint from the current ``info.json`` and
+    parquet source manifest so schema or source drift invalidates the cache.
     """
     dataset_path = Path(dataset_path)
     stats = _load_stats_cache(dataset_path / LE_ROBOT_STATS_FILENAME)
@@ -442,10 +443,10 @@ def _compute_relative_action_fingerprint(
     """Hash the inputs that change ``calculate_stats_for_key``'s output.
 
     Cached entries in ``relative_stats.json`` are only safe to reuse when every
-    such input matches what they were computed under. A stats file produced for
-    one ``(delta_indices, format, state_key, ...)`` combo would otherwise be
-    silently reused for a different combo with the same ``action_key`` name,
-    leading to wrong normalization without any error.
+    such input matches what they were computed under. This includes both the
+    action/state configuration and, when present, the parquet source manifest.
+    Otherwise a cache can be silently reused for different source values or a
+    different configuration with the same ``action_key`` name.
     """
     action_modality = MODALITY_CONFIGS[embodiment_tag.value]["action"]
     state_modality = MODALITY_CONFIGS[embodiment_tag.value]["state"]
