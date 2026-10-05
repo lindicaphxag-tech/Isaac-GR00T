@@ -170,6 +170,156 @@ class TestGr00tPolicyGetAction:
         assert isinstance(info, dict)
 
 
+class TestGr00tPolicyRTC:
+    def _rtc_previous_action(self, batch_size=1, horizon=16):
+        return {
+            key: np.full((batch_size, horizon, 1), i + 1, dtype=np.float32)
+            for i, key in enumerate(ACTION_KEYS)
+        }
+
+    def test_rtc_requires_previous_action(self, policy):
+        obs = _make_observation()
+        with pytest.raises(ValueError, match="require 'rtc_previous_action'"):
+            policy.get_action(
+                obs,
+                options={
+                    "rtc_overlap_steps": 8,
+                    "rtc_frozen_steps": 2,
+                    "rtc_ramp_rate": 4.0,
+                },
+            )
+
+    @pytest.mark.parametrize(
+        "options,match",
+        [
+            (
+                {
+                    "rtc_previous_action": {},
+                    "rtc_overlap_steps": 8,
+                    "rtc_frozen_steps": 2,
+                    "rtc_ramp_rate": 4.0,
+                },
+                "missing action keys",
+            ),
+            (
+                {
+                    "rtc_previous_action": None,
+                    "rtc_overlap_steps": 8,
+                    "rtc_frozen_steps": 2,
+                    "rtc_ramp_rate": 4.0,
+                },
+                "require 'rtc_previous_action'",
+            ),
+        ],
+    )
+    def test_rtc_rejects_incomplete_previous_action(self, policy, options, match):
+        obs = _make_observation()
+        with pytest.raises(ValueError, match=match):
+            policy.get_action(obs, options=options)
+
+    def test_rtc_rejects_invalid_overlap_contract(self, policy):
+        obs = _make_observation()
+        previous = self._rtc_previous_action()
+        with pytest.raises(ValueError, match="rtc_frozen_steps"):
+            policy.get_action(
+                obs,
+                options={
+                    "rtc_previous_action": previous,
+                    "rtc_overlap_steps": 4,
+                    "rtc_frozen_steps": 5,
+                    "rtc_ramp_rate": 4.0,
+                },
+            )
+
+    def test_rtc_rejects_wrong_previous_action_dtype(self, policy):
+        obs = _make_observation()
+        previous = self._rtc_previous_action()
+        previous[ACTION_KEYS[0]] = previous[ACTION_KEYS[0]].astype(np.float64)
+        with pytest.raises(TypeError, match="dtype float32"):
+            policy.get_action(
+                obs,
+                options={
+                    "rtc_previous_action": previous,
+                    "rtc_overlap_steps": 8,
+                    "rtc_frozen_steps": 2,
+                    "rtc_ramp_rate": 4.0,
+                },
+            )
+
+    def test_rtc_reencodes_physical_chunk_with_current_state_and_forwards_model_options(
+        self, policy
+    ):
+        obs = _make_observation()
+        # Make the current state easy to distinguish from the previous action.
+        for i, key in enumerate(STATE_KEYS[:-1]):
+            obs["state"][key].fill(10.0 + i)
+        obs["state"]["gripper"].fill(99.0)
+
+        previous = self._rtc_previous_action()
+        captured_steps = []
+
+        def fake_processor(messages):
+            step = messages[0]["content"]
+            captured_steps.append(step)
+            # The real processor would normalize / relative-encode step.actions
+            # against step.states. We only need a stable encoded tensor here to
+            # verify the policy plumbing without loading a checkpoint.
+            encoded = {
+                "state": torch.zeros(1, 128),
+                "action_mask": torch.ones(16, 128),
+                "embodiment_id": np.int32(0),
+            }
+            if step.actions:
+                encoded["action"] = torch.zeros(16, 128)
+            return encoded
+
+        def fake_collate(items):
+            inputs = {}
+            for key in items[0]:
+                values = [item[key] for item in items]
+                if isinstance(values[0], torch.Tensor):
+                    inputs[key] = torch.stack(values)
+                else:
+                    inputs[key] = torch.as_tensor(values)
+            return BatchFeature(data={"inputs": inputs})
+
+        policy.processor.side_effect = fake_processor
+        policy.collate_fn = fake_collate
+
+        policy.get_action(
+            obs,
+            options={
+                "rtc_previous_action": previous,
+                "rtc_overlap_steps": 8,
+                "rtc_frozen_steps": 2,
+                "rtc_ramp_rate": 4.0,
+            },
+        )
+
+        assert len(captured_steps) == 1
+        step = captured_steps[0]
+        for key in ACTION_KEYS:
+            np.testing.assert_array_equal(step.actions[key], previous[key][0])
+        for key in STATE_KEYS:
+            np.testing.assert_array_equal(step.states[key], obs["state"][key][0])
+
+        call = policy.model.get_action.call_args
+        assert "action" in call.kwargs["inputs"]
+        assert call.kwargs["options"] == {
+            "rtc_overlap_steps": 8,
+            "rtc_frozen_steps": 2,
+            "rtc_ramp_rate": 4.0,
+            "action_horizon": 16,
+        }
+        assert "rtc_previous_action" not in call.kwargs["options"]
+
+    def test_non_rtc_options_are_forwarded_without_action_input(self, policy):
+        obs = _make_observation()
+        policy.get_action(obs, options={"custom_option": 7})
+        call = policy.model.get_action.call_args
+        assert call.kwargs["options"] == {"custom_option": 7}
+
+
 class _NumpyLanguageSimPolicy:
     def __init__(self):
         self.modality_configs = {
