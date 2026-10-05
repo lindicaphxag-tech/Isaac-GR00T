@@ -23,10 +23,12 @@ schema so any drift invalidates just that feature's cached entry.
 """
 
 import json
+import os
 
 from gr00t.data.stats import (
     LE_ROBOT_STATS_FILENAME,
     STATS_FINGERPRINTS_KEY,
+    _compute_dataset_source_fingerprint,
     _compute_stats_fingerprint,
     _stale_features,
     check_stats_validity,
@@ -61,6 +63,13 @@ def _write_meta(dataset_path, features: dict, stats: dict | None = None) -> None
     (meta / "info.json").write_text(json.dumps(_info_json(features)))
     if stats is not None:
         (meta / "stats.json").write_text(json.dumps(stats))
+
+
+def _write_source_shard(dataset_path, payload: bytes = b"source-v1"):
+    shard = dataset_path / "data" / "chunk-000" / "episode_000000.parquet"
+    shard.parent.mkdir(parents=True, exist_ok=True)
+    shard.write_bytes(payload)
+    return shard
 
 
 def _stub_stat_dict(dim: int = 17) -> dict[str, list[float]]:
@@ -103,6 +112,48 @@ def mock_calculate(monkeypatch):
 
     monkeypatch.setattr("gr00t.data.stats.calculate_dataset_statistics", fake)
     return calls
+
+
+# ---------------------------------------------------------------------------
+# dataset source manifest -- cheap cache invalidation provenance
+# ---------------------------------------------------------------------------
+
+
+class TestDatasetSourceFingerprint:
+    def test_changes_when_shard_is_added(self, dataset):
+        first = _write_source_shard(dataset, b"first")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        second = first.with_name("episode_000001.parquet")
+        second.write_bytes(b"second")
+        mutated = _compute_dataset_source_fingerprint(dataset)
+
+        assert mutated != baseline
+
+    def test_changes_when_source_size_changes(self, dataset):
+        shard = _write_source_shard(dataset, b"short")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        shard.write_bytes(b"a-longer-source")
+        mutated = _compute_dataset_source_fingerprint(dataset)
+
+        assert mutated != baseline
+
+    def test_changes_when_source_mtime_changes(self, dataset):
+        shard = _write_source_shard(dataset, b"same-bytes")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        stat = shard.stat()
+        os.utime(shard, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+        touched = _compute_dataset_source_fingerprint(dataset)
+
+        assert touched != baseline
+
+    def test_stable_when_manifest_is_unchanged(self, dataset):
+        _write_source_shard(dataset, b"stable")
+        assert _compute_dataset_source_fingerprint(dataset) == _compute_dataset_source_fingerprint(
+            dataset
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +324,37 @@ class TestGenerateStatsCache:
         generate_stats(dataset)
 
         assert mock_calculate == [], "fresh fingerprints must produce zero recompute"
+
+
+    def test_dataset_source_change_recomputes_all_features(
+        self, dataset, lowdim_features, mock_calculate
+    ):
+        _write_meta(dataset, lowdim_features)
+        shard = _write_source_shard(dataset, b"source-v1")
+        generate_stats(dataset)
+        mock_calculate.clear()
+
+        # Same schema, different source manifest: all source-derived stats are stale.
+        shard.write_bytes(b"source-version-two")
+        generate_stats(dataset)
+
+        assert len(mock_calculate) == 1
+        assert sorted(mock_calculate[0]) == sorted(lowdim_features)
+
+    def test_mtime_only_change_safely_invalidates_cache(
+        self, dataset, lowdim_features, mock_calculate
+    ):
+        _write_meta(dataset, lowdim_features)
+        shard = _write_source_shard(dataset, b"unchanged-bytes")
+        generate_stats(dataset)
+        mock_calculate.clear()
+
+        stat = shard.stat()
+        os.utime(shard, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+        generate_stats(dataset)
+
+        assert len(mock_calculate) == 1
+        assert sorted(mock_calculate[0]) == sorted(lowdim_features)
 
     def test_dtype_change_recomputes_only_that_feature(
         self, dataset, lowdim_features, mock_calculate
