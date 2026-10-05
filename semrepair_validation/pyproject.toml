@@ -32,7 +32,8 @@ semrepair-effect-fault-assay = "research.semantic_invariants.semantic_effect_fau
 semrepair-adopt-init = "research.semantic_invariants.semrepair_adoption_cli:main"
 semrepair-adoption-check = "research.semantic_invariants.semrepair_adoption_check:main"
 semrepair-contract-compat = "research.semantic_invariants.semrepair_contract_compatibility:main"
-semrepair-proof-bundle = "research.semantic_invariants.execution_bundle_wire:main"\nsemrepair-proof-bundle-v2 = "research.semantic_invariants.execution_bundle_wire_v2:main"
+semrepair-proof-bundle = "research.semantic_invariants.execution_bundle_wire:main"
+semrepair-proof-bundle-v2 = "research.semantic_invariants.execution_bundle_wire_v2:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
