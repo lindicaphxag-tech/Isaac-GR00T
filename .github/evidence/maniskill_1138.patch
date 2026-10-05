@@ -1,15 +1,18 @@
 diff --git a/mani_skill/trajectory/utils/actions/conversion.py b/mani_skill/trajectory/utils/actions/conversion.py
 --- a/mani_skill/trajectory/utils/actions/conversion.py
 +++ b/mani_skill/trajectory/utils/actions/conversion.py
-@@
- import numpy as np
+@@ -5,7 +5,6 @@
  import sapien
  import torch
  from tqdm.auto import tqdm
 -from transforms3d.quaternions import quat2axangle
  
  from mani_skill.agents.controllers import (
-@@
+     PDEEPosController,
+@@ -49,12 +48,17 @@
+     return gym_utils.inv_scale_action(qvel, low, high)
+ 
+ 
 -def compact_axis_angle_from_quaternion(quat: np.ndarray) -> np.ndarray:
 -    theta, omega = quat2axangle(quat)
 -    # - 2 * np.pi to make the angle symmetrical around 0
@@ -27,30 +30,38 @@ diff --git a/mani_skill/trajectory/utils/actions/conversion.py b/mani_skill/traj
 +        .cpu()
 +        .numpy()
 +    )
-@@
+ 
+ 
+ def delta_pose_to_pd_ee_delta(
+@@ -76,7 +80,7 @@
+         )
      delta_pose = np.r_[
          delta_pose.p,
 -        compact_axis_angle_from_quaternion(delta_pose.q),
 +        xyz_euler_from_quaternion(delta_pose.q),
      ]
      return gym_utils.inv_scale_action(delta_pose, low.cpu().numpy(), high.cpu().numpy())
-
+ 
 diff --git a/docs/source/user_guide/concepts/controllers.md b/docs/source/user_guide/concepts/controllers.md
 --- a/docs/source/user_guide/concepts/controllers.md
 +++ b/docs/source/user_guide/concepts/controllers.md
-@@
+@@ -152,9 +152,9 @@
+   
+   $\bar{p}(t)=p(t)+a$, $\bar{R}(t)=R(t)$, $\bar{q}(t)=IK(\bar{p}(t), \bar{R}(t))$
+ 
 -- arm_pd_ee_delta_pose (6-dim): both position ( $p$ ) and rotation ( $R$ ) are controlled. Rotation is represented as axis-angle in the end-effector frame.
--
--  $\bar{p}(t)=p(t)+a_{p}$, $\bar{R}(t)=R(t) \cdot e^{[a_{R}]_{\times}}$, $\bar{q}(t)=IK(\bar{p}(t), \bar{R}(t))$
 +- arm_pd_ee_delta_pose (6-dim): both position ( $p$ ) and rotation ( $R$ ) are controlled. The three rotation action dimensions are XYZ Euler angles, matching the controller's Rotation section and implementation.
-+
+ 
+-  $\bar{p}(t)=p(t)+a_{p}$, $\bar{R}(t)=R(t) \cdot e^{[a_{R}]_{\times}}$, $\bar{q}(t)=IK(\bar{p}(t), \bar{R}(t))$
 +  $\bar{p}(t)=p(t)+a_{p}$. The rotation increment is constructed from the XYZ Euler action $a_R$ and composed according to the configured rotation frame; then $\bar{q}(t)=IK(\bar{p}(t), \bar{R}(t))$.
-
+ 
+ - arm_pd_ee_target_delta_pos (3-dim): $\bar{p}(t)=\bar{p}(t-1)+a$, $\bar{R}(t)=R(t)$
+ - arm_pd_ee_target_delta_pose (6-dim): $\bar{T}(t)= T_{a} \cdot \bar{T}(t-1)$. $T$ is the transformation of the end-effector. $T_a$ is the delta pose induced by the action.
 diff --git a/tests/test_action_conversion.py b/tests/test_action_conversion.py
 new file mode 100644
 --- /dev/null
 +++ b/tests/test_action_conversion.py
-@@
+@@ -0,0 +1,61 @@
 +from types import SimpleNamespace
 +
 +import pytest
@@ -80,8 +91,6 @@ new file mode 100644
 +        rotation_conversions.euler_angles_to_matrix(expected_euler, "XYZ")
 +    )
 +
-+    # Build only the controller surface used by the trajectory converter and
-+    # target-pose decoder. No simulator rollout or robot asset is required.
 +    controller = object.__new__(PDEEPoseController)
 +    controller.config = SimpleNamespace(
 +        use_delta=True,
@@ -94,9 +103,6 @@ new file mode 100644
 +    delta_pose = sapien.Pose([0.0, 0.0, 0.0], expected_quat[0].numpy())
 +    normalized = delta_pose_to_pd_ee_delta(controller, delta_pose)
 +
-+    # Restore the canonical physical action with the generic inverse of
-+    # inv_scale_action. Do not use PDEEPoseController._clip_and_scale_action
-+    # here: #1469 / PR #1472 own its independent rotation-sign bug.
 +    physical_action = gym_utils.clip_and_scale_action(
 +        torch.as_tensor(normalized, dtype=dtype),
 +        controller.action_space_low,
@@ -111,10 +117,10 @@ new file mode 100644
 +        controller, identity, physical_action
 +    )
 +
-+    # q and -q encode the same orientation.
 +    torch.testing.assert_close(
 +        torch.abs(torch.sum(expected_quat[0] * reconstructed.q[0])),
 +        torch.tensor(1.0, dtype=dtype),
 +        atol=1e-7,
 +        rtol=1e-7,
 +    )
++
