@@ -2,6 +2,10 @@
 name: CASJ public PushT checkpoint gate
 
 on:
+  pull_request:
+    paths:
+      - "casj_validation/**"
+      - ".github/workflows/casj-pusht-public-gate.yml"
   push:
     branches: [main]
     paths:
