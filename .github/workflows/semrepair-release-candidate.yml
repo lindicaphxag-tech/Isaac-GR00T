@@ -129,6 +129,9 @@ jobs:
         run: semrepair-effect-fault-assay --json
       - name: Run installed behavioral evidence
         run: semrepair-behavior --json
+      - name: Verify installed contract compatibility CLI
+        run: semrepair-contract-compat --help
+
       - name: Exercise external adoption scaffold
         run: |
           rm -rf /tmp/semrepair-adoption
