@@ -79,3 +79,17 @@ jobs:
           cd formal
           lake update
           lake build
+
+  native-mujoco-masking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install standalone SemRepair and native MuJoCo
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . mujoco numpy
+      - name: Run exact complete-masking physical assay
+        run: python examples/native_mujoco_complete_masking.py
