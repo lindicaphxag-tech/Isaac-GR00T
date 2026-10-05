@@ -9,21 +9,20 @@
   "citation_metadata_present": true,
   "explicit_license_present": true,
   "formal_core_present": true,
-  "real_stack_closed_loop": false,
+  "real_stack_closed_loop": true,
   "maintained_external_adoptions": 0,
   "prospective_i2_matches": 0,
   "counts_as_versioned_public_release": false,
   "counts_as_l8": false,
   "counts_as_l9": false,
   "remaining_release_blockers": [
-    "dedicated standalone repository not yet available through the connected GitHub tool",
     "no GitHub tag/release has been created",
     "no maintained external adoption",
-    "no project-native real-stack closed-loop validation"
+    "no resolved prospective I2 mechanism matches"
   ],
-  "validated_head_sha": "304f19661b21bf2a510f736b63f78d3bbe6d3aa9",
-  "validation_run_id": 37316616190,
-  "validation_run_url": "https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37316616190",
+  "validated_head_sha": "a084585ccc8124449b15abfdbed6c129b9c94b87",
+  "validation_run_id": 37319691345,
+  "validation_run_url": "https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37319691345",
   "validation_conclusion": "success",
   "python_matrix": [
     "3.10",
@@ -43,7 +42,12 @@
     "lean_formal_core": true,
     "public_git_external_consumer": true,
     "pinned_real_source_groot": true,
-    "pinned_real_source_maniskill": true
+    "pinned_real_source_maniskill": true,
+    "pinned_real_source_lerobot": true,
+    "native_maniskill_production_boundary": true,
+    "native_mujoco_closed_loop": true,
+    "external_adoption_scaffold": true,
+    "external_adoption_manifest_check": true
   },
   "quantitative_evidence": {
     "production_conformance_cases": 2017,
@@ -52,10 +56,31 @@
     "runtime_release_checks_passed": 7,
     "runtime_release_checks_total": 7,
     "external_consumer_version": "0.3.0rc1",
-    "wheel_sha256": "38a4833011b7bb45c616d64a800bb54ee63bfa3d80d15020fe9992f7f0312b6e"
+    "wheel_sha256": "38a4833011b7bb45c616d64a800bb54ee63bfa3d80d15020fe9992f7f0312b6e",
+    "latest_distribution_sha256": "107f789ce1ade8f5757e4cde63eee2530102b11ab11ce2fc2d849308d296296a"
   },
   "proof_carrying_runtime_validated": true,
   "external_consumer_install_validated": true,
   "release_candidate_artifact_uploaded": true,
-  "release_candidate_artifact_id": 11347149478
+  "release_candidate_artifact_id": 11349855386,
+  "native_execution": {
+    "maniskill": {
+      "artifact_id": 11349840514,
+      "sha256": "3dc023d1ba3d10d18433ed006fc5e20e7586bc9e09198f7cadc3588dafbbff8b",
+      "status": "success",
+      "claim_boundary": "Pinned upstream production converter-controller boundary; retrospective and not maintained upstream adoption."
+    },
+    "mujoco": {
+      "artifact_id": 11349423324,
+      "sha256": "1527c5e97687a988179a94645cbddc1b65b14625297512bb8b8a419b73d6f2f6",
+      "status": "success",
+      "claim_boundary": "Native MuJoCo controlled closed-loop semantic-corruption assay; not an upstream MuJoCo defect or adoption."
+    }
+  },
+  "externalization": {
+    "adoption_kit_validated": true,
+    "external_consumer_job": "success",
+    "maintained_external_adoptions": 0,
+    "claim_boundary": "The public Git consumer path and adoption scaffold are validated, but self-authored consumer smoke is not external adoption."
+  }
 }
