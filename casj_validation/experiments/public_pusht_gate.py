@@ -37,6 +37,7 @@ from casj import (
     EuclideanActionChart,
     RepairMode,
     certify_directional_remainder,
+    certify_directional_trust_region,
     certify_runtime,
     collect_two_scale_probes,
     infer_planar_rigid_anchor,
@@ -510,6 +511,16 @@ def evaluate_snapshot(
     # PushT has one candidate physical support (the T block), so the 1x1 code
     # design is exactly identifiable for sparsity one.
     codes = np.ones((1, 1), dtype=np.float64)
+    trust_regions = [
+        certify_directional_trust_region(
+            fine_second_per_unit2=directional_fine[t],
+            coarse_second_per_unit2=directional_coarse[t],
+            first_order_per_unit=casj_delta[t],
+            reference_action_scale=max(float(np.linalg.norm(casj_delta[t])), 1.0),
+        )
+        for t in range(len(baseline))
+    ]
+
     certificates = []
     for t in range(len(baseline)):
         cert = certify_runtime(
@@ -659,6 +670,20 @@ def evaluate_snapshot(
         "curvature_effect": curvature_effect.tolist(),
         "curvature_ratio": curvature_ratio.tolist(),
         "certificates": certificates,
+        "directional_trust_regions": [
+            {
+                "accepted": trust.accepted,
+                "radius_fraction_of_requested_motion": trust.radius,
+                "curvature_scale_stability": trust.curvature_scale_stability,
+                "first_order_norm_per_unit": trust.first_order_norm_per_unit,
+                "curvature_norm_per_unit2": trust.curvature_norm_per_unit2,
+                "radius_from_first_order": trust.radius_from_first_order,
+                "radius_from_reference_scale": trust.radius_from_reference_scale,
+                "limiting_constraint": trust.limiting_constraint,
+                "reason": trust.reason,
+            }
+            for trust in trust_regions
+        ],
         "certified_fallback": certified_fallback,
         "rollout_branches": rollout_branches,
         "jacobian_fine": casj_fine.tolist(),
