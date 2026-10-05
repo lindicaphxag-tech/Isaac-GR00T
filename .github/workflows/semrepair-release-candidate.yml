@@ -29,17 +29,36 @@ jobs:
         run: python -m pip install -e semrepair_validation
       - name: Run public test surface
         run: python -m pytest -q semrepair_validation/tests
+      - name: Create evidence directory
+        run: mkdir -p semrepair_validation/artifacts
       - name: Run source-to-compiler example
         run: |
-          semrepair-source             --manifest semrepair_validation/examples/maniskill_style/semrepair.json             --json
+          semrepair-source \
+            --manifest semrepair_validation/examples/maniskill_style/semrepair.json \
+            --json | tee semrepair_validation/artifacts/source-example.json
       - name: Emit behavioral evidence
-        run: semrepair-behavior --json
+        run: |
+          semrepair-behavior --json | tee semrepair_validation/artifacts/behavioral-evidence.json
       - name: Run bounded theorem checks
-        run: semrepair-core-theorems --json
+        run: |
+          semrepair-core-theorems --json | tee semrepair_validation/artifacts/core-theorems.json
       - name: Build wheel and sdist
         run: python -m build semrepair_validation
       - name: Check installed dependencies
         run: python -m pip check
+      - name: Upload release-candidate artifacts
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-0.3.0rc1
+          path: |
+            semrepair_validation/dist/*
+            semrepair_validation/artifacts/*.json
+            semrepair_validation/RELEASE_STATUS.json
+            semrepair_validation/CITATION.cff
+            semrepair_validation/LICENSE
+          if-no-files-found: error
+          retention-days: 30
 
   lean:
     runs-on: ubuntu-latest
@@ -47,7 +66,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install pinned Lean toolchain
         run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh             | sh -s -- --default-toolchain none -y
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- --default-toolchain none -y
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.elan/bin:$PATH"
           cd semrepair_validation/formal
