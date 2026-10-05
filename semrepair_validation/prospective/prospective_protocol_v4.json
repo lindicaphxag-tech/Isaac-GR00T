@@ -1,0 +1,165 @@
+{
+  "schema_version": 4,
+  "protocol": "semrepair-prospective-external-mechanism-watch",
+  "generation": "v4",
+  "status": "frozen-on-public-commit",
+  "freeze_parent_sha": "7539e62f0403b46c436d58e9aabbf0bccf3a2cdd",
+  "purpose": "Prospectively test whether frozen SemRepair semantic-contract families predict later independently reported embodied-stack failures and their eventual repair classes.",
+  "counters": {
+    "screened_post_freeze": 0,
+    "excluded_i0": 0,
+    "admitted_i2": 0,
+    "independently_resolved_i2": 0
+  },
+  "watch_repositories": [
+    "NVIDIA/Isaac-GR00T",
+    "huggingface/lerobot",
+    "openvla/openvla",
+    "Physical-Intelligence/openpi",
+    "octo-models/octo",
+    "robocasa/robocasa",
+    "ARISE-Initiative/robosuite",
+    "ARISE-Initiative/robomimic",
+    "mani-skill/ManiSkill",
+    "isaac-sim/IsaacLab",
+    "StanfordVL/BEHAVIOR-1K",
+    "facebookresearch/habitat-lab",
+    "BehaviorTree/BehaviorTree.CPP",
+    "ros2/rclcpp",
+    "ros2/rclpy",
+    "google-deepmind/mujoco",
+    "google-deepmind/mujoco_mpc",
+    "google-deepmind/dm_control",
+    "google-deepmind/open_x_embodiment",
+    "Farama-Foundation/Gymnasium",
+    "Farama-Foundation/PettingZoo",
+    "bulletphysics/bullet3",
+    "RobotLocomotion/drake",
+    "moveit/moveit2",
+    "ros-controls/ros2_control",
+    "ros-controls/ros2_controllers",
+    "Genesis-Embodied-AI/genesis-world",
+    "facebookresearch/home-robot",
+    "NVlabs/GR00T-Dreams"
+  ],
+  "frozen_mechanism_families": [
+    {
+      "id": "M1",
+      "name": "representation-contract drift",
+      "examples": [
+        "axis-angle vs Euler",
+        "quaternion convention",
+        "normalized vs physical action"
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "frame or ordering identity mismatch",
+      "examples": [
+        "world vs end-effector frame",
+        "joint permutation",
+        "camera/extrinsic identity"
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "unit or scale mismatch",
+      "examples": [
+        "degrees vs radians",
+        "normalized range vs actuator units"
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "clock, episode, or scope mismatch",
+      "examples": [
+        "stale episode origin",
+        "reset boundary",
+        "sync/async temporal scope"
+      ]
+    },
+    {
+      "id": "M5",
+      "name": "freshness or provenance loss",
+      "examples": [
+        "requested vs executed",
+        "stale sensor reused as fresh",
+        "cached decision detached from source identity"
+      ]
+    },
+    {
+      "id": "M6",
+      "name": "mode-closure/default fallthrough",
+      "examples": [
+        "declared enum mode not handled",
+        "implicit default changes semantic meaning"
+      ]
+    },
+    {
+      "id": "M7",
+      "name": "effect-commit ambiguity",
+      "examples": [
+        "request acknowledged but physical effect unknown",
+        "retry across irreversible action without receipt"
+      ]
+    },
+    {
+      "id": "M8",
+      "name": "dependency-identity drift",
+      "examples": [
+        "cached semantic decision survives source replacement",
+        "certificate survives registry/policy drift"
+      ]
+    },
+    {
+      "id": "M9",
+      "name": "producer-consumer semantic asymmetry",
+      "examples": [
+        "training vs inference preprocessing",
+        "sync vs async action/observation transformation"
+      ]
+    },
+    {
+      "id": "M10",
+      "name": "termination/truncation/reset semantic confusion",
+      "examples": [
+        "terminal state interpreted as truncation",
+        "reset state leaks across episode ownership"
+      ]
+    }
+  ],
+  "admissibility": {
+    "i0": "Issue/PR/body/comments published before prediction already state the concrete root cause or essentially the same repair.",
+    "i1": "Failure is post-freeze and relevant, but prediction is too broad or mechanism evidence is insufficient.",
+    "i2": "Before independent resolution, freeze one specific mechanism family, affected semantic boundary, expected invariant violation, and repair class. No source patch from resolver may have been inspected.",
+    "resolved_i2": "Later independent maintainer/user resolution must materially match the frozen mechanism and repair class. Mere symptom disappearance is insufficient."
+  },
+  "anti_leakage_rules": [
+    "Never promote a pre-freeze issue into I2.",
+    "Never use a resolver patch or comment published before the frozen prediction.",
+    "If the issue body already names the mechanism, classify I0 even when SemRepair agrees.",
+    "Predictions are immutable after commit; corrections create a new candidate record and the old one remains.",
+    "Self-authored fixtures, forks, or controlled fault injections never count as external prospective matches."
+  ],
+  "prediction_record_required_fields": [
+    "repository",
+    "issue_or_pr",
+    "observed_symptom_only",
+    "prediction_commit",
+    "mechanism_family",
+    "semantic_boundary",
+    "predicted_invariant",
+    "predicted_repair_class",
+    "forbidden_evidence_checked",
+    "status"
+  ],
+  "l8_gate": {
+    "target": "At least two clean independently resolved I2 matches across repository-disjoint projects, plus at least one maintainer-retained external regression/integration.",
+    "current_resolved_i2": 0,
+    "current_maintained_adoption": 0
+  },
+  "l9_gate": {
+    "target": "At least three independently maintained projects retain/reuse the contract, verifier, native regression, or repair pattern, with external continuation beyond one-off author patches.",
+    "current_independent_projects": 0
+  }
+}
