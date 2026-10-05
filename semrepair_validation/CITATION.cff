@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this SemRepair research artifact, please cite the software."
 title: "SemRepair: Semantic Type-and-Effect Compilation for Embodied AI"
-version: "0.3.0-rc1"
+version: "0.3.0-rc3"
 type: software
 authors:
   - name: "lindicaphxag-tech"
