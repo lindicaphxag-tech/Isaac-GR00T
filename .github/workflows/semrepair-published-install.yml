@@ -1,3 +1,4 @@
+# published-install-trigger-v1
 name: Validate published SemRepair 0.3.0rc1
 
 on:
