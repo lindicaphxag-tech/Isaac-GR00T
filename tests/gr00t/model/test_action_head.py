@@ -153,6 +153,67 @@ class TestActionHeadGetAction:
         assert out["action_pred"].shape[0] == 1
 
 
+class TestActionHeadExplicitNoise:
+    """Test caller-controlled initial action noise for paired inference."""
+
+    def test_same_noise_is_independent_of_global_rng_state(self, action_head):
+        head, config = action_head
+        backbone_output = _make_backbone_output(config)
+        action_input = _make_action_input(config)
+        del action_input["action"]
+
+        generator = torch.Generator().manual_seed(123)
+        noise = torch.randn(
+            2,
+            config.action_horizon,
+            config.max_action_dim,
+            generator=generator,
+        )
+
+        torch.manual_seed(1)
+        first = head.get_action(backbone_output, action_input, noise=noise)["action_pred"]
+        torch.manual_seed(9999)
+        second = head.get_action(backbone_output, action_input, noise=noise)["action_pred"]
+
+        torch.testing.assert_close(first, second, rtol=0, atol=0)
+
+    def test_rtc_does_not_mutate_caller_noise(self, action_head):
+        head, config = action_head
+        backbone_output = _make_backbone_output(config)
+        action_input = _make_action_input(config)
+
+        noise = torch.randn(2, config.action_horizon, config.max_action_dim)
+        original_noise = noise.clone()
+        options = {
+            "action_horizon": config.action_horizon,
+            "rtc_overlap_steps": 2,
+            "rtc_frozen_steps": 1,
+            "rtc_ramp_rate": 4.0,
+        }
+
+        head.get_action(
+            backbone_output,
+            action_input,
+            options=options,
+            noise=noise,
+        )
+
+        torch.testing.assert_close(noise, original_noise, rtol=0, atol=0)
+
+    def test_explicit_noise_shape_is_validated(self, action_head):
+        head, config = action_head
+        action_input = _make_action_input(config)
+        del action_input["action"]
+        bad_noise = torch.zeros(2, config.action_horizon - 1, config.max_action_dim)
+
+        with pytest.raises(ValueError, match="noise must have shape"):
+            head.get_action(
+                _make_backbone_output(config),
+                action_input,
+                noise=bad_noise,
+            )
+
+
 class TestActionHeadEncodeFeatures:
     """Test feature encoding helper."""
 
