@@ -13,3 +13,5 @@ steps for a CPU feasibility smoke. A later result may be promoted to scientific
 public-checkpoint evidence only if it uses the checkpoint-default inference
 configuration, multiple independent reset seeds, and the predeclared multi-phase
 protocol.
+
+Public CI is intentionally fail-closed: no CASJ claim is promoted unless the machine-readable paired-randomness and input-perturbation assertions pass.
