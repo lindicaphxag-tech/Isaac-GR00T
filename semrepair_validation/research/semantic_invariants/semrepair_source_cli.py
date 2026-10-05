@@ -68,6 +68,7 @@ def run_source_manifest(
     manifest_path: Path,
     *,
     evidence: dict[str, object] | None = None,
+    source_root: Path | None = None,
 ) -> dict[str, Any]:
     """Compile one source boundary described by a repository-local JSON manifest."""
 
@@ -75,7 +76,7 @@ def run_source_manifest(
     if payload.get("schema_version") != 1:
         raise ValueError("manifest schema_version must be 1")
 
-    root = manifest_path.parent
+    root = source_root if source_root is not None else manifest_path.parent
     producer_path = root / str(payload["producer"]["path"])
     consumer_path = root / str(payload["consumer"]["path"])
 
@@ -127,6 +128,11 @@ def main() -> None:
     )
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--evidence-json", type=Path)
+    parser.add_argument(
+        "--source-root",
+        type=Path,
+        help="Optional repository root used to resolve producer/consumer paths.",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -135,7 +141,11 @@ def main() -> None:
         evidence = json.loads(args.evidence_json.read_text(encoding="utf-8"))
 
     try:
-        report = run_source_manifest(args.manifest, evidence=evidence)
+        report = run_source_manifest(
+            args.manifest,
+            evidence=evidence,
+            source_root=args.source_root,
+        )
     except (
         ConflictingSourceSemantics,
         SemanticCompilationError,
