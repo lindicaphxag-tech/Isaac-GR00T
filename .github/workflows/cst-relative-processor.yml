@@ -1,0 +1,24 @@
+name: CST GR00T relative-action negative control
+
+on:
+  push:
+    branches:
+      - "validation/cst-relative-processor"
+    paths:
+      - "cst_validation/**"
+      - ".github/workflows/cst-relative-processor.yml"
+  workflow_dispatch:
+
+jobs:
+  relative:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install minimal processor dependencies
+        run: python -m pip install "numpy==1.26.4" "scipy==1.15.3" pytest
+      - name: Run GR00T relative semantic falsifier
+        run: python -m pytest -vv cst_validation/test_relative_processor_semantics.py
