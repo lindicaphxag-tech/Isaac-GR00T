@@ -363,8 +363,12 @@ class MultiStepWrapper(gym.Wrapper):
 
         if self.terminate_on_success and any(info["success"]):
             # Preserve the existing success contract: finish the issued macro-step,
-            # then report task success as episode termination.
+            # then report task success as an episode boundary owned by this wrapper.
             terminated = True
+            if len(self.done) > 0:
+                self.done[-1] = True
+            if len(info["dones"]) > 0:
+                info["dones"][-1] = True
 
         return observation, reward, terminated, truncated, info
 
