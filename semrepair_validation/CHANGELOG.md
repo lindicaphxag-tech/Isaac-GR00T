@@ -24,8 +24,6 @@ cross-language numeric ambiguity.
 This is interoperability/self-validation work. It does not increment maintained
 external adoption or prospective I2 counts.
 
-# Changelog
-
 ## 0.3.0-rc2
 
 This release candidate adds a language-neutral proof-carrying execution bundle
