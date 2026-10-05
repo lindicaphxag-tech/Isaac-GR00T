@@ -8,6 +8,7 @@ Source snapshot:
 - private research repository: lindicaphxag-tech/lindicaphxag-tech
 - branch: research/invariantbench-l8
 - source head: 6f2c8549a8c323ee55fcbb4683b533894b44587c
+- validation tree commit: e37aaa5df7a8dec00be54c9c8f9243dca97a5d24
 - validation target: semantic inference -> type/effect compilation -> repair
   synthesis -> independent verification -> certified runtime mediation ->
   formal executable oracles -> deterministic closed-loop consequences.
