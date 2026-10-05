@@ -1,0 +1,34 @@
+name: SemRepair formal core
+
+on:
+  push:
+    branches:
+      - validation/semrepair-core-v0.3
+    paths:
+      - "semrepair_validation/formal/**"
+      - "lean-toolchain"
+      - ".github/workflows/semrepair-formal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          use-github-cache: false
+      - name: Reject incomplete proofs
+        run: |
+          if grep -R -nE '\b(sorry|admit)\b' semrepair_validation/formal/SemRepairFormal; then
+            echo "Incomplete proof placeholder found"
+            exit 1
+          fi
+      - name: Build SemRepair formal core
+        run: |
+          cd semrepair_validation/formal
+          lake build
