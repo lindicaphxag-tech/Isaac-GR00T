@@ -283,3 +283,29 @@ jobs:
           path: evidence/lerobot-sync-async-effect-parity.json
           if-no-files-found: error
           retention-days: 30
+
+  native-sim-mujoco:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SemRepair release candidate
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SemRepair and pinned MuJoCo
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e semrepair_validation
+          python -m pip install "mujoco==3.14.0"
+      - name: Run native MuJoCo closed-loop semantic corruption and repair
+        run: |
+          mkdir -p evidence
+          python semrepair_validation/examples/mujoco_native/mujoco_semrepair_closed_loop.py \
+            --json | tee evidence/mujoco-native-closed-loop.json
+      - name: Upload native MuJoCo evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-mujoco-native-closed-loop
+          path: evidence/mujoco-native-closed-loop.json
+          if-no-files-found: error
+          retention-days: 30
