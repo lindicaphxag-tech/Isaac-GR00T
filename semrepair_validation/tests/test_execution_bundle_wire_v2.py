@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+import pytest
+
 from research.semantic_invariants.embodied_compilation_certificate import (
     issue_compilation_certificate,
 )
