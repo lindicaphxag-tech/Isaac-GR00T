@@ -108,3 +108,36 @@ jobs:
         run: semrepair-core-theorems --json
       - name: Run installed behavioral evidence
         run: semrepair-behavior --json
+
+  real-source-maniskill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SemRepair release candidate
+        uses: actions/checkout@v4
+        with:
+          path: semrepair-host
+      - name: Checkout pinned ManiSkill source
+        uses: actions/checkout@v4
+        with:
+          repository: mani-skill/ManiSkill
+          ref: 62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3
+          path: upstream-maniskill
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SemRepair
+        run: python -m pip install -e semrepair-host/semrepair_validation
+      - name: Compile real ManiSkill producer-consumer boundary
+        run: |
+          mkdir -p evidence
+          semrepair-source \
+            --manifest semrepair-host/semrepair_validation/examples/real_source/maniskill_1138.json \
+            --source-root upstream-maniskill \
+            --json | tee evidence/maniskill-1138-source-audit.json
+      - name: Upload real-source evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-maniskill-1138-real-source
+          path: evidence/maniskill-1138-source-audit.json
+          if-no-files-found: error
+          retention-days: 30
