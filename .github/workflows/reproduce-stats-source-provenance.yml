@@ -1,0 +1,31 @@
+name: Reproduce stale stats source provenance
+
+on:
+  push:
+    branches:
+      - ci/stats-source-provenance-baseline
+
+env:
+  PYTHONPATH: ./
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - run: git lfs pull
+      - uses: ./.github/actions/setup-venv
+        with:
+          python-version: "3.12"
+          cache-prefix: stats-source-provenance-baseline
+      - name: Install targeted dependencies
+        run: |
+          . .venv/bin/activate
+          pip install pytest filelock numpy==1.26.4 pandas==2.2.3 scipy==1.15.3 tqdm
+      - name: Run baseline provenance witnesses
+        run: |
+          . .venv/bin/activate
+          python -m pytest tests/gr00t/data/test_stats_source_provenance_baseline.py -q
