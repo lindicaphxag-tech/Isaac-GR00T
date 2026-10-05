@@ -1,0 +1,15 @@
+{
+  "checkpoint_default_inference": false,
+  "claim_boundary": "CPU feasibility smoke only. Not checkpoint-default performance, not external adoption, and not a prospective I2 case.",
+  "dataset_id": "lerobot/pusht",
+  "effective_inference_steps": 2,
+  "gate": "casj-pusht-public-checkpoint-smoke",
+  "lerobot_commit": "8c920c4270460851cedd2737657584586d3dc66f",
+  "model_id": "lerobot/diffusion_pusht",
+  "result_json_present": true,
+  "schema_version": 1,
+  "validation_branch": "validation/casj-pusht-public-gate",
+  "workflow_job_status_at_publish_step": "success",
+  "workflow_run_id": "37361463544",
+  "workflow_trigger_sha": "3fc97c7c6249ba3ccc8ddf4621b95280f24367e9"
+}

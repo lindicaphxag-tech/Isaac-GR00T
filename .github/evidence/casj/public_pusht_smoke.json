@@ -1,0 +1,1278 @@
+{
+  "model_id": "lerobot/diffusion_pusht",
+  "dataset_id": "lerobot/pusht",
+  "environment_id": "gym-pusht/PushT-v0",
+  "environment_package_version": "0.1.6",
+  "gymnasium_version": "1.4.0",
+  "pymunk_version": "6.11.1",
+  "state_restore_protocol": "reset-fresh-space-exact-readback-v1",
+  "seed": 17,
+  "replicates_per_warmup": 1,
+  "checkpoint_num_inference_steps": 100,
+  "effective_num_inference_steps": 2,
+  "uses_checkpoint_default_inference_steps": false,
+  "epsilon_pixels": 4.0,
+  "heldout_delta_pixels": [
+    10.0,
+    -6.0
+  ],
+  "heldout_delta_angle_rad": 0.35,
+  "heldout_delta_pose": [
+    10.0,
+    -6.0,
+    0.35
+  ],
+  "angle_epsilon_rad": 0.02,
+  "heldout_poses": [
+    [
+      10.0,
+      -6.0,
+      0.35
+    ]
+  ],
+  "snapshots": {
+    "warmup=0/replicate=0/pose=0": {
+      "assay_status": "VALID_INPUT_PERTURBATION",
+      "paired_randomness_replay_error": 0.0,
+      "abi_probe_query_count": 14,
+      "abi_fine_epsilon": [
+        4.0,
+        4.0,
+        0.02
+      ],
+      "abi_coarse_epsilon": [
+        8.0,
+        8.0,
+        0.04
+      ],
+      "stale_mse": 925.207345844814,
+      "global_compensation_mse": 620.2905024305073,
+      "casj_repair_mse": 3527.670298544158,
+      "recovered_anchor_transport_mse": null,
+      "casj_to_stale_ratio": 3.812842942057507,
+      "global_to_stale_ratio": 0.6704340440186576,
+      "jacobian_frobenius_norm": [
+        1.1275301496850847,
+        0.9991737709158042,
+        0.8555340276425031,
+        1.8955938120481746,
+        3.4264140697218286,
+        4.475193579703376,
+        5.071498217923149,
+        5.701953471729476
+      ],
+      "rigid_identity_residual": [
+        2.2920452559331688,
+        1.982883640955298,
+        1.3534399201566853,
+        1.1637768984295482,
+        2.4958207178021343,
+        3.566553653530762,
+        4.200950481972569,
+        4.845158091598889
+      ],
+      "scale_drift": [
+        0.3172399522485848,
+        0.5049204090579827,
+        0.7260798580372269,
+        0.2310925291030659,
+        0.11715714366199022,
+        0.09840189999072627,
+        0.08466122336083212,
+        0.12161956178451426
+      ],
+      "curvature_effect": [
+        109.36390573777831,
+        8.824217612714921,
+        4.106706272279712,
+        10.111288171118767,
+        13.867831235689515,
+        16.01390478521965,
+        18.204262148843352,
+        23.761784550805952
+      ],
+      "curvature_ratio": [
+        109.36390573777831,
+        8.824217612714921,
+        4.106706272279712,
+        10.111288171118767,
+        13.867831235689515,
+        16.01390478521965,
+        18.204262148843352,
+        23.761784550805952
+      ],
+      "certificates": [
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "CASJ is not stable across perturbation scales",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.9122492723622119,
+            "predicted_remainder_norm": 866.0365982326471,
+            "remainder_to_first_order": 361.0866367613092,
+            "remainder_to_reference_scale": 361.0866367613092,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        },
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "CASJ is not stable across perturbation scales",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.9629380435088827,
+            "predicted_remainder_norm": 434.4605931779858,
+            "remainder_to_first_order": 28.79334093433499,
+            "remainder_to_reference_scale": 28.79334093433499,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        },
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "CASJ is not stable across perturbation scales",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.8836546307968445,
+            "predicted_remainder_norm": 668.3882769403274,
+            "remainder_to_first_order": 18.67309145985176,
+            "remainder_to_reference_scale": 18.67309145985176,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        },
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "CASJ is not stable across perturbation scales",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.8957050233430002,
+            "predicted_remainder_norm": 2018.1806934201065,
+            "remainder_to_first_order": 40.83578290084812,
+            "remainder_to_reference_scale": 40.83578290084812,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        },
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "local response is too nonlinear for certified repair",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.901441136720486,
+            "predicted_remainder_norm": 3290.297541307627,
+            "remainder_to_first_order": 56.27328457037494,
+            "remainder_to_reference_scale": 56.27328457037494,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        },
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "local response is too nonlinear for certified repair",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.9010633548344545,
+            "predicted_remainder_norm": 3932.860301282964,
+            "remainder_to_first_order": 63.32699546737804,
+            "remainder_to_reference_scale": 63.32699546737804,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        },
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "local response is too nonlinear for certified repair",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.9021079882206278,
+            "predicted_remainder_norm": 4398.626095463839,
+            "remainder_to_first_order": 73.06270683897516,
+            "remainder_to_reference_scale": 73.06270683897516,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        },
+        {
+          "accepted": false,
+          "mode": "replan",
+          "relation": "single_support_local",
+          "active_supports": [
+            0
+          ],
+          "reason": "local response is too nonlinear for certified repair",
+          "directional_remainder": {
+            "accepted": false,
+            "curvature_scale_stability": 0.9052081749755817,
+            "predicted_remainder_norm": 4633.992451324876,
+            "remainder_to_first_order": 95.14603049926808,
+            "remainder_to_reference_scale": 95.14603049926808,
+            "reason": "directional curvature is unstable across probe scales"
+          }
+        }
+      ],
+      "certified_fallback": "fresh_requery",
+      "rollout_branches": {
+        "stale": {
+          "valid": true,
+          "steps": 8,
+          "terminated": false,
+          "truncated": false,
+          "success": false,
+          "final_reward": 0.0,
+          "mean_reward": 0.0,
+          "final_coverage": 0.0,
+          "final_agent_position": [
+            271.10916071906473,
+            281.11942380906936
+          ],
+          "final_block_position": [
+            157.97102963938735,
+            144.92950900859594
+          ],
+          "final_block_angle": 0.7128196915778523,
+          "final_block_distance_to_fresh": 0.0
+        },
+        "global": {
+          "valid": true,
+          "steps": 8,
+          "terminated": false,
+          "truncated": false,
+          "success": false,
+          "final_reward": 0.0,
+          "mean_reward": 0.0,
+          "final_coverage": 0.0,
+          "final_agent_position": [
+            281.06305347241204,
+            275.14708545010507
+          ],
+          "final_block_position": [
+            157.97102963938735,
+            144.92950900859594
+          ],
+          "final_block_angle": 0.7128196915778523,
+          "final_block_distance_to_fresh": 0.0
+        },
+        "casj_raw_linear": {
+          "valid": true,
+          "steps": 8,
+          "terminated": false,
+          "truncated": false,
+          "success": false,
+          "final_reward": 0.0,
+          "mean_reward": 0.0,
+          "final_coverage": 0.0,
+          "final_agent_position": [
+            269.3166007075817,
+            335.1578657354567
+          ],
+          "final_block_position": [
+            157.97102963938735,
+            144.92950900859594
+          ],
+          "final_block_angle": 0.7128196915778523,
+          "final_block_distance_to_fresh": 0.0
+        },
+        "recovered_anchor_transport": {
+          "valid": false,
+          "reason": "one or more per-position anchor fingerprints were rejected"
+        },
+        "casj_certified": {
+          "valid": true,
+          "steps": 8,
+          "terminated": false,
+          "truncated": false,
+          "success": false,
+          "final_reward": 0.0,
+          "mean_reward": 0.0,
+          "final_coverage": 0.0,
+          "final_agent_position": [
+            302.90844765563054,
+            234.03979917654482
+          ],
+          "final_block_position": [
+            157.97102963938735,
+            144.92950900859594
+          ],
+          "final_block_angle": 0.7128196915778523,
+          "final_block_distance_to_fresh": 0.0
+        },
+        "fresh": {
+          "valid": true,
+          "steps": 8,
+          "terminated": false,
+          "truncated": false,
+          "success": false,
+          "final_reward": 0.0,
+          "mean_reward": 0.0,
+          "final_coverage": 0.0,
+          "final_agent_position": [
+            302.90844765563054,
+            234.03979917654482
+          ],
+          "final_block_position": [
+            157.97102963938735,
+            144.92950900859594
+          ],
+          "final_block_angle": 0.7128196915778523,
+          "final_block_distance_to_fresh": 0.0
+        }
+      },
+      "jacobian_fine": [
+        [
+          [
+            -0.021991729736328125,
+            0.3523674011230469
+          ],
+          [
+            0.4555854797363281,
+            -0.9690818786621094
+          ]
+        ],
+        [
+          [
+            0.333587646484375,
+            -0.16720199584960938
+          ],
+          [
+            0.4675331115722656,
+            -0.8003273010253906
+          ]
+        ],
+        [
+          [
+            0.6123428344726562,
+            -0.5167503356933594
+          ],
+          [
+            0.2522125244140625,
+            -0.16227340698242188
+          ]
+        ],
+        [
+          [
+            0.96832275390625,
+            -1.0756797790527344
+          ],
+          [
+            -0.4164695739746094,
+            1.1511268615722656
+          ]
+        ],
+        [
+          [
+            1.2450027465820312,
+            -1.5808944702148438
+          ],
+          [
+            -1.1781234741210938,
+            2.5105934143066406
+          ]
+        ],
+        [
+          [
+            1.3285713195800781,
+            -2.2262802124023438
+          ],
+          [
+            -1.5002021789550781,
+            3.3249549865722656
+          ]
+        ],
+        [
+          [
+            1.0447711944580078,
+            -2.1961212158203125
+          ],
+          [
+            -1.96856689453125,
+            3.991283416748047
+          ]
+        ],
+        [
+          [
+            1.0322151184082031,
+            -2.4789581298828125
+          ],
+          [
+            -2.2751026153564453,
+            4.486143112182617
+          ]
+        ]
+      ],
+      "block_angle_jacobian": [
+        [
+          11.676025390625,
+          -24.951171875
+        ],
+        [
+          -8.2977294921875,
+          15.837860107421875
+        ],
+        [
+          -18.019866943359375,
+          91.94107055664062
+        ],
+        [
+          -25.913238525390625,
+          171.38671875
+        ],
+        [
+          -31.2652587890625,
+          240.777587890625
+        ],
+        [
+          -55.066680908203125,
+          276.04827880859375
+        ],
+        [
+          -74.68643188476562,
+          296.5263366699219
+        ],
+        [
+          -109.96513366699219,
+          275.7801055908203
+        ]
+      ],
+      "planar_casj_xytheta": [
+        [
+          [
+            -0.021991729736328125,
+            0.3523674011230469,
+            11.676025390625
+          ],
+          [
+            0.4555854797363281,
+            -0.9690818786621094,
+            -24.951171875
+          ]
+        ],
+        [
+          [
+            0.333587646484375,
+            -0.16720199584960938,
+            -8.2977294921875
+          ],
+          [
+            0.4675331115722656,
+            -0.8003273010253906,
+            15.837860107421875
+          ]
+        ],
+        [
+          [
+            0.6123428344726562,
+            -0.5167503356933594,
+            -18.019866943359375
+          ],
+          [
+            0.2522125244140625,
+            -0.16227340698242188,
+            91.94107055664062
+          ]
+        ],
+        [
+          [
+            0.96832275390625,
+            -1.0756797790527344,
+            -25.913238525390625
+          ],
+          [
+            -0.4164695739746094,
+            1.1511268615722656,
+            171.38671875
+          ]
+        ],
+        [
+          [
+            1.2450027465820312,
+            -1.5808944702148438,
+            -31.2652587890625
+          ],
+          [
+            -1.1781234741210938,
+            2.5105934143066406,
+            240.777587890625
+          ]
+        ],
+        [
+          [
+            1.3285713195800781,
+            -2.2262802124023438,
+            -55.066680908203125
+          ],
+          [
+            -1.5002021789550781,
+            3.3249549865722656,
+            276.04827880859375
+          ]
+        ],
+        [
+          [
+            1.0447711944580078,
+            -2.1961212158203125,
+            -74.68643188476562
+          ],
+          [
+            -1.96856689453125,
+            3.991283416748047,
+            296.5263366699219
+          ]
+        ],
+        [
+          [
+            1.0322151184082031,
+            -2.4789581298828125,
+            -109.96513366699219
+          ],
+          [
+            -2.2751026153564453,
+            4.486143112182617,
+            275.7801055908203
+          ]
+        ]
+      ],
+      "planar_anchor_fingerprints": [
+        {
+          "accepted": false,
+          "anchor_world": [
+            -24.951171875,
+            -11.676025390625
+          ],
+          "anchor_local": [
+            -27.47080442613496,
+            -2.060449232413796
+          ],
+          "translation_residual": 1.6207207432567994,
+          "anchor_consistency_residual": 1.0858474817355397,
+          "jacobian_residual": 0.08309255135066987,
+          "reason": "translation columns are not rigid-follow compatible"
+        },
+        {
+          "accepted": false,
+          "anchor_world": [
+            15.837860107421875,
+            8.2977294921875
+          ],
+          "anchor_local": [
+            17.75177410292789,
+            2.136502681112812
+          ],
+          "translation_residual": 1.4021104688233623,
+          "anchor_consistency_residual": 0.9421932969794108,
+          "jacobian_residual": 0.11055499349847595,
+          "reason": "translation columns are not rigid-follow compatible"
+        },
+        {
+          "accepted": false,
+          "anchor_world": [
+            91.94107055664062,
+            18.019866943359375
+          ],
+          "anchor_local": [
+            92.35115132540898,
+            -15.784198067338037
+          ],
+          "translation_residual": 0.9570265454713716,
+          "anchor_consistency_residual": 0.7500952180276087,
+          "jacobian_residual": 0.014444243108767527,
+          "reason": "translation columns are not rigid-follow compatible"
+        },
+        {
+          "accepted": false,
+          "anchor_world": [
+            171.38671875,
+            25.913238525390625
+          ],
+          "anchor_local": [
+            169.4263223946601,
+            -36.60088215584544
+          ],
+          "translation_residual": 0.8229145366677815,
+          "anchor_consistency_residual": 0.6259557438934253,
+          "jacobian_residual": 0.00671382276548181,
+          "reason": "translation columns are not rigid-follow compatible"
+        },
+        {
+          "accepted": false,
+          "anchor_world": [
+            240.777587890625,
+            31.2652587890625
+          ],
+          "anchor_local": [
+            236.19932704639496,
+            -56.22491565493771
+          ],
+          "translation_residual": 1.7648117541837656,
+          "anchor_consistency_residual": 0.6921437264324732,
+          "jacobian_residual": 0.010279194703763683,
+          "reason": "translation columns are not rigid-follow compatible"
+        },
+        {
+          "accepted": false,
+          "anchor_world": [
+            276.04827880859375,
+            55.066680908203125
+          ],
+          "anchor_local": [
+            277.6212937719364,
+            -46.49095421508523
+          ],
+          "translation_residual": 2.5219342738772577,
+          "anchor_consistency_residual": 0.871587101004825,
+          "jacobian_residual": 0.012670237994776856,
+          "reason": "translation columns are not rigid-follow compatible"
+        },
+        {
+          "accepted": false,
+          "anchor_world": [
+            296.5263366699219,
+            74.68643188476562
+          ],
+          "anchor_local": [
+            303.7295065083928,
+            -35.41635671169183
+          ],
+          "translation_residual": 2.9705205732316986,
+          "anchor_consistency_residual": 1.1401442704597993,
+          "jacobian_residual": 0.013737994478917362,
+          "reason": "translation columns are not rigid-follow compatible"
+        },
+        {
+          "accepted": false,
+          "anchor_world": [
+            275.7801055908203,
+            109.96513366699219
+          ],
+          "anchor_local": [
+            296.85468571026206,
+            4.928776110252688
+          ],
+          "translation_residual": 3.4260441424904458,
+          "anchor_consistency_residual": 1.2359722591949183,
+          "jacobian_residual": 0.01631921499261648,
+          "reason": "translation columns are not rigid-follow compatible"
+        }
+      ],
+      "jacobian_coarse": [
+        [
+          [
+            0.024061203002929688,
+            0.14948463439941406
+          ],
+          [
+            0.36923980712890625,
+            -0.6912155151367188
+          ]
+        ],
+        [
+          [
+            0.2817974090576172,
+            -0.18405723571777344
+          ],
+          [
+            0.2506389617919922,
+            -0.3480949401855469
+          ]
+        ],
+        [
+          [
+            0.5167121887207031,
+            -0.4698677062988281
+          ],
+          [
+            -0.035419464111328125,
+            0.37790870666503906
+          ]
+        ],
+        [
+          [
+            0.8312835693359375,
+            -0.8873348236083984
+          ],
+          [
+            -0.6273155212402344,
+            1.4994487762451172
+          ]
+        ],
+        [
+          [
+            1.0548057556152344,
+            -1.2322254180908203
+          ],
+          [
+            -1.2361068725585938,
+            2.516763687133789
+          ]
+        ],
+        [
+          [
+            1.2214679718017578,
+            -1.8419208526611328
+          ],
+          [
+            -1.5694160461425781,
+            3.1519527435302734
+          ]
+        ],
+        [
+          [
+            1.1027097702026367,
+            -2.0030899047851562
+          ],
+          [
+            -1.9984073638916016,
+            3.613340377807617
+          ]
+        ],
+        [
+          [
+            1.1660652160644531,
+            -2.3220443725585938
+          ],
+          [
+            -2.248504638671875,
+            3.8245887756347656
+          ]
+        ]
+      ],
+      "curvature_diagonal": [
+        [
+          [
+            0.17157936096191406,
+            0.1795368194580078,
+            1435.85205078125
+          ],
+          [
+            -0.47444725036621094,
+            -0.38803672790527344,
+            -3459.320068359375
+          ]
+        ],
+        [
+          [
+            -0.02277374267578125,
+            -0.08349418640136719,
+            481.414794921875
+          ],
+          [
+            -0.32868385314941406,
+            -0.23937416076660156,
+            -1790.5426025390625
+          ]
+        ],
+        [
+          [
+            -0.16267776489257812,
+            -0.23319053649902344,
+            -440.5975341796875
+          ],
+          [
+            0.061676025390625,
+            0.11356163024902344,
+            2228.7750244140625
+          ]
+        ],
+        [
+          [
+            -0.36408233642578125,
+            -0.4581928253173828,
+            -1509.1705322265625
+          ],
+          [
+            0.7050418853759766,
+            0.7152576446533203,
+            7138.671875
+          ]
+        ],
+        [
+          [
+            -0.5603141784667969,
+            -0.6452369689941406,
+            -2949.066162109375
+          ],
+          [
+            1.2896614074707031,
+            1.3335552215576172,
+            11295.928955078125
+          ]
+        ],
+        [
+          [
+            -0.7809886932373047,
+            -0.8630638122558594,
+            -4969.5587158203125
+          ],
+          [
+            1.6025753021240234,
+            1.687936782836914,
+            13338.31787109375
+          ]
+        ],
+        [
+          [
+            -0.7592058181762695,
+            -0.7872238159179688,
+            -6023.0255126953125
+          ],
+          [
+            1.8426094055175781,
+            1.9874858856201172,
+            14431.838989257812
+          ]
+        ],
+        [
+          [
+            -0.8736286163330078,
+            -0.8812808990478516,
+            -7791.328430175781
+          ],
+          [
+            1.9658174514770508,
+            2.17404842376709,
+            14495.735168457031
+          ]
+        ]
+      ],
+      "directional_curvature_fine": [
+        [
+          572.7514266967773,
+          -1634.6355438232424
+        ],
+        [
+          -215.12641906738284,
+          -841.8697357177736
+        ],
+        [
+          -840.0659561157228,
+          1039.8368835449219
+        ],
+        [
+          -1708.861541748047,
+          3656.775283813477
+        ],
+        [
+          -2518.8613891601567,
+          6079.438209533692
+        ],
+        [
+          -3295.4305648803715,
+          7142.107391357423
+        ],
+        [
+          -3334.5576286315923,
+          8140.784454345704
+        ],
+        [
+          -4057.555484771729,
+          8332.573890686035
+        ]
+      ],
+      "directional_curvature_coarse": [
+        [
+          62.606573104858406,
+          -139.1714096069336
+        ],
+        [
+          8.801603317260742,
+          -35.67371368408203
+        ],
+        [
+          -27.397823333740238,
+          182.56258964538577
+        ],
+        [
+          -65.31925201416016,
+          436.55672073364263
+        ],
+        [
+          -121.00744247436525,
+          653.6528110504152
+        ],
+        [
+          -212.09130287170413,
+          760.4262828826905
+        ],
+        [
+          -264.9359703063965,
+          822.4066734313966
+        ],
+        [
+          -361.58654689788824,
+          801.1211395263673
+        ]
+      ],
+      "baseline_chunk": [
+        [
+          348.7939147949219,
+          371.4605407714844
+        ],
+        [
+          338.5107421875,
+          366.4959716796875
+        ],
+        [
+          330.1705322265625,
+          350.3541259765625
+        ],
+        [
+          315.2986145019531,
+          330.366943359375
+        ],
+        [
+          303.2867126464844,
+          310.3910217285156
+        ],
+        [
+          279.2493896484375,
+          295.49383544921875
+        ],
+        [
+          260.306640625,
+          274.77825927734375
+        ],
+        [
+          249.7046661376953,
+          248.7855682373047
+        ]
+      ],
+      "fresh_chunk": [
+        [
+          349.5828857421875,
+          377.7895202636719
+        ],
+        [
+          343.85748291015625,
+          366.4729309082031
+        ],
+        [
+          342.20574951171875,
+          338.6211853027344
+        ],
+        [
+          336.0394287109375,
+          306.02435302734375
+        ],
+        [
+          327.293701171875,
+          273.16033935546875
+        ],
+        [
+          310.658203125,
+          249.52975463867188
+        ],
+        [
+          295.509033203125,
+          222.0875701904297
+        ],
+        [
+          286.1071472167969,
+          193.77218627929688
+        ]
+      ],
+      "casj_repaired_chunk": [
+        [
+          350.54640197753906,
+          373.0979766845703
+        ],
+        [
+          339.9456253051758,
+          381.51651763916016
+        ],
+        [
+          333.08750915527344,
+          386.0292663574219
+        ],
+        [
+          322.3662872314453,
+          379.2808380126953
+        ],
+        [
+          314.2792663574219,
+          367.8183822631836
+        ],
+        [
+          286.61944580078125,
+          357.1589813232422
+        ],
+        [
+          257.790828704834,
+          334.9291076660156
+        ],
+        [
+          236.41276931762695,
+          295.64072036743164
+        ]
+      ],
+      "recovered_anchor_transport_chunk": null
+    }
+  },
+  "summary": {
+    "warmup=0/pose=0": {
+      "warmup_steps": 0,
+      "pose_index": 0,
+      "heldout_pose": [
+        10.0,
+        -6.0,
+        0.35
+      ],
+      "replicates": [
+        {
+          "replicate": 0,
+          "seed": 17,
+          "stale_mse": 925.207345844814,
+          "global_compensation_mse": 620.2905024305073,
+          "casj_repair_mse": 3527.670298544158,
+          "recovered_anchor_transport_mse": null,
+          "rollout_branches": {
+            "stale": {
+              "success": false,
+              "final_reward": 0.0,
+              "final_coverage": 0.0,
+              "final_block_distance_to_fresh": 0.0
+            },
+            "global": {
+              "success": false,
+              "final_reward": 0.0,
+              "final_coverage": 0.0,
+              "final_block_distance_to_fresh": 0.0
+            },
+            "casj_raw_linear": {
+              "success": false,
+              "final_reward": 0.0,
+              "final_coverage": 0.0,
+              "final_block_distance_to_fresh": 0.0
+            },
+            "recovered_anchor_transport": {
+              "success": null,
+              "final_reward": null,
+              "final_coverage": null,
+              "final_block_distance_to_fresh": null
+            },
+            "casj_certified": {
+              "success": false,
+              "final_reward": 0.0,
+              "final_coverage": 0.0,
+              "final_block_distance_to_fresh": 0.0
+            },
+            "fresh": {
+              "success": false,
+              "final_reward": 0.0,
+              "final_coverage": 0.0,
+              "final_block_distance_to_fresh": 0.0
+            }
+          }
+        }
+      ],
+      "n": 1,
+      "metrics": {
+        "stale_mse": {
+          "n": 1,
+          "mean": 925.207345844814,
+          "std": null,
+          "median": 925.207345844814
+        },
+        "global_compensation_mse": {
+          "n": 1,
+          "mean": 620.2905024305073,
+          "std": null,
+          "median": 620.2905024305073
+        },
+        "casj_repair_mse": {
+          "n": 1,
+          "mean": 3527.670298544158,
+          "std": null,
+          "median": 3527.670298544158
+        },
+        "recovered_anchor_transport_mse": {
+          "n": 0,
+          "mean": null,
+          "std": null,
+          "median": null
+        }
+      },
+      "paired_casj_minus_global_mse": {
+        "n": 1,
+        "mean": 2907.3797961136506,
+        "std": null,
+        "values": [
+          2907.3797961136506
+        ]
+      },
+      "rollout_metrics": {
+        "casj_certified": {
+          "n": 1,
+          "success_rate": 0.0,
+          "numeric": {
+            "final_reward": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_coverage": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_block_distance_to_fresh": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            }
+          }
+        },
+        "casj_raw_linear": {
+          "n": 1,
+          "success_rate": 0.0,
+          "numeric": {
+            "final_reward": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_coverage": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_block_distance_to_fresh": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            }
+          }
+        },
+        "fresh": {
+          "n": 1,
+          "success_rate": 0.0,
+          "numeric": {
+            "final_reward": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_coverage": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_block_distance_to_fresh": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            }
+          }
+        },
+        "global": {
+          "n": 1,
+          "success_rate": 0.0,
+          "numeric": {
+            "final_reward": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_coverage": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_block_distance_to_fresh": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            }
+          }
+        },
+        "recovered_anchor_transport": {
+          "n": 1,
+          "success_rate": null,
+          "numeric": {
+            "final_reward": {
+              "n": 0,
+              "mean": null,
+              "std": null,
+              "median": null
+            },
+            "final_coverage": {
+              "n": 0,
+              "mean": null,
+              "std": null,
+              "median": null
+            },
+            "final_block_distance_to_fresh": {
+              "n": 0,
+              "mean": null,
+              "std": null,
+              "median": null
+            }
+          }
+        },
+        "stale": {
+          "n": 1,
+          "success_rate": 0.0,
+          "numeric": {
+            "final_reward": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_coverage": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            },
+            "final_block_distance_to_fresh": {
+              "n": 1,
+              "mean": 0.0,
+              "std": null,
+              "median": 0.0
+            }
+          }
+        }
+      }
+    }
+  }
+}
