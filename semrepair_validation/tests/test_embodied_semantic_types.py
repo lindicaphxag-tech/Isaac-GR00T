@@ -378,3 +378,47 @@ def test_unique_adapter_synthesis_ignores_zero_cost_semantic_cycles():
 
     assert [adapter.name for adapter in plan.adapters] == ["direct"]
     assert plan.total_cost == 1.0
+
+
+def test_unique_adapter_synthesis_treats_decimal_equal_paths_as_ambiguous():
+    source = _rotation("axis_angle")
+    target = _rotation("euler_xyz")
+    adapters = [
+        SemanticAdapter(
+            "direct",
+            requires={"representation": "axis_angle"},
+            produces={"representation": "euler_xyz"},
+            cost=0.3,
+        ),
+        SemanticAdapter(
+            "axis-to-quat",
+            requires={"representation": "axis_angle"},
+            produces={"representation": "quaternion"},
+            cost=0.1,
+        ),
+        SemanticAdapter(
+            "quat-to-euler",
+            requires={"representation": "quaternion"},
+            produces={"representation": "euler_xyz"},
+            cost=0.2,
+        ),
+    ]
+
+    with pytest.raises(AmbiguousSemanticRepair) as blocked:
+        synthesize_unique_adapter_plan(source, target, adapters)
+
+    assert blocked.value.alternatives == (
+        ("axis-to-quat", "quat-to-euler"),
+        ("direct",),
+    )
+
+
+@pytest.mark.parametrize("bad_cost", [float("inf"), float("-inf"), float("nan")])
+def test_adapter_cost_must_be_finite(bad_cost):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        SemanticAdapter(
+            "bad-cost",
+            requires={"representation": "axis_angle"},
+            produces={"representation": "euler_xyz"},
+            cost=bad_cost,
+        )
