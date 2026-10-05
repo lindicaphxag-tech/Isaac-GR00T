@@ -37,3 +37,6 @@ semrepair-proof-bundle = "research.semantic_invariants.execution_bundle_wire:mai
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["research*", "semrepair*"]
+
+[tool.setuptools.package-data]
+"research.semantic_invariants" = ["*.json"]
