@@ -13,13 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CPU-only tests for the schema-fingerprint cache in ``generate_rel_stats``.
+"""CPU-only tests for config/source provenance in ``generate_rel_stats``.
 
-Without the fingerprint guard, an existing ``meta/relative_stats.json`` was
-reused whenever a per-embodiment ``action_key`` name matched, regardless of
-whether the inputs that drive the computation (``delta_indices``, ``format``,
-``state_key``, ...) had since changed — silently corrupting normalization at
-training time.
+Relative-action statistics depend on both modality configuration and the parquet
+sources being summarized. Reusing either under a changed provenance silently
+corrupts normalization at training time.
 """
 
 from dataclasses import replace
@@ -105,7 +103,6 @@ class TestFingerprintHelper:
         b = _compute_relative_action_fingerprint(EMBODIMENT, "joint_position")
         assert a != b
 
-
     def test_source_fingerprint_changes_relative_action_fingerprint(self, dataset_dir):
         _write_source_shard(dataset_dir, b"source-v1")
         source_v1 = _compute_dataset_source_fingerprint(dataset_dir)
@@ -188,7 +185,6 @@ class TestGenerateRelStatsCache:
         generate_rel_stats(dataset_dir, EMBODIMENT)
 
         assert mock_calculate == [], "fresh fingerprints must produce zero recompute"
-
 
     def test_dataset_source_change_invalidates_all_relative_stats(
         self, dataset_dir, mock_calculate
