@@ -1,4 +1,4 @@
-# SemRepair 0.3.0rc2
+# SemRepair 0.3.0rc3
 
 SemRepair is a research prototype for **proof-carrying semantic repair and
 runtime execution across embodied-AI software boundaries**.
@@ -73,7 +73,7 @@ semrepair-source \
 
 ## Language-neutral proof bundle
 
-0.3.0rc2 adds a canonical JSON authorization bundle for non-Python consumers.
+0.3.0rc3 keeps the v0.1 compatibility surface and adds **v0.2 exact-decimal wire authorization** for non-Python consumers.
 
 The reference verifier independently checks:
 
