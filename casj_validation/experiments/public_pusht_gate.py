@@ -45,6 +45,12 @@ from casj import (
     transport_planar_anchor,
 )
 from casj.continuation import certify_path_integrated_transport
+from casj.finite_equivariance import (
+    PlanarEquivarianceProbe,
+    PlanarSupportPose,
+    certify_finite_planar_equivariance,
+    transport_points_between_planar_supports,
+)
 from casj.pusht_assay import (
     estimate_directional_curvature_via_query,
     estimate_pathwise_directional_derivative_via_query,
@@ -473,6 +479,58 @@ def evaluate_snapshot(
         for t in range(len(baseline))
     ]
 
+    # FIE-CASJ: predeclare finite current-slot probes that do not include the
+    # held-out runtime displacement.  The certificate is computed before the
+    # held-out fresh endpoint is queried.
+    fie_probe_deltas = (
+        np.asarray([epsilon, 0.0, 0.0], dtype=np.float64),
+        np.asarray([0.0, epsilon, 0.0], dtype=np.float64),
+        np.asarray([0.0, 0.0, epsilon_angle], dtype=np.float64),
+        np.asarray([-epsilon, 0.5 * epsilon, -epsilon_angle], dtype=np.float64),
+    )
+    baseline_support_pose = PlanarSupportPose(
+        position=np.asarray(current_support.block_position, dtype=np.float64),
+        angle=float(current_support.block_angle),
+    )
+    fie_probes = []
+    for probe_index, delta in enumerate(fie_probe_deltas):
+        probe_history = list(history)
+        probe_history[-1] = history[-1].shifted_block(delta[:2], delta[2])
+        probe_action = policy_query.query(
+            probe_history,
+            randomness=randomness,
+        )
+        fie_probes.append(
+            PlanarEquivarianceProbe(
+                support_pose=PlanarSupportPose(
+                    position=(
+                        np.asarray(current_support.block_position, dtype=np.float64)
+                        + delta[:2]
+                    ),
+                    angle=float(current_support.block_angle + delta[2]),
+                ),
+                action_points=probe_action,
+                label=f"probe-{probe_index}",
+            )
+        )
+    fie_certificate = certify_finite_planar_equivariance(
+        baseline_action_points=baseline,
+        baseline_support_pose=baseline_support_pose,
+        probes=fie_probes,
+    )
+    heldout_support_pose = PlanarSupportPose(
+        position=(
+            np.asarray(current_support.block_position, dtype=np.float64)
+            + heldout_delta[:2]
+        ),
+        angle=float(current_support.block_angle + heldout_delta[2]),
+    )
+    fie_raw_transport = transport_points_between_planar_supports(
+        baseline,
+        source_pose=baseline_support_pose,
+        target_pose=heldout_support_pose,
+    )
+
     fresh_history = [
         state.shifted_block(heldout_delta[:2], heldout_delta[2]) for state in history
     ]
@@ -497,6 +555,15 @@ def evaluate_snapshot(
         "tad,d->ta", current_slot_planar_casj, heldout_delta
     )
     event_current_casj_repaired = baseline + event_current_delta
+
+    fie_certified_chunk = (
+        fie_raw_transport.copy()
+        if fie_certificate.accepted
+        else event_current_fresh.copy()
+    )
+    fie_certified_fallback = (
+        None if fie_certificate.accepted else "fresh_requery"
+    )
 
     casj_delta = np.einsum("tad,d->ta", planar_casj, heldout_delta)
     casj_repaired = baseline + casj_delta
@@ -564,6 +631,9 @@ def evaluate_snapshot(
     )
     event_current_casj_mse = float(
         np.mean((event_current_casj_repaired - event_current_fresh) ** 2)
+    )
+    fie_raw_transport_mse = float(
+        np.mean((fie_raw_transport - event_current_fresh) ** 2)
     )
     anchor_transport_chunk = np.stack(
         [
@@ -735,6 +805,16 @@ def evaluate_snapshot(
             start_state=disturbed_state,
             chunk=event_current_fresh,
         ),
+        "fie_raw_transport": execute_chunk_branch(
+            env,
+            start_state=disturbed_state,
+            chunk=fie_raw_transport,
+        ),
+        "fie_certified": execute_chunk_branch(
+            env,
+            start_state=disturbed_state,
+            chunk=fie_certified_chunk,
+        ),
         "recovered_anchor_transport": (
             execute_chunk_branch(
                 env,
@@ -807,6 +887,28 @@ def evaluate_snapshot(
         "event_current_casj_to_stale_ratio": (
             event_current_casj_mse / max(event_current_stale_mse, 1e-12)
         ),
+        "fie_raw_transport_mse": fie_raw_transport_mse,
+        "fie_to_event_stale_ratio": (
+            fie_raw_transport_mse / max(event_current_stale_mse, 1e-12)
+        ),
+        "fie_certificate": {
+            "accepted": fie_certificate.accepted,
+            "accepted_mask": fie_certificate.accepted_mask.tolist(),
+            "coverage": float(np.mean(fie_certificate.accepted_mask)),
+            "direct_max_relative_residual": (
+                fie_certificate.direct_max_relative_residual.tolist()
+            ),
+            "pairwise_max_relative_residual": (
+                fie_certificate.pairwise_max_relative_residual.tolist()
+            ),
+            "num_probes": fie_certificate.num_probes,
+            "num_pairwise_checks": fie_certificate.num_pairwise_checks,
+            "probe_time_additional_policy_queries": len(fie_probes),
+            "runtime_transport_policy_queries": 0,
+            "max_relative_residual": fie_certificate.max_relative_residual,
+            "reason": fie_certificate.reason,
+        },
+        "fie_certified_fallback": fie_certified_fallback,
         "temporal_slot_probe_query_count": temporal_slot_probes.total_query_count,
         "temporal_slot_indices": list(temporal_slot_probes.slot_indices),
         "temporal_slot_jacobian_norm": [
@@ -858,6 +960,8 @@ def evaluate_snapshot(
         "event_current_casj_repaired_chunk": (
             event_current_casj_repaired.tolist()
         ),
+        "fie_raw_transport_chunk": fie_raw_transport.tolist(),
+        "fie_certified_chunk": fie_certified_chunk.tolist(),
         "recovered_anchor_transport_chunk": (
             anchor_transport_chunk.tolist() if anchor_transport_available else None
         ),
@@ -1034,6 +1138,9 @@ def main():
                         "pi_casj_accepted": result["pi_casj_certificate"]["accepted"],
                         "event_current_stale_mse": result["event_current_stale_mse"],
                         "event_current_casj_mse": result["event_current_casj_mse"],
+                        "fie_raw_transport_mse": result["fie_raw_transport_mse"],
+                        "fie_accepted": result["fie_certificate"]["accepted"],
+                        "fie_coverage": result["fie_certificate"]["coverage"],
                         "recovered_anchor_transport_mse": result[
                             "recovered_anchor_transport_mse"
                         ],
@@ -1062,6 +1169,7 @@ def main():
                 "pi_casj_repair_mse",
                 "event_current_stale_mse",
                 "event_current_casj_mse",
+                "fie_raw_transport_mse",
                 "recovered_anchor_transport_mse",
             )
             summary["n"] = len(rows)
