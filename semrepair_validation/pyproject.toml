@@ -24,6 +24,7 @@ classifiers = [
 semrepair-source = "research.semantic_invariants.semrepair_source_cli:main"
 semrepair-behavior = "research.semantic_invariants.embodied_behavioral_evidence:main"
 semrepair-core-theorems = "research.semantic_invariants.semrepair_core_theorem_check:main"
+semrepair-mode-closure = "research.semantic_invariants.semrepair_mode_closure_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
