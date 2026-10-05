@@ -2,6 +2,8 @@ import pytest
 
 from research.semantic_invariants.embodied_repair_synthesis import (
     RepairExample,
+    RepairPrimitive,
+    RepairProgram,
     build_vector_repair_catalog,
     synthesize_minimal_repair,
 )
@@ -75,3 +77,53 @@ def test_certificate_is_not_transferable_to_other_contract():
         contract_id="embodied/b@0.1",
         program=program,
     )
+
+
+def test_certificate_rejects_same_named_primitive_with_different_implementation_identity():
+    program = _sign_program()
+    cert = verify_repair_against_heldout(
+        contract_id="embodied/test@0.1",
+        program=program,
+        heldout=[RepairExample((-1.0, 2.0, -3.0), (1.0, 2.0, 3.0))],
+        verifier_id="heldout-bank-v1",
+    )
+
+    original = program.operations[0]
+    substituted = RepairProgram(
+        (
+            RepairPrimitive(
+                name=original.name,
+                family=original.family,
+                cost=original.cost,
+                apply_fn=original.apply_fn,
+                implementation_id="attacker-v1:same-name-different-code",
+            ),
+        )
+    )
+
+    assert not certificate_matches_program(
+        cert,
+        contract_id="embodied/test@0.1",
+        program=substituted,
+    )
+
+
+def test_unversioned_primitive_cannot_receive_installable_certificate():
+    program = RepairProgram(
+        (
+            RepairPrimitive(
+                name="anonymous-sign",
+                family="sign",
+                cost=1,
+                apply_fn=lambda value, context: tuple(-x for x in value),
+            ),
+        )
+    )
+
+    with pytest.raises(RepairVerificationFailed, match="implementation identity"):
+        verify_repair_against_heldout(
+            contract_id="embodied/test@0.1",
+            program=program,
+            heldout=[RepairExample((-1.0, -2.0), (1.0, 2.0))],
+            verifier_id="heldout-bank-v1",
+        )
