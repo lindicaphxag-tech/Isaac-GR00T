@@ -1,28 +1,27 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "artifact": "SemRepair",
-  "version": "0.3.0rc2",
+  "version": "0.3.0rc3",
   "surface": "validated-release-candidate",
   "repository": "lindicaphxag-tech/Isaac-GR00T",
-  "development_branch": "semrepair-v0.3-rc2",
+  "development_branch": "semrepair-v0.3-rc3",
   "standalone_package_installable": true,
   "citation_metadata_present": true,
   "explicit_license_present": true,
   "formal_core_present": true,
-  "proof_bundle_wire_format": "semrepair-execution-proof-bundle/v0.1",
-  "proof_bundle_validation": "success",
+  "proof_bundle_wire_format": "semrepair-execution-proof-bundle/v0.2",
+  "proof_bundle_validation": "pending-public-ci",
   "maintained_external_adoptions": 0,
   "prospective_i2_matches": 0,
   "counts_as_versioned_public_release": false,
   "counts_as_l8": false,
   "counts_as_l9": false,
-  "validation_conclusion": "success",
+  "validation_conclusion": "pending",
   "inherited_validated_baseline": {
-    "version": "0.3.0rc1",
-    "release_tag": "semrepair-v0.3.0rc1",
-    "release_id": 403794471,
-    "release_target": "8cd7e7ad01e50aa18f42d333765f4fd242228d66",
-    "published_validation_run": 37323937866
+    "version": "0.3.0rc2",
+    "development_branch": "semrepair-v0.3-rc2",
+    "validation_run": 37329404920,
+    "validated_code_head": "094e5d96c74440410f9bfeff1ec6413985483c2b"
   },
   "rc2_delta": [
     "language-neutral execution proof bundle",
@@ -39,10 +38,7 @@
   "remaining_release_blockers": [
     "rc2 has not been tagged or released"
   ],
-  "evidence_boundary": "rc2 public validation is green, including installed proof-bundle generation and independent CLI verification. This remains self-authored artifact evidence and contributes zero maintained-adoption credit.",
-  "latest_fully_green_code_head": "094e5d96c74440410f9bfeff1ec6413985483c2b",
-  "validation_run_id": 37329404920,
-  "validation_run_url": "https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37329404920",
+  "evidence_boundary": "rc3 is a candidate until its public workflow is fully green. It remains self-authored artifact evidence and contributes zero maintained-adoption and zero prospective-I2 credit.",
   "python_matrix": [
     "3.10",
     "3.12",
@@ -74,5 +70,13 @@
   "distribution_artifact": {
     "id": 11353671569,
     "sha256": "2b0ce413fa6f743224a3b59232aae5ac33f533d7477614833a78e8c75df26643"
-  }
-}
+  },
+  "rc3_delta": [
+    "exact-decimal language-neutral execution proof bundle v0.2",
+    "float-free hashed wire surface",
+    "NFC-normalized canonical wire JSON",
+    "exact Decimal minimum-cost verification",
+    "producer-digest versus wire-digest separation",
+    "0.1+0.2 versus 0.3 false-uniqueness regression"
+  ]
+}\n
