@@ -119,13 +119,16 @@ def main() -> None:
     args = parser.parse_args()
 
     report = run_native_boundary()
+
+    # Emit measurements before enforcing the contract so a failing CI run still
+    # preserves the exact native evidence in logs/artifacts.
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True), flush=True)
+    else:
+        print(report, flush=True)
+
     assert report["broken_so3_error_degrees"] > 5.0
     assert report["repaired_so3_error_degrees"] < 1.0e-5
-
-    if args.json:
-        print(json.dumps(report, indent=2, sort_keys=True))
-    else:
-        print(report)
 
 
 if __name__ == "__main__":
