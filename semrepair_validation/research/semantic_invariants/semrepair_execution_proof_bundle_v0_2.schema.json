@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/lindicaphxag-tech/Isaac-GR00T/semrepair-v0.3-rc3/semrepair_validation/schemas/semrepair-execution-proof-bundle-v0.2.schema.json",
+  "title": "SemRepair execution proof bundle v0.2",
+  "type": "object",
+  "required": [
+    "schema",
+    "spec_version",
+    "canonicalization_profile",
+    "semantic_contract_id",
+    "compilation_certificate",
+    "effect_certificate",
+    "intent",
+    "adapter_registry",
+    "evidence_identity",
+    "verification_profile",
+    "bindings",
+    "bundle_digest"
+  ],
+  "properties": {
+    "schema": {"const": "semrepair-execution-proof-bundle/v0.2"},
+    "spec_version": {"const": "0.2"},
+    "canonicalization_profile": {"const": "semrepair-wire-c14n/v0.1"},
+    "semantic_contract_id": {"type": "string", "minLength": 1},
+    "bundle_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "verification_profile": {
+      "type": "object",
+      "required": ["max_steps"],
+      "properties": {"max_steps": {"type": "integer", "minimum": 0}},
+      "additionalProperties": false
+    },
+    "adapter_registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name", "requires", "produces", "cost_decimal", "effects", "required_evidence"
+        ],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "requires": {"type": "object"},
+          "produces": {"type": "object"},
+          "cost_decimal": {
+            "type": "string",
+            "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+          },
+          "effects": {"type": "array", "items": {"type": "string"}},
+          "required_evidence": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "evidence_identity": {"type": "object"},
+    "compilation_certificate": {"type": "object"},
+    "effect_certificate": {"type": "object"},
+    "intent": {"type": "object"},
+    "bindings": {
+      "type": "object",
+      "required": [
+        "adapter_registry_digest",
+        "evidence_identity_digest",
+        "compilation_digest",
+        "effect_digest"
+      ],
+      "properties": {
+        "adapter_registry_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "evidence_identity_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "compilation_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "effect_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
