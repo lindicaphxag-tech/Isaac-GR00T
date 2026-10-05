@@ -5,6 +5,10 @@ from research.semantic_invariants.execution_bundle_wire import (
     export_execution_bundle,
     verify_execution_bundle,
 )
+from research.semantic_invariants.execution_bundle_wire_v2 import (
+    export_execution_bundle_v2,
+    verify_execution_bundle_v2,
+)
 from research.semantic_invariants.embodied_repair_verification import (
     RepairVerificationCertificate,
     verify_repair_against_heldout,
@@ -45,9 +49,11 @@ __all__ = [
     "active_semantic_inference",
     "compile_semantic_boundary",
     "compile_source_boundary",
-    "export_execution_bundle",\n    "export_execution_bundle_v2",
+    "export_execution_bundle",
+    "export_execution_bundle_v2",
     "infer_type_from_source",
     "synthesize_unique_adapter_plan",
     "verify_repair_against_heldout",
-    "verify_execution_bundle",\n    "verify_execution_bundle_v2",
+    "verify_execution_bundle",
+    "verify_execution_bundle_v2",
 ]
