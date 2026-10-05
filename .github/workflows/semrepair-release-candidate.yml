@@ -42,6 +42,12 @@ jobs:
       - name: Run bounded theorem checks
         run: |
           semrepair-core-theorems --json | tee semrepair_validation/artifacts/core-theorems.json
+      - name: Run production compiler conformance
+        run: |
+          semrepair-conformance --json | tee semrepair_validation/artifacts/compiler-conformance.json
+      - name: Run proof-carrying runtime release gate
+        run: |
+          semrepair-runtime-gate --depth 4 --json | tee semrepair_validation/artifacts/runtime-release-gate.json
       - name: Build wheel and sdist
         run: python -m build semrepair_validation
       - name: Check installed dependencies
@@ -106,6 +112,10 @@ jobs:
           PY
       - name: Run installed theorem checker
         run: semrepair-core-theorems --json
+      - name: Run installed production conformance
+        run: semrepair-conformance --json
+      - name: Run installed runtime release gate
+        run: semrepair-runtime-gate --depth 4 --json
       - name: Run installed behavioral evidence
         run: semrepair-behavior --json
 
