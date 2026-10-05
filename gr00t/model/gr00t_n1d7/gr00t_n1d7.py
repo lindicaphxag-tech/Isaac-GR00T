@@ -331,6 +331,7 @@ class Gr00tN1d7ActionHead(nn.Module):
         backbone_output: BatchFeature,
         action_input: BatchFeature,
         options: dict[str, Any] | None = None,
+        noise: torch.Tensor | None = None,
     ) -> BatchFeature:
         """
         Generate actions using the flow matching diffusion process.
@@ -343,14 +344,24 @@ class Gr00tN1d7ActionHead(nn.Module):
         """
         vl_embeds = backbone_features
 
-        # Set initial actions as the sampled noise.
+        # Set initial actions from caller-provided noise or sample a fresh prior.
+        # Clone caller-provided noise because RTC may overwrite the overlap prefix
+        # in-place before the denoising loop.
         batch_size = vl_embeds.shape[0]
         device = vl_embeds.device
-        actions = torch.randn(
-            size=(batch_size, self.config.action_horizon, self.action_dim),
-            dtype=vl_embeds.dtype,
-            device=device,
-        )
+        expected_noise_shape = (batch_size, self.config.action_horizon, self.action_dim)
+        if noise is None:
+            actions = torch.randn(
+                size=expected_noise_shape,
+                dtype=vl_embeds.dtype,
+                device=device,
+            )
+        else:
+            if tuple(noise.shape) != expected_noise_shape:
+                raise ValueError(
+                    f"noise must have shape {expected_noise_shape}, got {tuple(noise.shape)}"
+                )
+            actions = noise.to(device=device, dtype=vl_embeds.dtype).clone()
 
         dt = 1.0 / self.num_inference_timesteps
         vel_strength = torch.ones_like(actions)
@@ -448,6 +459,7 @@ class Gr00tN1d7ActionHead(nn.Module):
         backbone_output: BatchFeature,
         action_input: BatchFeature,
         options: dict[str, Any] | None = None,
+        noise: torch.Tensor | None = None,
     ) -> BatchFeature:
         """
         Generate actions using the flow matching diffusion process.
@@ -472,6 +484,7 @@ class Gr00tN1d7ActionHead(nn.Module):
             backbone_output=backbone_output,
             action_input=action_input,
             options=options,
+            noise=noise,
         )
 
     @property
@@ -600,16 +613,33 @@ class Gr00tN1d7(PreTrainedModel):
 
         return action_outputs
 
-    def get_action(self, inputs: dict, options: dict[str, Any] | None = None) -> BatchFeature:
+    def get_action(
+        self,
+        inputs: dict,
+        options: dict[str, Any] | None = None,
+        noise: torch.Tensor | None = None,
+    ) -> BatchFeature:
         """
         Generate actions using the complete model.
+
+        Args:
+            inputs: Model inputs.
+            options: Optional RTC inference settings.
+            noise: Optional initial action noise. Reusing the same tensor enables
+                paired inference across observations while leaving default
+                stochastic behavior unchanged when omitted.
         """
         # Prepare inputs for backbone and action head
         backbone_inputs, action_inputs = self.prepare_input(inputs)
 
         # Forward through backbone
         backbone_outputs = self.backbone(backbone_inputs)
-        action_outputs = self.action_head.get_action(backbone_outputs, action_inputs, options)
+        action_outputs = self.action_head.get_action(
+            backbone_outputs,
+            action_inputs,
+            options,
+            noise=noise,
+        )
 
         return action_outputs
 
