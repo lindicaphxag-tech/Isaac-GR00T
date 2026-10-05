@@ -13,20 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CPU-only tests for the per-feature schema-fingerprint cache in ``generate_stats``.
+"""CPU-only tests for schema and dataset-source fingerprints in ``generate_stats``.
 
-Without the fingerprint guard, an existing ``meta/stats.json`` was reused as
-long as every float feature name was still present, even after the underlying
-``info.json`` schema (``dtype`` / ``shape``) had changed -- silently degrading
-normalization at training/eval time. The fingerprint hashes the per-feature
-schema so any drift invalidates just that feature's cached entry.
+A cached ``meta/stats.json`` is only valid for the schema and parquet sources
+whose values it summarizes. These tests guard both schema drift and source
+replacement while keeping source identity portable across filesystem mtimes.
 """
 
 import json
+import os
 
 from gr00t.data.stats import (
     LE_ROBOT_STATS_FILENAME,
     STATS_FINGERPRINTS_KEY,
+    _compute_dataset_source_fingerprint,
     _compute_stats_fingerprint,
     _stale_features,
     check_stats_validity,
@@ -61,6 +61,13 @@ def _write_meta(dataset_path, features: dict, stats: dict | None = None) -> None
     (meta / "info.json").write_text(json.dumps(_info_json(features)))
     if stats is not None:
         (meta / "stats.json").write_text(json.dumps(stats))
+
+
+def _write_source_shard(dataset_path, payload: bytes = b"v1"):
+    shard = dataset_path / "data" / "chunk-000" / "episode_000000.parquet"
+    shard.parent.mkdir(parents=True, exist_ok=True)
+    shard.write_bytes(payload)
+    return shard
 
 
 def _stub_stat_dict(dim: int = 17) -> dict[str, list[float]]:
@@ -108,6 +115,46 @@ def mock_calculate(monkeypatch):
 # ---------------------------------------------------------------------------
 # _compute_stats_fingerprint -- pure helper, no I/O
 # ---------------------------------------------------------------------------
+
+
+class TestDatasetSourceFingerprint:
+    def test_changes_when_parquet_source_changes(self, dataset):
+        shard = _write_source_shard(dataset, b"version-one")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        shard.write_bytes(b"version-two-is-different")
+        mutated = _compute_dataset_source_fingerprint(dataset)
+
+        assert mutated != baseline
+
+    def test_changes_when_shard_is_added(self, dataset):
+        _write_source_shard(dataset, b"first")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        second = dataset / "data" / "chunk-000" / "episode_000001.parquet"
+        second.write_bytes(b"second")
+        mutated = _compute_dataset_source_fingerprint(dataset)
+
+        assert mutated != baseline
+
+    def test_changes_on_same_size_source_rewrite(self, dataset):
+        shard = _write_source_shard(dataset, b"AAAA")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        shard.write_bytes(b"BBBB")
+        mutated = _compute_dataset_source_fingerprint(dataset)
+
+        assert mutated != baseline
+
+    def test_ignores_filesystem_mtime_only_changes(self, dataset):
+        shard = _write_source_shard(dataset, b"portable")
+        baseline = _compute_dataset_source_fingerprint(dataset)
+
+        stat = shard.stat()
+        os.utime(shard, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+        touched = _compute_dataset_source_fingerprint(dataset)
+
+        assert touched == baseline
 
 
 class TestStatsFingerprintHelper:
@@ -273,6 +320,21 @@ class TestGenerateStatsCache:
         generate_stats(dataset)
 
         assert mock_calculate == [], "fresh fingerprints must produce zero recompute"
+
+    def test_dataset_source_change_recomputes_all_features(
+        self, dataset, lowdim_features, mock_calculate
+    ):
+        _write_meta(dataset, lowdim_features)
+        shard = _write_source_shard(dataset, b"version-one")
+        generate_stats(dataset)
+        mock_calculate.clear()
+
+        # Keep the feature schema/config unchanged; only the dataset source changes.
+        shard.write_bytes(b"version-two-is-different")
+        generate_stats(dataset)
+
+        assert len(mock_calculate) == 1
+        assert sorted(mock_calculate[0]) == sorted(lowdim_features)
 
     def test_dtype_change_recomputes_only_that_feature(
         self, dataset, lowdim_features, mock_calculate
