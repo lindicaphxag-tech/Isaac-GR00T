@@ -28,13 +28,6 @@ jobs:
           ref: 8c920c4270460851cedd2737657584586d3dc66f
           path: lerobot-src
 
-      - name: Checkout pinned CASJ paper core
-        uses: actions/checkout@v4
-        with:
-          repository: lindicaphxag-tech/lindicaphxag-tech
-          ref: f11893787c38609032a2756c56f95e97730225bf
-          path: casj-source
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -45,7 +38,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e "./lerobot-src[diffusion,pusht]"
-          python -m pip install -e "./casj-source/research/casj"
 
       - name: Record dependency versions
         run: |
