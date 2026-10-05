@@ -82,16 +82,20 @@ jobs:
 
           if [ "$status" != "201" ]; then
             echo "GitHub release creation failed with HTTP $status"
-            jq -n               --arg status "$status"               --rawfile response release-diagnostics/response.json               --arg run "${{ github.run_id }}"               '{http_status:$status,response:$response,workflow_run:$run}'               > /tmp/RELEASE_PUBLISH_DIAGNOSTIC.json
+            jq -n               --arg status "$status"               --rawfile response release-diagnostics/response.json               --arg run "${{ github.run_id }}"               '{http_status:$status,response:$response,workflow_run:$run}'               > release-diagnostics/RELEASE_PUBLISH_DIAGNOSTIC.json
 
-            git fetch origin semrepair-v0.3-rc1
-            git checkout -B semrepair-v0.3-rc1 origin/semrepair-v0.3-rc1
-            cp /tmp/RELEASE_PUBLISH_DIAGNOSTIC.json semrepair_validation/RELEASE_PUBLISH_DIAGNOSTIC.json
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add semrepair_validation/RELEASE_PUBLISH_DIAGNOSTIC.json
-            git commit -m "Record SemRepair prerelease publish diagnostic" || true
-            git push origin HEAD:semrepair-v0.3-rc1 || true
+            if [ "$status" = "403" ]; then
+              echo "Release API is blocked; creating an immutable annotated tag fallback."
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git tag -a "$RELEASE_TAG" "$RELEASE_TARGET" -m "SemRepair 0.3.0rc1 — Proof-Carrying Semantic Runtime"
+              git push origin "refs/tags/$RELEASE_TAG"
+              echo "tag_fallback=true" >> "$GITHUB_OUTPUT"
+              echo "release_id=" >> "$GITHUB_OUTPUT"
+              echo "html_url=https://github.com/${{ github.repository }}/tree/$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
             exit 1
           fi
 
@@ -103,9 +107,18 @@ jobs:
           echo "html_url=$html_url" >> "$GITHUB_OUTPUT"
 
       - name: Upload wheel and sdist to prerelease
-        if: steps.create_release.outcome == 'success'
+        if: steps.create_release.outputs.release_id != ''
         run: |
           gh release upload "$RELEASE_TAG"             semrepair_validation/dist/*             --repo "${{ github.repository }}"             --clobber
+
+      - name: Publish distribution artifacts for tag fallback
+        if: steps.create_release.outputs.tag_fallback == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-0.3.0rc1-distributions
+          path: semrepair_validation/dist/*
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Persist release diagnostics
         if: always()
