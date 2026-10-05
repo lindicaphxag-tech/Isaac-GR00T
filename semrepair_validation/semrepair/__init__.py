@@ -30,7 +30,7 @@ from research.semantic_invariants.embodied_semantic_types import (
     synthesize_unique_adapter_plan,
 )
 
-__version__ = "0.3.0rc2"
+__version__ = "0.3.0rc3"
 
 __all__ = [
     "CompilationResult",
@@ -45,9 +45,9 @@ __all__ = [
     "active_semantic_inference",
     "compile_semantic_boundary",
     "compile_source_boundary",
-    "export_execution_bundle",
+    "export_execution_bundle",\n    "export_execution_bundle_v2",
     "infer_type_from_source",
     "synthesize_unique_adapter_plan",
     "verify_repair_against_heldout",
-    "verify_execution_bundle",
+    "verify_execution_bundle",\n    "verify_execution_bundle_v2",
 ]
