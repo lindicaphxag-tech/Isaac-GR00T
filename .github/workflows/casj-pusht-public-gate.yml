@@ -1,4 +1,4 @@
-# casj-trigger-3
+# casj-trigger-4
 name: CASJ public PushT checkpoint gate
 
 on:
@@ -39,8 +39,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ./casj_validation
-          python -m pip install "gym-pusht==0.1.6" "pymunk>=6.6,<7"
-          python -m pip install "git+https://github.com/huggingface/lerobot.git@8c920c4270460851cedd2737657584586d3dc66f"
+          python -m pip install "lerobot[dataset,diffusion,pusht] @ git+https://github.com/huggingface/lerobot.git@8c920c4270460851cedd2737657584586d3dc66f"
 
       - name: Record dependency versions
         run: |
