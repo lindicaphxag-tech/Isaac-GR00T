@@ -34,7 +34,7 @@ import torch
 from lerobot.datasets import LeRobotDatasetMetadata
 from lerobot.policies.diffusion import DiffusionPolicy
 from lerobot.policies.diffusion.processor_diffusion import make_diffusion_pre_post_processors
-from lerobot.utils.constants import OBS_IMAGE, OBS_STATE
+from lerobot.utils.constants import OBS_IMAGE, OBS_IMAGES, OBS_STATE
 
 from casj import (
     RepairMode,
@@ -146,7 +146,17 @@ def predict_chunk_with_common_randomness(
             f"history has {n_obs_steps} steps, checkpoint expects {policy.config.n_obs_steps}"
         )
 
-    global_cond = model._prepare_global_conditioning(batch)
+    # Mirror DiffusionPolicy.predict_action_chunk: the public processor keeps
+    # camera tensors under their configured feature keys, while DiffusionModel
+    # consumes a stacked internal OBS_IMAGES tensor.
+    model_batch = dict(batch)
+    if policy.config.image_features:
+        model_batch[OBS_IMAGES] = torch.stack(
+            [model_batch[key] for key in policy.config.image_features],
+            dim=-4,
+        )
+
+    global_cond = model._prepare_global_conditioning(model_batch)
     generator = make_generator(initial_noise.device, scheduler_seed)
     full = model.conditional_sample(
         batch_size,
