@@ -55,6 +55,74 @@ LE_ROBOT_REL_STATS_FILENAME = "meta/relative_stats.json"
 
 logger = logging.getLogger(__name__)
 
+
+_SOURCE_SAMPLE_BYTES = 64 * 1024
+
+
+def _compute_parquet_source_digest(path: Path) -> str:
+    """Return a portable, lightweight digest for one parquet source shard.
+
+    Full-file hashing makes every cache hit O(dataset bytes), which defeats the
+    purpose of keeping precomputed normalization statistics.  This digest reads
+    only fixed-size boundary samples plus the parquet footer metadata when
+    present.  It is intentionally a source-change detector, not a cryptographic
+    guarantee that every interior byte is identical.
+    """
+    size = path.stat().st_size
+    hasher = hashlib.sha256()
+    hasher.update(str(size).encode("ascii"))
+
+    with path.open("rb") as f:
+        head = f.read(min(size, _SOURCE_SAMPLE_BYTES))
+        hasher.update(head)
+
+        if size > _SOURCE_SAMPLE_BYTES:
+            tail_start = max(0, size - _SOURCE_SAMPLE_BYTES)
+            f.seek(tail_start)
+            hasher.update(f.read())
+
+        if size >= 8:
+            f.seek(size - 8)
+            trailer = f.read(8)
+            if trailer[4:] == b"PAR1":
+                footer_size = int.from_bytes(trailer[:4], "little")
+                footer_start = size - 8 - footer_size
+                if 0 <= footer_start <= size - 8:
+                    f.seek(footer_start)
+                    hasher.update(f.read(footer_size + 8))
+
+    return "sha256:" + hasher.hexdigest()
+
+
+def _compute_dataset_source_fingerprint(dataset_path: Path | str) -> str | None:
+    """Fingerprint the parquet sources that normalization statistics summarize.
+
+    Schema/config fingerprints catch representation changes, but statistics also
+    depend on dataset values. A dataset may be regenerated in place with the
+    same feature names and shapes; reusing the old cache in that case silently
+    normalizes new samples with stale ranges.
+
+    The source manifest is portable across machines: it uses each shard's
+    relative path, byte size, and a lightweight content/footer digest rather
+    than filesystem mtime. Adding, removing, replacing, or commonly rewriting a
+    shard therefore invalidates the cache without hashing the full dataset.
+    """
+    dataset_path = Path(dataset_path)
+    entries = []
+    for path in sorted(dataset_path.glob(LE_ROBOT_DATA_FILENAME)):
+        entries.append(
+            {
+                "path": path.relative_to(dataset_path).as_posix(),
+                "size": path.stat().st_size,
+                "digest": _compute_parquet_source_digest(path),
+            }
+        )
+    if not entries:
+        return None
+    canonical = json.dumps(entries, sort_keys=True, separators=(",", ":"))
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 # Reserved top-level key, used inside both ``relative_stats.json`` and
 # ``stats.json``, mapping ``entry_name -> fingerprint``. Sits next to the
 # per-entry stat dicts; in-tree consumers always look up entries by name, so
@@ -180,25 +248,34 @@ def calculate_dataset_statistics(
     return dataset_statistics
 
 
-def _compute_stats_fingerprint(feature_name: str, feature_meta: dict) -> str:
-    """Hash the per-feature schema in ``info.json`` that drives ``calculate_dataset_statistics``.
+def _compute_stats_fingerprint(
+    feature_name: str,
+    feature_meta: dict,
+    source_fingerprint: str | None = None,
+) -> str:
+    """Hash the schema and source identity that drive one cached statistic.
 
-    Without this, ``meta/stats.json`` was reused whenever every feature name was
-    still present, even if the underlying ``dtype`` / ``shape`` had changed
-    (e.g. column dim grew, dtype widened). Result: silently wrong normalization
-    at training/eval time. Hashing the per-feature schema makes any such change
-    invalidate just that feature's cached entry.
+    The optional source fingerprint keeps the pure helper backward-compatible
+    for callers/tests that only want schema identity, while production cache
+    checks bind statistics to the parquet sources as well.
     """
     payload = {
         "feature": feature_name,
         "dtype": feature_meta.get("dtype"),
         "shape": feature_meta.get("shape"),
     }
+    if source_fingerprint is not None:
+        payload["source_fingerprint"] = source_fingerprint
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _stale_features(stats: dict | None, le_features: dict, lowdim_features: list[str]) -> list[str]:
+def _stale_features(
+    stats: dict | None,
+    le_features: dict,
+    lowdim_features: list[str],
+    source_fingerprint: str | None = None,
+) -> list[str]:
     """Return the subset of ``lowdim_features`` whose cached entry is missing or stale.
 
     A feature is considered fresh iff its stat-dict has all six fields and its
@@ -224,7 +301,9 @@ def _stale_features(stats: dict | None, le_features: dict, lowdim_features: list
         if any(k not in stats[feature] for k in ("mean", "std", "min", "max", "q01", "q99")):
             stale.append(feature)
             continue
-        if fingerprints.get(feature) != _compute_stats_fingerprint(feature, feature_meta):
+        if fingerprints.get(feature) != _compute_stats_fingerprint(
+            feature, feature_meta, source_fingerprint
+        ):
             stale.append(feature)
     return stale
 
@@ -245,7 +324,8 @@ def check_stats_validity(dataset_path: Path | str, features: list[str]):
         return False
     with open(info_path, "r") as f:
         le_features = json.load(f).get("features", {})
-    return not _stale_features(stats, le_features, features)
+    source_fingerprint = _compute_dataset_source_fingerprint(dataset_path)
+    return not _stale_features(stats, le_features, features, source_fingerprint)
 
 
 def generate_stats(dataset_path: Path | str):
@@ -257,7 +337,8 @@ def generate_stats(dataset_path: Path | str):
 
     stats_path = dataset_path / LE_ROBOT_STATS_FILENAME
     existing = _load_stats_cache(stats_path)
-    stale = _stale_features(existing, le_features, lowdim_features)
+    source_fingerprint = _compute_dataset_source_fingerprint(dataset_path)
+    stale = _stale_features(existing, le_features, lowdim_features, source_fingerprint)
 
     # Pull the reserved sidecar aside so the cleanup pass below can iterate
     # ``existing`` cleanly. Drop entries for features that no longer exist in
@@ -285,7 +366,9 @@ def generate_stats(dataset_path: Path | str):
     fresh = calculate_dataset_statistics(parquet_files, stale) if stale else {}
     for feature, values in fresh.items():
         existing[feature] = values
-        fingerprints[feature] = _compute_stats_fingerprint(feature, le_features[feature])
+        fingerprints[feature] = _compute_stats_fingerprint(
+            feature, le_features[feature], source_fingerprint
+        )
 
     existing[STATS_FINGERPRINTS_KEY] = fingerprints
     _dump_stats_cache_atomic(stats_path, existing)
@@ -385,7 +468,11 @@ def calculate_stats_for_key(
     }
 
 
-def _compute_relative_action_fingerprint(embodiment_tag: EmbodimentTag, action_key: str) -> str:
+def _compute_relative_action_fingerprint(
+    embodiment_tag: EmbodimentTag,
+    action_key: str,
+    source_fingerprint: str | None = None,
+) -> str:
     """Hash the inputs that change ``calculate_stats_for_key``'s output.
 
     Cached entries in ``relative_stats.json`` are only safe to reuse when every
@@ -408,6 +495,8 @@ def _compute_relative_action_fingerprint(embodiment_tag: EmbodimentTag, action_k
         "format": action_config.format.name,
         "state_key": action_config.state_key,
     }
+    if source_fingerprint is not None:
+        payload["source_fingerprint"] = source_fingerprint
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -425,8 +514,11 @@ def generate_rel_stats(dataset_path: Path | str, embodiment_tag: EmbodimentTag) 
     stats_path = Path(dataset_path) / LE_ROBOT_REL_STATS_FILENAME
     stats = _load_stats_cache(stats_path)
     fingerprints = stats.setdefault(STATS_FINGERPRINTS_KEY, {})
+    source_fingerprint = _compute_dataset_source_fingerprint(dataset_path)
     for action_key in sorted(action_keys):
-        expected_fp = _compute_relative_action_fingerprint(embodiment_tag, action_key)
+        expected_fp = _compute_relative_action_fingerprint(
+            embodiment_tag, action_key, source_fingerprint
+        )
         if action_key in stats and fingerprints.get(action_key) == expected_fp:
             continue
         print(f"Generating relative stats for {dataset_path} {embodiment_tag} {action_key}")
