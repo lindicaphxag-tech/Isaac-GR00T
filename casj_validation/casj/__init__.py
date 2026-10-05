@@ -114,6 +114,12 @@ __all__ = [
     "DirectionalTrustRegion",
     "certify_directional_trust_region",
     "trust_region_accepts",
+    "CASJAuthorizationDecision",
+    "CASJRuntimeTrustCertificate",
+    "authorize_runtime_repair",
+    "issue_runtime_trust_certificate",
+    "mapping_digest",
+    "verify_runtime_trust_certificate",
 ]
 
 from .geometry import (
@@ -167,3 +173,12 @@ from .action_charts import (
 from .selective import SelectiveRepairRecord, evaluate_selective_repair
 
 from .trust_region import DirectionalTrustRegion, certify_directional_trust_region, trust_region_accepts
+
+from .proof_certificate import (
+    CASJAuthorizationDecision,
+    CASJRuntimeTrustCertificate,
+    authorize_runtime_repair,
+    issue_runtime_trust_certificate,
+    mapping_digest,
+    verify_runtime_trust_certificate,
+)
