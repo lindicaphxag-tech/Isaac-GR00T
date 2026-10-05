@@ -13,13 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CPU-only tests for the per-feature schema-fingerprint cache in ``generate_stats``.
+"""CPU-only tests for schema/source provenance in ``generate_stats``.
 
-Without the fingerprint guard, an existing ``meta/stats.json`` was reused as
-long as every float feature name was still present, even after the underlying
-``info.json`` schema (``dtype`` / ``shape``) had changed -- silently degrading
-normalization at training/eval time. The fingerprint hashes the per-feature
-schema so any drift invalidates just that feature's cached entry.
+A cached ``meta/stats.json`` is valid only for both the feature schema and the
+parquet source manifest whose values it summarizes. These tests protect schema
+drift and in-place source replacement without requiring full dataset hashing.
 """
 
 import json
@@ -324,7 +322,6 @@ class TestGenerateStatsCache:
         generate_stats(dataset)
 
         assert mock_calculate == [], "fresh fingerprints must produce zero recompute"
-
 
     def test_dataset_source_change_recomputes_all_features(
         self, dataset, lowdim_features, mock_calculate
