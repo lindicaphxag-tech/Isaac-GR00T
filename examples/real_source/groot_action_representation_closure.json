@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "NVIDIA/Isaac-GR00T",
+    "commit": "51d4c89f72fda44cbf77285c6a8114b52676b8a1",
+    "license": "Apache-2.0",
+    "blobs": {
+      "gr00t/data/types.py": "7bd6d5fe522dc0d1e750be245fabf872c244bbc1",
+      "gr00t/data/state_action/state_action_processor.py": "3bebaca6db900f6b5d0637451009ab7251869b90",
+      "gr00t/configs/data/embodiment_configs.py": "8a1189a75442727ce30871b375dcff696c1d146a",
+      "examples/SO100/so100_config.py": "36b5f5c63524e5b9041bae95b2d70b3a7fff8606"
+    }
+  },
+  "purpose": "Minimal source excerpts sufficient to reproduce the frozen action-representation semantic-closure audit without requiring a GR00T checkout.",
+  "enum_source": "from enum import Enum\n\nclass ActionRepresentation(Enum):\n    RELATIVE = \"relative\"\n    DELTA = \"delta\"\n    ABSOLUTE = \"absolute\"\n",
+  "runtime_source": "def processor_contract(action_config, use_relative_action: bool = False):\n    if action_config.rep == ActionRepresentation.RELATIVE and use_relative_action:\n        return \"relative\"\n    return \"fallthrough\"\n",
+  "usage_sources": [
+    "relative = ActionConfig(rep=ActionRepresentation.RELATIVE)\nabsolute = ActionConfig(rep=ActionRepresentation.ABSOLUTE)\n",
+    "arm = ActionConfig(rep=ActionRepresentation.RELATIVE)\ngripper = ActionConfig(rep=ActionRepresentation.ABSOLUTE)\n"
+  ],
+  "evidence_boundary": "These are attributed minimal excerpts tied to exact upstream blob identities; they reproduce the semantic-closure inference but are not a substitute for re-auditing future GR00T revisions."
+}
