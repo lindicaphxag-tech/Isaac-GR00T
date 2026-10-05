@@ -1,4 +1,4 @@
-# casj-trigger-2
+# casj-trigger-3
 name: CASJ public PushT checkpoint gate
 
 on:
@@ -26,7 +26,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: Cache Hugging Face checkpoint
