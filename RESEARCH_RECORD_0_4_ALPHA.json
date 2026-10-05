@@ -46,7 +46,7 @@
   },
   "empirical_bridge": {
     "subject": "ManiSkill delta-pose converter -> PDEEPoseController",
-    "public_workflow_run_id": 37370267001,
+    "public_workflow_run_id": 37373888924,
     "type": "partial masking / factorial causal witness",
     "cells": {
       "old_converter+old_controller_deg": 5.076696288575132,
@@ -58,7 +58,11 @@
       "mani-skill/ManiSkill#1472",
       "mani-skill/ManiSkill#1495"
     ],
-    "claim_boundary": "This is self-authored public causal evidence. Neither upstream PR is counted as maintainer-retained adoption."
+    "claim_boundary": "Self-authored public causal evidence attached as a success status to exact PR1495 head. Neither upstream PR is counted as maintainer-retained adoption.",
+    "pr1495_head": "cdd6db713ffe7edc3e0df3abfab51ea5320c1c0b",
+    "pr1495_commit_shape": "1 commit / 2 files",
+    "current_head_status_context": "fork/causal-closure",
+    "exact_production_identities_proved": true
   },
   "externalization": {
     "generic_cli": "semrepair-repair-lattice --input <factorial.json> --json",
