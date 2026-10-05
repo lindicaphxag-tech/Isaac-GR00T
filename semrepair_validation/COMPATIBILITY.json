@@ -1,8 +1,10 @@
 {
   "schema_version": 1,
   "artifact": "SemRepair",
-  "software_version": "0.3.0rc1",
-  "source_manifest_versions": [1],
+  "software_version": "0.3.0rc3",
+  "source_manifest_versions": [
+    1
+  ],
   "semantic_type_generation": "0.3",
   "certificate_policy": {
     "transfer_across_contract_ids": false,
