@@ -766,9 +766,11 @@ def main():
     effective_inference_steps = int(policy.diffusion.num_inference_steps)
 
     metadata = LeRobotDatasetMetadata(args.dataset_id)
-    preprocessor, postprocessor = make_pre_post_processors(
+    # The official PushT checkpoint predates serialized processor JSON.
+    # Rebuild the current DiffusionPolicy normalization pipeline from the
+    # public lerobot/pusht dataset statistics without mutating the checkpoint.
+    preprocessor, postprocessor = make_diffusion_pre_post_processors(
         policy.config,
-        args.model_id,
         dataset_stats=metadata.stats,
     )
 
