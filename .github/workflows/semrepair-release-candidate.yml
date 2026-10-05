@@ -86,3 +86,25 @@ jobs:
           cd semrepair_validation/formal
           lake update
           lake build
+
+  external-consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install from public Git URL
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install             "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc1#subdirectory=semrepair_validation"
+      - name: Verify public import and version
+        run: |
+          python - <<'PY'
+          import semrepair
+          assert semrepair.__version__ == "0.3.0rc1"
+          print(semrepair.__version__)
+          PY
+      - name: Run installed theorem checker
+        run: semrepair-core-theorems --json
+      - name: Run installed behavioral evidence
+        run: semrepair-behavior --json
