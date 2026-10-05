@@ -1,0 +1,42 @@
+name: Semantic repair atomicity theorem
+
+on:
+  push:
+    branches:
+      - validation/semantic-repair-atomicity-lean
+  workflow_dispatch:
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bind theorem branch to public rc1 snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin 8cd7e7ad01e50aa18f42d333765f4fd242228d66
+          git merge-base --is-ancestor 8cd7e7ad01e50aa18f42d333765f4fd242228d66 HEAD
+          test "$(cat semrepair_validation/formal/lean-toolchain)" = "leanprover/lean4:v4.34.1"
+
+      - name: Install pinned Lean toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh             | sh -s -- -y --default-toolchain leanprover/lean4:v4.34.1
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/lean" --version
+
+      - name: Reject incomplete proofs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R -n -E '(^|[[:space:]])(sorry|admit)([[:space:]]|$)'             semrepair_validation/formal/SemRepairFormal             semrepair_validation/formal/SemRepairFormal.lean
+
+      - name: Compile declared core plus atomicity theorem
+        working-directory: semrepair_validation/formal
+        run: |
+          lean SemRepairFormal/Core.lean
+          lean SemRepairFormal/AtomicRepair.lean
+          lean SemRepairFormal.lean
