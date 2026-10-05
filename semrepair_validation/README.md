@@ -101,12 +101,14 @@ The digests are integrity/dependency receipts, not digital signatures.
 
 Latest fully green release-candidate code validation:
 
-- validated code head: `b24d33ce816e2967b3ec8701d30a2213ecf72991`;
-- workflow run: **37326497957**;
+- validated code head: `094e5d96c74440410f9bfeff1ec6413985483c2b`;
+- workflow run: **37329404920**;
 - Python 3.10 / 3.12 / 3.13: success;
 - wheel + sdist: success;
 - install from public Git URL in a consumer-style job: success;
 - reusable composite Action consumer smoke: success;
+- packaged proof-bundle JSON Schema: success;
+- installed proof-bundle generation + independent CLI verification: success;
 - Lean core build with explicit `sorry` / `admit` rejection: success;
 - production compiler vs independent exhaustive oracle: **2017 cases**, valid;
 - bounded replay model: **4662 traces**;
@@ -133,8 +135,8 @@ For target XYZ Euler `(0.5, 0.5, 0.5)` rad:
 - SAPIEN pose round-trip numerical floor in the same assay: **0.0092307°**.
 
 The before/after JSON evidence is retained in workflow artifact
-`semrepair-maniskill-1138-native-boundary` (artifact id **11351603467**,
-SHA-256 `48120ac10ccf5fa53c6170d36044013751e82653aeeb2477247a05158912488f`).
+`semrepair-maniskill-1138-native-boundary` (artifact id **11352879806**,
+SHA-256 `8b00a6061e1f6dc4569db4e40e8b7c61df0aec07bf596de6f7c04bb32d795654`).
 
 This validates the representation boundary only. The separate normalized
 rotation-sign issue (#1469/#1472) is intentionally outside this claim.
@@ -146,8 +148,8 @@ The public workflow constructs real `MjModel` / `MjData`, executes
 the explicit compiled permutation repair.
 
 Artifact:
-`semrepair-mujoco-native-closed-loop` (id **11352960143**, SHA-256
-`be76e8cc87af4acf1973e6fc0b5b0af8606a35656f4b84d6f72bd8b0a9b9492c`).
+`semrepair-mujoco-native-closed-loop` (id **11354160530**, SHA-256
+`0918ecc438a845ab1c265534426f49faa8f583f0634867de4dbd98751e8dcb07`).
 
 ## Formal claim boundary
 
@@ -179,9 +181,8 @@ the regression/spec/tooling.
 
 `0.3.0rc1` is the currently published immutable prerelease.
 
-`0.3.0rc2` is a development release-candidate branch adding the proof-bundle
-interoperability surface. Its new claims remain **validation-pending** until the
-rc2 public workflow is green.
+`0.3.0rc2` is a **green public release candidate** adding the proof-bundle
+interoperability surface. It is not yet tagged or released.
 
 Neither release is NVIDIA adoption, a prospective I2 mechanism match, or L8/L9
 by itself.
