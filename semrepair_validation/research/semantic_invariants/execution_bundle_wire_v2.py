@@ -28,6 +28,8 @@ import unicodedata
 
 
 BUNDLE_SCHEMA = "semrepair-execution-proof-bundle/v0.2"
+COMPILATION_SCHEMA = "embodied-semantic-compilation-certificate/v0.1"
+EFFECT_SCHEMA = "semantic-effect-commit-certificate/v0.1"
 CANONICALIZATION_PROFILE = "semrepair-wire-c14n/v0.1"
 SPEC_VERSION = "0.2"
 DECIMAL_TAG = "$semrepair_decimal"
@@ -96,6 +98,8 @@ def _normalize_wire(value: object) -> object:
     if value is None or isinstance(value, bool):
         return value
     if isinstance(value, int):
+        if abs(value) > MAX_SAFE_INTEGER:
+            raise ValueError("wire integers must fit the cross-language safe range")
         return value
     if isinstance(value, (float, Decimal)):
         return {DECIMAL_TAG: canonical_decimal(value)}
@@ -140,7 +144,7 @@ def canonical_wire_json(payload: object) -> str:
         if isinstance(value, list):
             return "[" + ",".join(emit(item) for item in value) + "]"
         if isinstance(value, dict):
-            keys = sorted(value)
+            keys = sorted(value, key=lambda item: item.encode("utf-8"))
             return "{" + ",".join(
                 emit(key) + ":" + emit(value[key]) for key in keys
             ) + "}"
@@ -392,6 +396,42 @@ def _valid_hex64(value: object) -> bool:
     return isinstance(value, str) and HEX64.fullmatch(value) is not None
 
 
+def _valid_semantic_record(value: object) -> bool:
+    return (
+        isinstance(value, Mapping)
+        and set(value) == set(SEMANTIC_FIELDS)
+        and all(
+            item is None or isinstance(item, str)
+            for item in value.values()
+        )
+    )
+
+
+def _valid_effect_policy(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    required = {
+        "min_commit_planes",
+        "min_abort_planes",
+        "require_fresh_evidence",
+        "allow_idempotent_retry",
+    }
+    if set(value) != required:
+        return False
+    min_commit = value.get("min_commit_planes")
+    min_abort = value.get("min_abort_planes")
+    return (
+        isinstance(min_commit, int)
+        and not isinstance(min_commit, bool)
+        and 1 <= min_commit <= MAX_SAFE_INTEGER
+        and isinstance(min_abort, int)
+        and not isinstance(min_abort, bool)
+        and 1 <= min_abort <= MAX_SAFE_INTEGER
+        and isinstance(value.get("require_fresh_evidence"), bool)
+        and isinstance(value.get("allow_idempotent_retry"), bool)
+    )
+
+
 def _contains_binary_float(value: object) -> bool:
     if isinstance(value, float):
         return True
@@ -453,6 +493,44 @@ def verify_execution_bundle_v2(record: Mapping[str, Any]) -> dict[str, object]:
             "errors": errors,
         }
 
+    checks["certificate_schemas"] = (
+        compilation.get("schema") == COMPILATION_SCHEMA
+        and effect.get("schema") == EFFECT_SCHEMA
+    )
+    if not checks["certificate_schemas"]:
+        errors.append("unsupported compilation/effect certificate schema")
+
+    semantic_records = (
+        compilation.get("source"),
+        compilation.get("target"),
+        compilation.get("inferred_source"),
+        compilation.get("refined_source"),
+    )
+    checks["semantic_records"] = all(
+        _valid_semantic_record(item) for item in semantic_records
+    )
+    if not checks["semantic_records"]:
+        errors.append("semantic type record is malformed or contains unknown fields")
+
+    checks["evidence_identity_shape"] = all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in evidence.items()
+    )
+    if not checks["evidence_identity_shape"]:
+        errors.append("evidence identities must be string-to-string mappings")
+
+    checks["effect_policy"] = _valid_effect_policy(effect.get("policy"))
+    if not checks["effect_policy"]:
+        errors.append("effect policy is malformed")
+
+    allowed_effect_classes = {"idempotent", "reversible", "irreversible"}
+    checks["effect_class"] = (
+        effect.get("effect_class") in allowed_effect_classes
+        and intent.get("effect_class") in allowed_effect_classes
+    )
+    if not checks["effect_class"]:
+        errors.append("unsupported physical effect class")
+
     checks["registry_wire_digest"] = (
         bindings.get("adapter_registry_digest") == wire_digest(adapters)
     )
@@ -486,6 +564,24 @@ def verify_execution_bundle_v2(record: Mapping[str, Any]) -> dict[str, object]:
             errors.append(
                 f"adapter[{index}] uses unknown semantic fields: {tuple(sorted(unknown))!r}"
             )
+        effects = adapter.get("effects")
+        required_evidence = adapter.get("required_evidence")
+        if not (
+            isinstance(effects, list)
+            and all(isinstance(item, str) for item in effects)
+            and isinstance(required_evidence, list)
+            and all(isinstance(item, str) for item in required_evidence)
+            and all(
+                isinstance(key, str) and isinstance(value, str)
+                for key, value in requires.items()
+            )
+            and all(
+                isinstance(key, str) and isinstance(value, str)
+                for key, value in produces.items()
+            )
+        ):
+            adapter_semantics_valid = False
+            errors.append(f"adapter[{index}] has malformed effects/evidence/semantic values")
         try:
             _parse_decimal(adapter.get("cost_decimal"), nonnegative=True)
         except ValueError as exc:
@@ -502,9 +598,12 @@ def verify_execution_bundle_v2(record: Mapping[str, Any]) -> dict[str, object]:
     checks["installable_compilation"] = compilation.get("repair_candidate") is None
 
     producer_selected_cost = compilation.get("producer_selected_cost_decimal")
+    producer_selected_cost_number: Decimal | None = None
     try:
         if producer_selected_cost is not None:
-            _parse_decimal(producer_selected_cost, nonnegative=True)
+            producer_selected_cost_number = _parse_decimal(
+                producer_selected_cost, nonnegative=True
+            )
         producer_selected_cost_ok = True
     except ValueError:
         producer_selected_cost_ok = False
@@ -588,6 +687,14 @@ def verify_execution_bundle_v2(record: Mapping[str, Any]) -> dict[str, object]:
         and isinstance(target, Mapping)
         and _assignable(current, target)
     )
+
+    checks["producer_cost_matches_replay"] = (
+        checks["selected_path_replay"]
+        and producer_selected_cost_number is not None
+        and producer_selected_cost_number == selected_cost
+    )
+    if not checks["producer_cost_matches_replay"]:
+        errors.append("producer selected cost does not match exact wire replay cost")
 
     minimum_unique = False
     if checks["selected_path_replay"]:
