@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/lindicaphxag-tech/Isaac-GR00T/semrepair-v0.3-rc2/semrepair_validation/schemas/semrepair-execution-proof-bundle-v0.1.schema.json",
+  "title": "SemRepair execution proof bundle v0.1",
+  "type": "object",
+  "required": [
+    "schema",
+    "spec_version",
+    "semantic_contract_id",
+    "compilation_certificate",
+    "effect_certificate",
+    "intent",
+    "adapter_registry",
+    "evidence_identity",
+    "verification_profile",
+    "bundle_digest"
+  ],
+  "properties": {
+    "schema": {
+      "const": "semrepair-execution-proof-bundle/v0.1"
+    },
+    "spec_version": {
+      "const": "0.2"
+    },
+    "semantic_contract_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bundle_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidence_identity": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "verification_profile": {
+      "type": "object",
+      "required": [
+        "max_steps",
+        "atol"
+      ],
+      "properties": {
+        "max_steps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "atol": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "intent": {
+      "type": "object",
+      "required": [
+        "effect_id",
+        "action_name",
+        "effect_class",
+        "dependency_version"
+      ],
+      "properties": {
+        "effect_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effect_class": {
+          "enum": [
+            "idempotent",
+            "reversible",
+            "irreversible"
+          ]
+        },
+        "dependency_version": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "adapter_registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "requires",
+          "produces",
+          "cost",
+          "effects",
+          "required_evidence"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "requires": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "produces": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "cost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "compilation_certificate": {
+      "$ref": "#/$defs/compilation"
+    },
+    "effect_certificate": {
+      "$ref": "#/$defs/effect"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "semantic_type": {
+      "type": "object",
+      "required": [
+        "role",
+        "entity"
+      ],
+      "properties": {
+        "role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "entity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "frame": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "representation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "convention": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "clock": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "freshness": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provenance": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ordering": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "embodiment": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "compilation": {
+      "type": "object",
+      "required": [
+        "schema",
+        "compiler_version",
+        "registry_digest",
+        "evidence_digest",
+        "source",
+        "target",
+        "inferred_source",
+        "refined_source",
+        "selected_adapter_path",
+        "selected_cost",
+        "repair_candidate",
+        "repair_families",
+        "refinement_records",
+        "effects",
+        "decision_digest"
+      ],
+      "properties": {
+        "schema": {
+          "const": "embodied-semantic-compilation-certificate/v0.1"
+        },
+        "compiler_version": {
+          "type": "string"
+        },
+        "registry_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "evidence_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source": {
+          "$ref": "#/$defs/semantic_type"
+        },
+        "target": {
+          "$ref": "#/$defs/semantic_type"
+        },
+        "inferred_source": {
+          "$ref": "#/$defs/semantic_type"
+        },
+        "refined_source": {
+          "$ref": "#/$defs/semantic_type"
+        },
+        "selected_adapter_path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selected_cost": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "repair_candidate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repair_families": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "refinement_records": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "decision_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "schema",
+        "effect_id",
+        "action_name",
+        "effect_class",
+        "dependency_version",
+        "policy",
+        "semantic_contract_id",
+        "issuer_version",
+        "decision_digest"
+      ],
+      "properties": {
+        "schema": {
+          "const": "semantic-effect-commit-certificate/v0.1"
+        },
+        "effect_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effect_class": {
+          "enum": [
+            "idempotent",
+            "reversible",
+            "irreversible"
+          ]
+        },
+        "dependency_version": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "policy": {
+          "type": "object",
+          "required": [
+            "min_commit_planes",
+            "min_abort_planes",
+            "require_fresh_evidence",
+            "allow_idempotent_retry"
+          ],
+          "properties": {
+            "min_commit_planes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "min_abort_planes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "require_fresh_evidence": {
+              "type": "boolean"
+            },
+            "allow_idempotent_retry": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "semantic_contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issuer_version": {
+          "type": "string"
+        },
+        "decision_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
