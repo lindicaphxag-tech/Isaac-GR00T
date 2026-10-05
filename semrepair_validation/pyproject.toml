@@ -30,6 +30,7 @@ semrepair-mode-closure = "research.semantic_invariants.semrepair_mode_closure_cl
 semrepair-effect-parity = "research.semantic_invariants.semrepair_effect_parity_cli:main"
 semrepair-effect-fault-assay = "research.semantic_invariants.semantic_effect_fault_assay:main"
 semrepair-adopt-init = "research.semantic_invariants.semrepair_adoption_cli:main"
+semrepair-adoption-check = "research.semantic_invariants.semrepair_adoption_check:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
