@@ -276,7 +276,7 @@ def summarize_rollout(
     )
     path_length = sum(
         degrees(angular_distance_radians(left, right))
-        for left, right in zip(trajectory, trajectory[1:], strict=True)
+        for left, right in zip(trajectory, trajectory[1:])
     )
     steps_to_tolerance = next(
         (index for index, error in enumerate(errors) if error <= tolerance_degrees),
@@ -289,7 +289,7 @@ def summarize_rollout(
             raise ValueError("reference and trajectory lengths differ")
         max_deviation = max(
             degrees(angular_distance_radians(actual, expected))
-            for actual, expected in zip(trajectory, reference, strict=True)
+            for actual, expected in zip(trajectory, reference)
         )
 
     return ClosedLoopAssayResult(
