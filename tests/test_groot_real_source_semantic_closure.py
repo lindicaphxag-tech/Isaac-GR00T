@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from research.semantic_invariants.embodied_mode_closure_evidence import (
@@ -5,20 +6,24 @@ from research.semantic_invariants.embodied_mode_closure_evidence import (
 )
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
+WITNESS = ROOT / "examples/real_source/groot_action_representation_closure.json"
+
+
+def _source_witness():
+    return json.loads(WITNESS.read_text(encoding="utf-8"))
 
 
 def test_groot_real_source_action_representation_closure():
-    enum_source = (ROOT / "gr00t/data/types.py").read_text(encoding="utf-8")
-    runtime_source = (
-        ROOT / "gr00t/data/state_action/state_action_processor.py"
-    ).read_text(encoding="utf-8")
-    usage_sources = [
-        (ROOT / "gr00t/configs/data/embodiment_configs.py").read_text(
-            encoding="utf-8"
-        ),
-        (ROOT / "examples/SO100/so100_config.py").read_text(encoding="utf-8"),
-    ]
+    witness = _source_witness()
+    enum_source = witness["enum_source"]
+    runtime_source = witness["runtime_source"]
+    usage_sources = witness["usage_sources"]
+
+    # The frozen witness records the exact upstream revision/blob identities
+    # separately from the minimal source excerpts used by this standalone test.
+    assert witness["upstream"]["commit"] == "51d4c89f72fda44cbf77285c6a8114b52676b8a1"
+    assert witness["upstream"]["license"] == "Apache-2.0"
 
     # Ground the intentional ABSOLUTE fall-through in two independent source
     # planes before treating it as a baseline rather than an uncovered mode.
@@ -53,14 +58,10 @@ def test_groot_real_source_action_representation_closure():
 
 
 def test_groot_delta_is_reported_unresolved_not_auto_labeled_bug():
-    enum_source = (ROOT / "gr00t/data/types.py").read_text(encoding="utf-8")
-    runtime_source = (
-        ROOT / "gr00t/data/state_action/state_action_processor.py"
-    ).read_text(encoding="utf-8")
-
+    witness = _source_witness()
     result = infer_triangulated_mode_closure(
-        enum_source=enum_source,
-        runtime_source=runtime_source,
+        enum_source=witness["enum_source"],
+        runtime_source=witness["runtime_source"],
         usage_sources=[],
         enum_name="ActionRepresentation",
     )
