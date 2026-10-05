@@ -13,13 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CPU-only tests for the schema-fingerprint cache in ``generate_rel_stats``.
+"""CPU-only tests for config/source provenance in ``generate_rel_stats``.
 
-Without the fingerprint guard, an existing ``meta/relative_stats.json`` was
-reused whenever a per-embodiment ``action_key`` name matched, regardless of
-whether the inputs that drive the computation (``delta_indices``, ``format``,
-``state_key``, ...) had since changed — silently corrupting normalization at
-training time.
+Relative-action statistics depend on both modality configuration and the parquet
+sources being summarized. Reusing either under a changed provenance silently
+corrupts normalization at training time.
 """
 
 from dataclasses import replace
@@ -31,6 +29,7 @@ from gr00t.data.embodiment_tags import EmbodimentTag
 from gr00t.data.stats import (
     LE_ROBOT_REL_STATS_FILENAME,
     STATS_FINGERPRINTS_KEY,
+    _compute_dataset_source_fingerprint,
     _compute_relative_action_fingerprint,
     generate_rel_stats,
 )
@@ -62,6 +61,13 @@ def _stub_stats():
 def dataset_dir(tmp_path):
     (tmp_path / "meta").mkdir()
     return tmp_path
+
+
+def _write_source_shard(dataset_path, payload: bytes = b"source-v1"):
+    shard = dataset_path / "data" / "chunk-000" / "episode_000000.parquet"
+    shard.parent.mkdir(parents=True, exist_ok=True)
+    shard.write_bytes(payload)
+    return shard
 
 
 @pytest.fixture
@@ -96,6 +102,19 @@ class TestFingerprintHelper:
         a = _compute_relative_action_fingerprint(EMBODIMENT, "eef_9d")
         b = _compute_relative_action_fingerprint(EMBODIMENT, "joint_position")
         assert a != b
+
+    def test_source_fingerprint_changes_relative_action_fingerprint(self, dataset_dir):
+        _write_source_shard(dataset_dir, b"source-v1")
+        source_v1 = _compute_dataset_source_fingerprint(dataset_dir)
+        baseline = _compute_relative_action_fingerprint(EMBODIMENT, "eef_9d", source_v1)
+
+        shard = dataset_dir / "data" / "chunk-000" / "episode_000000.parquet"
+        shard.write_bytes(b"source-version-two")
+        source_v2 = _compute_dataset_source_fingerprint(dataset_dir)
+        mutated = _compute_relative_action_fingerprint(EMBODIMENT, "eef_9d", source_v2)
+
+        assert source_v1 != source_v2
+        assert baseline != mutated
 
     @pytest.mark.parametrize(
         "mutator",
@@ -166,6 +185,18 @@ class TestGenerateRelStatsCache:
         generate_rel_stats(dataset_dir, EMBODIMENT)
 
         assert mock_calculate == [], "fresh fingerprints must produce zero recompute"
+
+    def test_dataset_source_change_invalidates_all_relative_stats(
+        self, dataset_dir, mock_calculate
+    ):
+        shard = _write_source_shard(dataset_dir, b"source-v1")
+        generate_rel_stats(dataset_dir, EMBODIMENT)
+        mock_calculate.clear()
+
+        shard.write_bytes(b"source-version-two")
+        generate_rel_stats(dataset_dir, EMBODIMENT)
+
+        assert sorted(c[2] for c in mock_calculate) == sorted(RELATIVE_KEYS)
 
     def test_legacy_file_without_fingerprints_is_regenerated(self, dataset_dir, mock_calculate):
         """Pre-existing relative_stats.json from before this fix must be recomputed."""
