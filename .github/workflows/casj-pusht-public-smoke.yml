@@ -1,0 +1,101 @@
+name: CASJ PushT Public Smoke
+
+on:
+  push:
+    branches:
+      - "validation/casj-pusht-public-v1"
+    paths:
+      - ".github/workflows/casj-pusht-public-smoke.yml"
+      - "validation/casj/**"
+  workflow_dispatch:
+
+jobs:
+  pusht-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+    steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned LeRobot
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/lerobot
+          ref: 8c920c4270460851cedd2737657584586d3dc66f
+          path: lerobot-src
+
+      - name: Checkout pinned CASJ paper core
+        uses: actions/checkout@v4
+        with:
+          repository: lindicaphxag-tech/lindicaphxag-tech
+          ref: f11893787c38609032a2756c56f95e97730225bf
+          path: casj-source
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install LeRobot PushT + Diffusion dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./lerobot-src[diffusion,pusht]"
+          python -m pip install -e "./casj-source/research/casj"
+
+      - name: Record dependency versions
+        run: |
+          python - <<'PY'
+          import torch
+          import diffusers
+          import gymnasium
+          import lerobot
+          print("torch", torch.__version__)
+          print("diffusers", diffusers.__version__)
+          print("gymnasium", gymnasium.__version__)
+          print("lerobot", getattr(lerobot, "__version__", "unknown"))
+          PY
+
+      - name: Run public frozen-policy smoke gate
+        run: |
+          mkdir -p validation/casj/results
+          python casj-source/research/casj/experiments/public_pusht_gate.py             --device cpu             --seed 17             --warmup-steps 0             --num-inference-steps 10             --epsilon 4.0             --angle-epsilon 0.02             --heldout-dx 10.0             --heldout-dy -6.0             --output validation/casj/results/pusht_smoke.json
+
+      - name: Print compact result
+        if: always()
+        run: |
+          if [ -f validation/casj/results/pusht_smoke.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("validation/casj/results/pusht_smoke.json")
+          data = json.loads(p.read_text())
+          print("checkpoint steps:", data["checkpoint_num_inference_steps"])
+          print("effective steps:", data["effective_num_inference_steps"])
+          for key, value in data["snapshots"].items():
+              print("snapshot", key)
+              print("  stale_mse:", value["stale_mse"])
+              print("  casj_mse:", value["casj_repair_mse"])
+              print("  global_mse:", value["global_compensation_mse"])
+              print("  certified_fallback:", value["certified_fallback"])
+              print("  branches:", {
+                  name: {
+                      "success": result.get("success"),
+                      "coverage": result.get("final_coverage"),
+                  }
+                  for name, result in value["rollout_branches"].items()
+              })
+          PY
+          fi
+
+      - name: Upload public-gate artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casj-pusht-public-smoke
+          path: validation/casj/results
+          if-no-files-found: warn
