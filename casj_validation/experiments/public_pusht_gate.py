@@ -50,6 +50,7 @@ from casj.pusht_assay import (
     estimate_pathwise_directional_derivative_via_query,
 )
 from casj.pusht_state import PushTSnapshot, capture_snapshot, restore_snapshot
+from casj.temporal_scope import collect_temporal_slot_probes
 from lerobot.datasets import LeRobotDatasetMetadata
 from lerobot.policies.diffusion import DiffusionPolicy
 from lerobot.policies.diffusion.processor_diffusion import (
@@ -194,6 +195,37 @@ class PushTActionChart(EuclideanActionChart):
         # postprocessor has already mapped the normalized policy action to the
         # physical PushT absolute target coordinates used by the environment.
         return super().decode(raw_chunk, observation=observation)
+
+
+@dataclass(frozen=True)
+class PushTBlockSlotInterventionChart:
+    """Physical T-block intervention for exactly one history slot."""
+
+    num_supports: int = 1
+    support_dim: int = 3
+
+    def intervene_slot(
+        self,
+        observation_slot: PushTSnapshot,
+        *,
+        direction: int,
+        coefficients: np.ndarray,
+        magnitude: float,
+    ) -> PushTSnapshot:
+        coefficients = np.asarray(coefficients, dtype=np.float64)
+        if coefficients.shape != (1,):
+            raise ValueError("PushT has exactly one candidate support")
+        if direction not in (0, 1, 2):
+            raise ValueError("PushT support directions are block x, y, theta")
+
+        signed = float(coefficients[0]) * float(magnitude)
+        delta_xy = np.zeros(2, dtype=np.float64)
+        delta_angle = 0.0
+        if direction < 2:
+            delta_xy[direction] = signed
+        else:
+            delta_angle = signed
+        return observation_slot.shifted_block(delta_xy, delta_angle)
 
 
 @dataclass(frozen=True)
@@ -389,6 +421,31 @@ def evaluate_snapshot(
     )
     estimates = recover_two_scale_casj(probes, sparsity=1)
 
+    # Causal-temporal diagnostic: perturb each observation-history slot
+    # independently instead of silently rewriting the whole past.  This is a
+    # separate method-version diagnostic and does not relabel the historical
+    # all-history results.
+    temporal_slot_probes = collect_temporal_slot_probes(
+        policy=policy_query,
+        action_chart=action_chart,
+        slot_chart=PushTBlockSlotInterventionChart(),
+        observation=history,
+        randomness=randomness,
+        codes=np.ones((1, 1), dtype=np.float64),
+        fine_epsilon=np.asarray(
+            [epsilon, epsilon, epsilon_angle], dtype=np.float64
+        ),
+        coarse_epsilon=np.asarray(
+            [2.0 * epsilon, 2.0 * epsilon, 2.0 * epsilon_angle],
+            dtype=np.float64,
+        ),
+        max_pairing_error=1e-6,
+    )
+    temporal_slot_estimates = [
+        recover_two_scale_casj(batch, sparsity=1)
+        for batch in temporal_slot_probes.probes
+    ]
+
     baseline = probes.baseline
     planar_casj = estimates.fine.jacobian[:, 0]
     planar_casj_coarse = estimates.coarse.jacobian[:, 0]
@@ -423,6 +480,23 @@ def evaluate_snapshot(
         fresh_history,
         randomness=randomness,
     )
+
+    # Event-scoped endpoint: the physical change begins in the current history
+    # slot, so past observations remain byte-for-byte unchanged.
+    event_current_history = list(history)
+    event_current_history[-1] = history[-1].shifted_block(
+        heldout_delta[:2], heldout_delta[2]
+    )
+    event_current_fresh = policy_query.query(
+        event_current_history,
+        randomness=randomness,
+    )
+    current_slot_estimate = temporal_slot_estimates[-1]
+    current_slot_planar_casj = current_slot_estimate.fine.jacobian[:, 0]
+    event_current_delta = np.einsum(
+        "tad,d->ta", current_slot_planar_casj, heldout_delta
+    )
+    event_current_casj_repaired = baseline + event_current_delta
 
     casj_delta = np.einsum("tad,d->ta", planar_casj, heldout_delta)
     casj_repaired = baseline + casj_delta
@@ -485,6 +559,12 @@ def evaluate_snapshot(
     global_mse = float(np.mean((global_comp - fresh) ** 2))
     casj_mse = float(np.mean((casj_repaired - fresh) ** 2))
     pi_casj_mse = float(np.mean((pi_casj_repaired - fresh) ** 2))
+    event_current_stale_mse = float(
+        np.mean((baseline - event_current_fresh) ** 2)
+    )
+    event_current_casj_mse = float(
+        np.mean((event_current_casj_repaired - event_current_fresh) ** 2)
+    )
     anchor_transport_chunk = np.stack(
         [
             transport_planar_anchor(
@@ -645,6 +725,16 @@ def evaluate_snapshot(
         "pi_casj_certified": execute_chunk_branch(
             env, start_state=disturbed_state, chunk=pi_casj_certified_chunk
         ),
+        "event_current_casj_raw": execute_chunk_branch(
+            env,
+            start_state=disturbed_state,
+            chunk=event_current_casj_repaired,
+        ),
+        "event_current_fresh": execute_chunk_branch(
+            env,
+            start_state=disturbed_state,
+            chunk=event_current_fresh,
+        ),
         "recovered_anchor_transport": (
             execute_chunk_branch(
                 env,
@@ -712,6 +802,20 @@ def evaluate_snapshot(
             "reason": pi_casj_certificate.reason,
         },
         "pi_casj_certified_fallback": pi_casj_certified_fallback,
+        "event_current_stale_mse": event_current_stale_mse,
+        "event_current_casj_mse": event_current_casj_mse,
+        "event_current_casj_to_stale_ratio": (
+            event_current_casj_mse / max(event_current_stale_mse, 1e-12)
+        ),
+        "temporal_slot_probe_query_count": temporal_slot_probes.total_query_count,
+        "temporal_slot_indices": list(temporal_slot_probes.slot_indices),
+        "temporal_slot_jacobian_norm": [
+            np.linalg.norm(
+                estimate.fine.jacobian[:, 0],
+                axis=(1, 2),
+            ).tolist()
+            for estimate in temporal_slot_estimates
+        ],
         "recovered_anchor_transport_mse": anchor_transport_mse,
         "casj_to_stale_ratio": casj_mse / max(stale_mse, 1e-12),
         "global_to_stale_ratio": global_mse / max(stale_mse, 1e-12),
@@ -750,6 +854,10 @@ def evaluate_snapshot(
         "casj_repaired_chunk": casj_repaired.tolist(),
         "pi_casj_repaired_chunk": pi_casj_repaired.tolist(),
         "pi_casj_certified_chunk": pi_casj_certified_chunk.tolist(),
+        "event_current_fresh_chunk": event_current_fresh.tolist(),
+        "event_current_casj_repaired_chunk": (
+            event_current_casj_repaired.tolist()
+        ),
         "recovered_anchor_transport_chunk": (
             anchor_transport_chunk.tolist() if anchor_transport_available else None
         ),
@@ -924,6 +1032,8 @@ def main():
                         "casj_repair_mse": result["casj_repair_mse"],
                         "pi_casj_repair_mse": result["pi_casj_repair_mse"],
                         "pi_casj_accepted": result["pi_casj_certificate"]["accepted"],
+                        "event_current_stale_mse": result["event_current_stale_mse"],
+                        "event_current_casj_mse": result["event_current_casj_mse"],
                         "recovered_anchor_transport_mse": result[
                             "recovered_anchor_transport_mse"
                         ],
@@ -950,6 +1060,8 @@ def main():
                 "global_compensation_mse",
                 "casj_repair_mse",
                 "pi_casj_repair_mse",
+                "event_current_stale_mse",
+                "event_current_casj_mse",
                 "recovered_anchor_transport_mse",
             )
             summary["n"] = len(rows)
