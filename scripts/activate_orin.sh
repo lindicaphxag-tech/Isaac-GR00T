@@ -1,1 +1,0 @@
-activate_jetpack72.sh
