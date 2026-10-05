@@ -1,0 +1,59 @@
+{
+  "acceptance_rate": 0.0,
+  "checkpoint_num_inference_steps": 100,
+  "claim_boundary": "Four-state public-checkpoint calibration assay. Measures repair/refusal selectivity, not task-level policy performance or external adoption.",
+  "dataset_id": "lerobot/pusht",
+  "effective_num_inference_steps": 100,
+  "false_accept_rate": 0.0,
+  "fresh_exact_fallback_rate_on_rejection": 1.0,
+  "model_id": "lerobot/diffusion_pusht",
+  "n_states": 4,
+  "raw_harm_rate": 1.0,
+  "rejected_harm_protection_rate": 1.0,
+  "rows": [
+    {
+      "accepted": false,
+      "fallback_exactly_matches_fresh": true,
+      "global_mse": 4731.07187503438,
+      "key": "warmup=0/replicate=0/pose=0",
+      "raw_casj_mse": 27804.85367792517,
+      "raw_harm": true,
+      "raw_ratio": 5.065606942594066,
+      "stale_mse": 5488.948114810992
+    },
+    {
+      "accepted": false,
+      "fallback_exactly_matches_fresh": true,
+      "global_mse": 282.37899724584713,
+      "key": "warmup=0/replicate=1/pose=0",
+      "raw_casj_mse": 1140.1013299198084,
+      "raw_harm": true,
+      "raw_ratio": 9.513755070672747,
+      "stale_mse": 119.83715383154049
+    },
+    {
+      "accepted": false,
+      "fallback_exactly_matches_fresh": true,
+      "global_mse": 60.31035561009776,
+      "key": "warmup=4/replicate=0/pose=0",
+      "raw_casj_mse": 2516.1603904620097,
+      "raw_harm": true,
+      "raw_ratio": 15.191582239405706,
+      "stale_mse": 165.62859291478526
+    },
+    {
+      "accepted": false,
+      "fallback_exactly_matches_fresh": true,
+      "global_mse": 44.58284793861094,
+      "key": "warmup=4/replicate=1/pose=0",
+      "raw_casj_mse": 24.550206389414598,
+      "raw_harm": true,
+      "raw_ratio": 2.3962121517362345,
+      "stale_mse": 10.245422706677346
+    }
+  ],
+  "schema_version": 1,
+  "uses_checkpoint_default_inference_steps": true,
+  "workflow_run_id": "37364527840",
+  "workflow_trigger_sha": "af426b4e88998540a0da43b1fafd3690264a8e78"
+}
