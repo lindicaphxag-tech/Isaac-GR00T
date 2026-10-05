@@ -300,3 +300,54 @@ def test_max_episode_steps_is_reported_as_truncation_and_stops_chunk(terminate_a
     assert truncated is True
     assert info["n_env_steps"] == 2
     assert info["dones"].tolist() == [False, True]
+
+def test_terminate_on_success_preserves_flag_contract():
+    """Success-induced termination updates the public boundary signal without truncation."""
+    mod = _import_module()
+    import gymnasium as gym
+
+    class _SuccessEnv(gym.Env):
+        action_space = gym.spaces.Box(-1.0, 1.0, (1,), np.float32)
+        observation_space = gym.spaces.Dict(
+            {"state.position": gym.spaces.Box(-10.0, 10.0, (1,), np.float32)}
+        )
+
+        def __init__(self):
+            self.steps = 0
+
+        def reset(self, *, seed=None, options=None):
+            super().reset(seed=seed)
+            self.steps = 0
+            return {"state.position": np.array([0], np.float32)}, {"success": False}
+
+        def step(self, action):
+            self.steps += 1
+            observation = {"state.position": np.array([self.steps], np.float32)}
+            # MultiStepWrapper evaluates terminate_on_success after the macro-step.
+            success = self.steps == 2
+            return observation, 1.0, False, False, {"success": success}
+
+    contract = PolicyHorizonSpec(
+        n_action_steps=3,
+        action_horizon=3,
+        video_delta_indices=(0,),
+        state_delta_indices=(0,),
+    )
+    env = _SuccessEnv()
+    wrapper = mod.MultiStepWrapper(
+        env=env,
+        contract=contract,
+        max_episode_steps=100,
+        terminate_on_success=True,
+    )
+    wrapper.reset()
+
+    _, _, terminated, truncated, info = wrapper.step(
+        {"action": np.zeros((3, 1), np.float32)}
+    )
+
+    assert env.steps == 3
+    assert terminated is True
+    assert truncated is False
+    assert info["n_env_steps"] == 3
+    assert info["dones"].tolist() == [False, False, True]
