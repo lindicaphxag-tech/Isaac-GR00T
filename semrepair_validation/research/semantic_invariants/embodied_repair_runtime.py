@@ -8,7 +8,10 @@ import json
 from typing import Any, Callable, Mapping
 
 from .embodied_repair_synthesis import RepairProgram, Vector
-from .embodied_repair_verification import (\n    RepairVerificationCertificate,\n    certificate_matches_program,\n)\n
+from .embodied_repair_verification import (
+    RepairVerificationCertificate,
+    certificate_matches_program,
+)
 
 Context = Mapping[str, Any]
 
@@ -56,12 +59,7 @@ def _digest_payload(payload: Mapping[str, Any]) -> str:
 
 
 class SemanticRepairMediator:
-    """Apply only independently verified repair programs at runtime.
-
-    The mediator records requested and actually executed semantics separately.
-    A caller may provide a post-repair guard representing an existing safety
-    layer. The guard always observes the repaired action that would be executed.
-    """
+    """Apply only independently verified repair programs at runtime."""
 
     def __init__(
         self,
@@ -91,7 +89,6 @@ class SemanticRepairMediator:
         certificate: RepairVerificationCertificate,
         guard: Callable[[Vector, Context], bool] | None = None,
     ) -> "SemanticRepairMediator":
-        """Install a repair only when an independent certificate matches it."""
         if not certificate_matches_program(
             certificate,
             contract_id=contract_id,
@@ -147,6 +144,5 @@ class SemanticRepairMediator:
         *,
         context: Context | None = None,
     ) -> bool:
-        """Re-run the repair and ensure the executed semantic action is stable."""
         replayed = self.program.apply(receipt.requested, context or {})
         return replayed == receipt.executed
