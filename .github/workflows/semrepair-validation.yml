@@ -1,0 +1,31 @@
+name: SemRepair public core validation
+
+on:
+  push:
+    branches:
+      - "validation/semrepair-core-v0.3"
+  workflow_dispatch:
+
+jobs:
+  semrepair-core:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Run SemRepair core and behavioral tests
+        env:
+          PYTHONPATH: semrepair_validation
+        run: python -m pytest -q semrepair_validation/tests
+      - name: Emit machine-readable behavioral evidence
+        env:
+          PYTHONPATH: semrepair_validation
+        run: |
+          python -m research.semantic_invariants.embodied_behavioral_evidence --json             > /tmp/semrepair-behavioral-evidence.json
+          cat /tmp/semrepair-behavioral-evidence.json

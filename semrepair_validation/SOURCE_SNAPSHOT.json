@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "source_repository": "lindicaphxag-tech/lindicaphxag-tech",
+  "source_branch": "research/invariantbench-l8",
+  "source_head": "6f2c8549a8c323ee55fcbb4683b533894b44587c",
+  "validation_branch": "validation/semrepair-core-v0.3",
+  "purpose": "Public independent execution surface for the SemRepair core. Not upstream adoption and not prospective evidence.",
+  "modules": 21,
+  "tests": 19,
+  "coverage": [
+    "active semantic inference",
+    "type/effect compilation",
+    "source-to-type inference",
+    "repair synthesis",
+    "held-out repair verification",
+    "certificate-gated runtime mediation",
+    "refinement verification",
+    "proof-carrying compilation",
+    "independent compilation verifier",
+    "proof kernel",
+    "finite model check",
+    "small-step calculus",
+    "three closed-loop behavioral assays"
+  ]
+}
