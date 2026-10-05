@@ -301,6 +301,7 @@ def test_max_episode_steps_is_reported_as_truncation_and_stops_chunk(terminate_a
     assert info["n_env_steps"] == 2
     assert info["dones"].tolist() == [False, True]
 
+
 def test_terminate_on_success_preserves_flag_contract():
     """Success-induced termination updates the public boundary signal without truncation."""
     mod = _import_module()
@@ -342,9 +343,7 @@ def test_terminate_on_success_preserves_flag_contract():
     )
     wrapper.reset()
 
-    _, _, terminated, truncated, info = wrapper.step(
-        {"action": np.zeros((3, 1), np.float32)}
-    )
+    _, _, terminated, truncated, info = wrapper.step({"action": np.zeros((3, 1), np.float32)})
 
     assert env.steps == 3
     assert terminated is True
