@@ -6,7 +6,6 @@ on:
       - validation/semrepair-core-v0.3
     paths:
       - "semrepair_validation/formal/**"
-      - "lean-toolchain"
       - ".github/workflows/semrepair-formal.yml"
   workflow_dispatch:
 
@@ -18,17 +17,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: leanprover/lean-action@v1
-        with:
-          auto-config: false
-          use-github-cache: false
+
+      - name: Install Elan and pinned Lean toolchain
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- --default-toolchain none -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.elan/bin:$PATH"
+          cd semrepair_validation/formal
+          elan toolchain install "$(cat lean-toolchain)"
+          elan default "$(cat lean-toolchain)"
+          lean --version
+          lake --version
+
+      - name: Generate Lake manifest
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          cd semrepair_validation/formal
+          lake update
+
       - name: Reject incomplete proofs
         run: |
           if grep -R -nE '\b(sorry|admit)\b' semrepair_validation/formal/SemRepairFormal; then
             echo "Incomplete proof placeholder found"
             exit 1
           fi
+
       - name: Build SemRepair formal core
         run: |
+          export PATH="$HOME/.elan/bin:$PATH"
           cd semrepair_validation/formal
           lake build
