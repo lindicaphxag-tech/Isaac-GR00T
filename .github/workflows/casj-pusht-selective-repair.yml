@@ -8,6 +8,9 @@ on:
       - ".github/workflows/casj-pusht-selective-repair.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   selective-repair:
     runs-on: ubuntu-latest
@@ -140,3 +143,34 @@ jobs:
           name: casj-pusht-selective-repair
           path: casj_validation/results
           if-no-files-found: error
+
+      - name: Publish frozen selective-repair summary to main
+        if: success()
+        env:
+          RUN_ID: ${{ github.run_id }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          cp casj_validation/results/pusht_selective_repair_summary.json /tmp/casj_selective_summary.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=Path("/tmp/casj_selective_summary.json")
+          data=json.loads(p.read_text())
+          data["workflow_run_id"]=os.environ["RUN_ID"]
+          data["workflow_trigger_sha"]=os.environ["WORKFLOW_SHA"]
+          p.write_text(json.dumps(data,indent=2,sort_keys=True)+"\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          mkdir -p .github/evidence/casj
+          cp /tmp/casj_selective_summary.json .github/evidence/casj/selective_repair_summary.json
+          git add .github/evidence/casj/selective_repair_summary.json
+          if git diff --cached --quiet; then
+            echo "Selective-repair summary unchanged"
+          else
+            git commit -m "Record CASJ selective-repair gate ${RUN_ID}"
+            git push origin main
+          fi
