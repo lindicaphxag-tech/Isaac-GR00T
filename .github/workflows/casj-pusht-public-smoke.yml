@@ -17,6 +17,8 @@ jobs:
       SDL_VIDEODRIVER: dummy
       PYGAME_HIDE_SUPPORT_PROMPT: "1"
       HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      PYTHONPATH: ${{ github.workspace }}/validation/casj
+
     steps:
       - name: Checkout validation branch
         uses: actions/checkout@v4
@@ -55,7 +57,16 @@ jobs:
       - name: Run public frozen-policy smoke gate
         run: |
           mkdir -p validation/casj/results
-          python casj-source/research/casj/experiments/public_pusht_gate.py             --device cpu             --seed 17             --warmup-steps 0             --num-inference-steps 10             --epsilon 4.0             --angle-epsilon 0.02             --heldout-dx 10.0             --heldout-dy -6.0             --output validation/casj/results/pusht_smoke.json
+          python validation/casj/public_pusht_gate.py \
+            --device cpu \
+            --seed 17 \
+            --warmup-steps 0 \
+            --num-inference-steps 10 \
+            --epsilon 4.0 \
+            --angle-epsilon 0.02 \
+            --heldout-dx 10.0 \
+            --heldout-dy -6.0 \
+            --output validation/casj/results/pusht_smoke.json
 
       - name: Print compact result
         if: always()
