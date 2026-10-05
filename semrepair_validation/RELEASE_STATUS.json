@@ -2,7 +2,7 @@
   "schema_version": 5,
   "artifact": "SemRepair",
   "version": "0.3.0rc3",
-  "surface": "validated-release-candidate",
+  "surface": "release-candidate-pending-validation",
   "repository": "lindicaphxag-tech/Isaac-GR00T",
   "development_branch": "semrepair-v0.3-rc3",
   "standalone_package_installable": true,
@@ -36,7 +36,8 @@
     "no maintained external adoption"
   ],
   "remaining_release_blockers": [
-    "rc2 has not been tagged or released"
+    "complete rc3 public CI must be green",
+    "rc3 has not been tagged or released"
   ],
   "evidence_boundary": "rc3 is a candidate until its public workflow is fully green. It remains self-authored artifact evidence and contributes zero maintained-adoption and zero prospective-I2 credit.",
   "python_matrix": [
@@ -45,13 +46,19 @@
     "3.13"
   ],
   "interoperability_evidence": {
-    "proof_bundle_schema": "semrepair-execution-proof-bundle/v0.1",
+    "proof_bundle_schema": "semrepair-execution-proof-bundle/v0.2",
     "packaged_schema": true,
     "public_git_external_consumer": true,
     "installed_bundle_generation": true,
     "installed_independent_cli_verification": true,
     "non_forgeable_adapter_checks": true,
-    "unique_minimum_cost_verification": true
+    "unique_minimum_cost_verification": true,
+    "packaged_schema_v0_1": true,
+    "packaged_schema_v0_2": true,
+    "float_free_wire_surface": true,
+    "exact_decimal_path_verification": true,
+    "node_reference_verifier": "pending-public-ci",
+    "node_third_party_dependencies": 0
   },
   "native_execution": {
     "maniskill": {
@@ -77,6 +84,7 @@
     "NFC-normalized canonical wire JSON",
     "exact Decimal minimum-cost verification",
     "producer-digest versus wire-digest separation",
-    "0.1+0.2 versus 0.3 false-uniqueness regression"
+    "0.1+0.2 versus 0.3 false-uniqueness regression",
+    "independent zero-dependency Node.js verifier"
   ]
-}\n
+}
