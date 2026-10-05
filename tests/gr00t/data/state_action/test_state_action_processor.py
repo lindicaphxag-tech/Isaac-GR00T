@@ -228,7 +228,6 @@ class TestSinCosEncoding:
                 f"{key}: sin/cos should double dimension"
             )
 
-
     def test_combined_unapply_uses_raw_state_for_sincos_relative_action(
         self,
         modality_keys,
