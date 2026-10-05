@@ -112,3 +112,28 @@ A generated manifest has `status=candidate`. SemRepair's own evidence ledger
 must not promote it to maintained adoption merely because this command was run.
 Promotion requires the named external repository to actually retain the
 regression/spec/tooling.
+
+## 7. Reusable GitHub Action
+
+For CI adoption, SemRepair also exposes a composite Action:
+
+```yaml
+- uses: actions/checkout@v4
+
+- uses: lindicaphxag-tech/Isaac-GR00T/semrepair_validation@semrepair-v0.3-rc1
+  with:
+    manifest: semrepair-adoption.json
+    repository-root: .
+    model-depth: "3"
+```
+
+The Action installs the package from its own checked-out action directory,
+executes the proof-carrying semantic runtime gate, and optionally validates the
+repository's adoption manifest.
+
+For a durable integration, pin the Action to a reviewed commit SHA rather than
+a moving branch.
+
+Running this Action in a self-authored fixture still counts as **zero external
+adoption**. The L8/L9 ledger changes only when an independently maintained
+repository retains the integration.
