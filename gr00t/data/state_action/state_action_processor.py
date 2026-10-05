@@ -573,15 +573,19 @@ class StateActionProcessor:
         Returns:
             Tuple of (raw_state, raw_action)
         """
-        # Unapply state first
+        # Unapply state first. Sin/cos encoding is intentionally non-reversible,
+        # so a caller-provided raw_state is the documented escape path for both
+        # the returned state and relative-action reference.
         try:
             unapplied_state = self.unapply_state(state, embodiment_tag)
         except ValueError as e:
-            if "sin/cos encoding" in str(e) and raw_state is None:
+            if "sin/cos encoding" not in str(e):
+                raise
+            if raw_state is None:
                 raise ValueError(
                     "Cannot unapply sin/cos encoded state. Please provide raw_state parameter."
                 ) from e
-            raise
+            unapplied_state = raw_state
 
         # Use provided raw_state if available, otherwise use unapplied state
         state_for_action = raw_state if raw_state is not None else unapplied_state

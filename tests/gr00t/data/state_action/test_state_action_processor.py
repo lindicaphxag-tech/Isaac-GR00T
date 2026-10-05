@@ -228,6 +228,98 @@ class TestSinCosEncoding:
                 f"{key}: sin/cos should double dimension"
             )
 
+    def test_combined_unapply_uses_raw_state_for_sincos_relative_action(
+        self,
+        modality_keys,
+        statistics,
+    ):
+        """raw_state makes the documented sin/cos fallback reachable."""
+        state_keys, action_keys = modality_keys
+        modality_configs, statistics_local = _load_fixture_configs()
+        modality_configs[EMBODIMENT]["state"]["sin_cos_embedding_keys"] = state_keys
+        modality_configs[EMBODIMENT]["action"]["action_configs"][0]["rep"] = "RELATIVE"
+
+        proc = StateActionProcessor(
+            modality_configs=modality_configs,
+            statistics=statistics_local,
+            apply_sincos_state_encoding=True,
+            use_relative_action=True,
+            clip_outliers=False,
+        )
+
+        raw_state = _random_state(state_keys, statistics)
+        raw_action = _random_action(action_keys, statistics)
+
+        processed_state, processed_action = proc.apply(
+            raw_state,
+            raw_action,
+            EMBODIMENT,
+        )
+
+        # The action path itself already supports a raw reference state.
+        direct_action = proc.unapply_action(
+            processed_action,
+            EMBODIMENT,
+            state=raw_state,
+        )
+
+        recovered_state, recovered_action = proc.unapply(
+            processed_state,
+            processed_action,
+            EMBODIMENT,
+            raw_state=raw_state,
+        )
+
+        for key in state_keys:
+            np.testing.assert_array_equal(recovered_state[key], raw_state[key])
+        for key in action_keys:
+            np.testing.assert_allclose(
+                recovered_action[key],
+                direct_action[key],
+                atol=1e-5,
+            )
+            np.testing.assert_allclose(
+                recovered_action[key],
+                raw_action[key],
+                atol=1e-4,
+            )
+
+    def test_combined_unapply_sincos_without_raw_state_still_fails_closed(
+        self,
+        modality_keys,
+        statistics,
+    ):
+        state_keys, action_keys = modality_keys
+        modality_configs, statistics_local = _load_fixture_configs()
+        modality_configs[EMBODIMENT]["state"]["sin_cos_embedding_keys"] = state_keys
+        modality_configs[EMBODIMENT]["action"]["action_configs"][0]["rep"] = "RELATIVE"
+
+        proc = StateActionProcessor(
+            modality_configs=modality_configs,
+            statistics=statistics_local,
+            apply_sincos_state_encoding=True,
+            use_relative_action=True,
+            clip_outliers=False,
+        )
+
+        raw_state = _random_state(state_keys, statistics)
+        raw_action = _random_action(action_keys, statistics)
+        processed_state, processed_action = proc.apply(
+            raw_state,
+            raw_action,
+            EMBODIMENT,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Please provide raw_state parameter",
+        ):
+            proc.unapply(
+                processed_state,
+                processed_action,
+                EMBODIMENT,
+            )
+
 
 class TestStatistics:
     """Test statistics management."""
