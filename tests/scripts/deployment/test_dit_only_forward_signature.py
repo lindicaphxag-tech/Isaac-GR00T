@@ -73,3 +73,15 @@ def test_dit_only_patch_binds_get_action_caller_kwargs(trt_model_forward, monkey
     sig = inspect.signature(action_head.get_action_with_features)
     # Raises TypeError on the pre-fix 4-arg signature; binds cleanly once fixed.
     sig.bind(**{name: None for name in GET_ACTION_WITH_FEATURES_KWARGS})
+
+
+def test_action_head_trt_forward_accepts_explicit_noise(trt_model_forward):
+    """Full/action-head TRT overrides must accept the public noise keyword."""
+    sig = inspect.signature(trt_model_forward.action_head_tensorrt_forward)
+    sig.bind(
+        None,
+        backbone_output=None,
+        action_input=None,
+        options=None,
+        noise=None,
+    )
