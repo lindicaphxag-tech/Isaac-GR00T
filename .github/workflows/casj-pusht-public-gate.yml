@@ -45,6 +45,10 @@ jobs:
           python -m pip install -e "./lerobot-src[diffusion,pusht]"
           python -m pip install -e ./casj_validation
 
+      - name: Run PI-CASJ unit gates
+        run: |
+          python -m pytest -q casj_validation/tests/test_continuation.py casj_validation/tests/test_trust_region.py
+
       - name: Record environment identity
         run: |
           python - <<'PY'
@@ -90,6 +94,11 @@ jobs:
               assert result["assay_status"] == "VALID_INPUT_PERTURBATION", key
               assert result["paired_randomness_replay_error"] <= 1e-6, key
               assert "recovered_anchor_transport_mse" in result
+              assert "pi_casj_certificate" in result
+              assert "pi_casj_repair_mse" in result
+              assert result["pi_casj_certificate"]["policy_queries"] == 20
+              assert "pi_casj_raw" in result["rollout_branches"]
+              assert "pi_casj_certified" in result["rollout_branches"]
               assert "rollout_branches" in result
           print("validated snapshots:", len(data["snapshots"]))
           for key, group in data["summary"].items():
