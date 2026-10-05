@@ -3,7 +3,7 @@ name: SemRepair v0.3 release candidate
 on:
   push:
     branches:
-      - semrepair-v0.3-rc1
+      - semrepair-v0.3-rc2
     paths:
       - "semrepair_validation/**"
       - ".github/workflows/semrepair-release-candidate.yml"
@@ -65,7 +65,7 @@ jobs:
         if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
-          name: semrepair-0.3.0rc1
+          name: semrepair-0.3.0rc2
           path: |
             semrepair_validation/dist/*
             semrepair_validation/artifacts/*.json
@@ -111,13 +111,103 @@ jobs:
       - name: Install from public Git URL
         run: |
           python -m pip install --upgrade pip
-          python -m pip install             "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc1#subdirectory=semrepair_validation"
+          python -m pip install             "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc2#subdirectory=semrepair_validation"
       - name: Verify public import and version
         run: |
           python - <<'PY'
           import semrepair
-          assert semrepair.__version__ == "0.3.0rc1"
+          assert semrepair.__version__ == "0.3.0rc2"
           print(semrepair.__version__)
+          PY
+
+      - name: Verify packaged proof-bundle schema
+        run: |
+          python - <<'PY'
+          from importlib.resources import files
+          import json
+          path = files("research.semantic_invariants").joinpath(
+              "semrepair_execution_proof_bundle_v0_1.schema.json"
+          )
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["title"] == "SemRepair execution proof bundle v0.1"
+          print(path)
+          PY
+
+      - name: Generate and independently verify installed proof bundle
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.semantic_invariants.embodied_compilation_certificate import (
+              issue_compilation_certificate,
+          )
+          from research.semantic_invariants.embodied_semantic_compiler import (
+              compile_semantic_boundary,
+          )
+          from research.semantic_invariants.embodied_semantic_types import (
+              SemanticAdapter,
+              SemanticTensorType,
+          )
+          from research.semantic_invariants.execution_bundle_wire import (
+              export_execution_bundle,
+          )
+          from research.semantic_invariants.semantic_effect_certificate import (
+              EffectCommitPolicy,
+              issue_effect_certificate,
+          )
+          from research.semantic_invariants.semantic_effect_commit import (
+              EffectClass,
+              SemanticEffectIntent,
+          )
+
+          source = SemanticTensorType(
+              role="action",
+              entity="ee_rotation_delta",
+              representation="axis_angle",
+              unit="rad",
+              provenance="requested",
+          )
+          target = source.updated(representation="euler_xyz")
+          adapter = SemanticAdapter(
+              "axis-to-euler",
+              requires={"representation": "axis_angle"},
+              produces={"representation": "euler_xyz"},
+              cost=1.0,
+          )
+          result = compile_semantic_boundary(source, target, adapters=(adapter,))
+          compilation = issue_compilation_certificate(result, adapters=(adapter,))
+          intent = SemanticEffectIntent(
+              effect_id="external-consumer:handoff",
+              action_name="handoff",
+              effect_class=EffectClass.IRREVERSIBLE,
+              dependency_version=compilation.decision_digest,
+              precondition=lambda state: state["holder"] == "robot",
+              postcondition=lambda state: state["holder"] == "human",
+          )
+          effect = issue_effect_certificate(
+              intent,
+              policy=EffectCommitPolicy(min_commit_planes=2),
+              semantic_contract_id="embodied/effect/handoff@0.1",
+          )
+          bundle = export_execution_bundle(
+              compilation,
+              effect,
+              intent,
+              semantic_contract_id="embodied/effect/handoff@0.1",
+              adapters=(adapter,),
+              max_steps=4,
+          )
+          Path("/tmp/semrepair-proof-bundle.json").write_text(
+              json.dumps(bundle, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          semrepair-proof-bundle             --input /tmp/semrepair-proof-bundle.json             --json | tee /tmp/semrepair-proof-bundle-report.json
+          python - <<'PY'
+          import json
+          report = json.load(open("/tmp/semrepair-proof-bundle-report.json"))
+          assert report["valid"] is True
+          assert all(report["checks"].values())
           PY
       - name: Run installed theorem checker
         run: semrepair-core-theorems --json
@@ -131,6 +221,8 @@ jobs:
         run: semrepair-behavior --json
       - name: Verify installed contract compatibility CLI
         run: semrepair-contract-compat --help
+      - name: Run installed proof-bundle verifier help
+        run: semrepair-proof-bundle --help
 
       - name: Exercise external adoption scaffold
         run: |
