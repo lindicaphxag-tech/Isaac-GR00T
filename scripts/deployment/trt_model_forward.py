@@ -456,7 +456,13 @@ def qwen3_backbone_full_trt_forward(self, vl_input):
 # ============================================================
 
 
-def action_head_tensorrt_forward(self, backbone_output, action_input, options=None):
+def action_head_tensorrt_forward(
+    self,
+    backbone_output,
+    action_input,
+    options=None,
+    noise=None,
+):
     """Replace ActionHead.get_action() with TRT-accelerated inference.
     VLLN (LayerNorm) stays in PyTorch. State Encoder, Action Encoder,
     DiT, and Action Decoder are replaced with TRT engines.
@@ -514,12 +520,19 @@ def action_head_tensorrt_forward(self, backbone_output, action_input, options=No
     self.state_encoder_engine.set_runtime_tensor_shape("embodiment_id", embodiment_id.shape)
     state_features = self.state_encoder_engine(state, embodiment_id)["output"]
 
-    # --- Initialize actions as random noise ---
-    if hasattr(self, "init_actions"):
+    # --- Initialize actions from explicit noise, cached init_actions, or a fresh prior ---
+    expected_noise_shape = (batch_size, self.config.action_horizon, self.action_dim)
+    if noise is not None:
+        if tuple(noise.shape) != expected_noise_shape:
+            raise ValueError(
+                f"noise must have shape {expected_noise_shape}, got {tuple(noise.shape)}"
+            )
+        actions = noise.to(device=device, dtype=engine_dtype).clone()
+    elif hasattr(self, "init_actions"):
         actions = self.init_actions.expand((batch_size, -1, -1))
     else:
         actions = torch.randn(
-            size=(batch_size, self.config.action_horizon, self.action_dim),
+            size=expected_noise_shape,
             dtype=engine_dtype,
             device=device,
         )
@@ -909,6 +922,7 @@ def _setup_dit_only(policy, trt_engine_path):
         backbone_output,
         action_input=None,
         options=None,
+        noise=None,
     ):
         """get_action_with_features with DiT replaced by TRT.
 
@@ -921,11 +935,23 @@ def _setup_dit_only(policy, trt_engine_path):
         device = vl_embs.device
         engine_dtype = torch.bfloat16
 
-        actions = torch.randn(
-            size=(batch_size, action_head.config.action_horizon, action_head.action_dim),
-            dtype=vl_embs.dtype,
-            device=device,
+        expected_noise_shape = (
+            batch_size,
+            action_head.config.action_horizon,
+            action_head.action_dim,
         )
+        if noise is None:
+            actions = torch.randn(
+                size=expected_noise_shape,
+                dtype=vl_embs.dtype,
+                device=device,
+            )
+        else:
+            if tuple(noise.shape) != expected_noise_shape:
+                raise ValueError(
+                    f"noise must have shape {expected_noise_shape}, got {tuple(noise.shape)}"
+                )
+            actions = noise.to(device=device, dtype=vl_embs.dtype).clone()
 
         dt = 1.0 / action_head.num_inference_timesteps
 
