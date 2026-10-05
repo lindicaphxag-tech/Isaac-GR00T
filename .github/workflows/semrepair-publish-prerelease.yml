@@ -82,6 +82,16 @@ jobs:
 
           if [ "$status" != "201" ]; then
             echo "GitHub release creation failed with HTTP $status"
+            jq -n               --arg status "$status"               --rawfile response release-diagnostics/response.json               --arg run "${{ github.run_id }}"               '{http_status:$status,response:$response,workflow_run:$run}'               > /tmp/RELEASE_PUBLISH_DIAGNOSTIC.json
+
+            git fetch origin semrepair-v0.3-rc1
+            git checkout -B semrepair-v0.3-rc1 origin/semrepair-v0.3-rc1
+            cp /tmp/RELEASE_PUBLISH_DIAGNOSTIC.json semrepair_validation/RELEASE_PUBLISH_DIAGNOSTIC.json
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add semrepair_validation/RELEASE_PUBLISH_DIAGNOSTIC.json
+            git commit -m "Record SemRepair prerelease publish diagnostic" || true
+            git push origin HEAD:semrepair-v0.3-rc1 || true
             exit 1
           fi
 
