@@ -117,11 +117,13 @@ def verify_repair_against_heldout(
 
 
 def certificate_matches_program(
-    certificate: RepairVerificationCertificate,
+    certificate: RepairVerificationCertificate | None,
     *,
     contract_id: str,
     program: RepairProgram,
 ) -> bool:
+    if certificate is None:
+        return False
     if certificate.status != "verified" or certificate.contract_id != contract_id:
         return False
     try:
