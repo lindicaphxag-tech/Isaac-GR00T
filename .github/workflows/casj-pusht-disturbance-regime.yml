@@ -1,0 +1,219 @@
+name: CASJ PushT Disturbance Regime Map
+
+on:
+  push:
+    branches:
+      - "validation/casj-pusht-public-gate"
+    paths:
+      - ".github/workflows/casj-pusht-disturbance-regime.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regime-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      PYTHONPATH: ${{ github.workspace }}/casj_validation
+
+    steps:
+      - name: Checkout frozen CASJ validation branch
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned LeRobot
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/lerobot
+          ref: 8c920c4270460851cedd2737657584586d3dc66f
+          path: lerobot-src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache public checkpoint
+        uses: actions/cache@v4
+        with:
+          path: .cache/huggingface
+          key: casj-pusht-diffusion-v1
+
+      - name: Install pinned stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./lerobot-src[diffusion,pusht]"
+          python -m pip install -e ./casj_validation
+
+      - name: Validate frozen certificate implementation
+        run: |
+          python -m pytest -q \
+            casj_validation/tests/test_selective.py \
+            casj_validation/tests/test_trust_region.py \
+            casj_validation/tests/test_proof_certificate.py
+
+      - name: Run preregistered disturbance severity ladder
+        run: |
+          mkdir -p casj_validation/results/disturbance_regime
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu \
+            --seed 17 \
+            --warmup-steps 0 \
+            --replicates 2 \
+            --epsilon 4.0 \
+            --angle-epsilon 0.02 \
+            --heldout-pose 1.0 -0.6 0.035 \
+            --heldout-pose 2.5 -1.5 0.0875 \
+            --heldout-pose 5.0 -3.0 0.175 \
+            --heldout-pose 10.0 -6.0 0.35 \
+            --output casj_validation/results/disturbance_regime/raw.json
+
+      - name: Summarize frozen regime map
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          src = Path("casj_validation/results/disturbance_regime/raw.json")
+          data = json.loads(src.read_text())
+          poses = data["heldout_poses"]
+          fractions = [0.1, 0.25, 0.5, 1.0]
+          assert len(poses) == len(fractions) == 4
+          assert data["uses_checkpoint_default_inference_steps"] is True
+          assert data["effective_num_inference_steps"] == 100
+          assert data["replicates_per_warmup"] == 2
+
+          grouped = {i: [] for i in range(len(poses))}
+          for key, result in data["snapshots"].items():
+              parts = dict(piece.split("=") for piece in key.split("/"))
+              pose_index = int(parts["pose"])
+              replicate = int(parts["replicate"])
+              accepted = bool(result["certificates"]) and all(
+                  bool(cert["accepted"]) for cert in result["certificates"]
+              )
+              raw_harm = float(result["casj_repair_mse"]) > float(result["stale_mse"])
+              certified = result["rollout_branches"]["casj_certified"]
+              fresh = result["rollout_branches"]["fresh"]
+              fallback_exact = (
+                  (not accepted)
+                  and certified.get("valid")
+                  and fresh.get("valid")
+                  and certified.get("final_agent_position") == fresh.get("final_agent_position")
+                  and certified.get("final_block_position") == fresh.get("final_block_position")
+                  and certified.get("final_block_angle") == fresh.get("final_block_angle")
+              )
+              grouped[pose_index].append(
+                  {
+                      "replicate": replicate,
+                      "episode_seed": 17 + replicate * 1_000_003,
+                      "accepted": accepted,
+                      "raw_harmful": raw_harm,
+                      "fallback_exactly_matches_fresh": bool(fallback_exact),
+                      "stale_mse": float(result["stale_mse"]),
+                      "raw_casj_mse": float(result["casj_repair_mse"]),
+                      "raw_to_stale_ratio": float(result["casj_to_stale_ratio"]),
+                  }
+              )
+
+          rows = []
+          for i, fraction in enumerate(fractions):
+              records = grouped[i]
+              assert len(records) == 2
+              accepted = sum(r["accepted"] for r in records)
+              harmful = sum(r["raw_harmful"] for r in records)
+              rejected_harm = sum(
+                  r["raw_harmful"] and not r["accepted"] for r in records
+              )
+              exact_fallback = sum(
+                  (not r["accepted"]) and r["fallback_exactly_matches_fresh"]
+                  for r in records
+              )
+              rows.append(
+                  {
+                      "severity_fraction_of_base": fraction,
+                      "heldout_pose": poses[i],
+                      "n_independent_reset_seeds": 2,
+                      "coverage": accepted / 2,
+                      "raw_harm_rate": harmful / 2,
+                      "harmful_repair_rejection_rate": (
+                          rejected_harm / harmful if harmful else None
+                      ),
+                      "fallback_integrity_rate_on_rejection": (
+                          exact_fallback / (2 - accepted) if accepted < 2 else None
+                      ),
+                      "mean_raw_to_stale_ratio": sum(
+                          r["raw_to_stale_ratio"] for r in records
+                      ) / 2,
+                      "records": records,
+                  }
+              )
+
+          summary = {
+              "schema_version": 1,
+              "model_id": data["model_id"],
+              "dataset_id": data["dataset_id"],
+              "lerobot_commit": "8c920c4270460851cedd2737657584586d3dc66f",
+              "checkpoint_default_inference_steps": 100,
+              "finite_difference_epsilon_pixels": 4.0,
+              "finite_difference_angle_epsilon_rad": 0.02,
+              "base_heldout_pose": [10.0, -6.0, 0.35],
+              "frozen_severity_fractions": fractions,
+              "independent_reset_seeds": [17, 1000020],
+              "warmup_phases": [0],
+              "thresholds_retuned_after_prior_results": False,
+              "rows": rows,
+              "claim_boundary": (
+                  "Frozen disturbance-regime diagnostic with unchanged CASJ "
+                  "certificate and finite-difference settings. It tests whether "
+                  "non-zero certified repair coverage exists as disturbance "
+                  "severity shrinks; it is not task-level efficacy, prospective "
+                  "I2 evidence, or external adoption."
+              ),
+          }
+          out = Path("casj_validation/results/disturbance_regime/summary.json")
+          out.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload disturbance-regime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casj-pusht-disturbance-regime
+          path: casj_validation/results/disturbance_regime
+          if-no-files-found: error
+
+      - name: Publish frozen regime-map summary to main
+        if: success()
+        env:
+          RUN_ID: ${{ github.run_id }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          cp casj_validation/results/disturbance_regime/summary.json /tmp/casj_regime.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p = Path("/tmp/casj_regime.json")
+          data = json.loads(p.read_text())
+          data["workflow_run_id"] = os.environ["RUN_ID"]
+          data["workflow_trigger_sha"] = os.environ["WORKFLOW_SHA"]
+          p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          mkdir -p .github/evidence/casj
+          cp /tmp/casj_regime.json .github/evidence/casj/disturbance_regime_warmup0.json
+          git add .github/evidence/casj/disturbance_regime_warmup0.json
+          if git diff --cached --quiet; then
+            echo "Disturbance-regime summary unchanged"
+          else
+            git commit -m "Record CASJ disturbance-regime gate ${RUN_ID}"
+            git push origin main
+          fi
