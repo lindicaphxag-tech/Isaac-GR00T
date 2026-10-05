@@ -10,6 +10,8 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 
 const BUNDLE_SCHEMA = "semrepair-execution-proof-bundle/v0.2";
+const COMPILATION_SCHEMA = "embodied-semantic-compilation-certificate/v0.1";
+const EFFECT_SCHEMA = "semantic-effect-commit-certificate/v0.1";
 const SPEC_VERSION = "0.2";
 const CANONICALIZATION_PROFILE = "semrepair-wire-c14n/v0.1";
 const SEMANTIC_FIELDS = [
@@ -52,6 +54,10 @@ function assertIntegerOnlyJsonNumbers(raw) {
   }
 }
 
+function compareUtf8Keys(a, b) {
+  return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+}
+
 function normalizedObjectEntries(value) {
   const seen = new Set();
   const entries = [];
@@ -63,7 +69,7 @@ function normalizedObjectEntries(value) {
     seen.add(key);
     entries.push([key, item]);
   }
-  entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  entries.sort(([a], [b]) => compareUtf8Keys(a, b));
   return entries;
 }
 
@@ -245,6 +251,33 @@ function isHex64(value) {
   return typeof value === "string" && HEX64.test(value);
 }
 
+function validSemanticRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = Object.keys(value).sort();
+  const expected = [...SEMANTIC_FIELDS].sort();
+  if (JSON.stringify(keys) !== JSON.stringify(expected)) return false;
+  return Object.values(value).every(
+    (item) => item === null || typeof item === "string"
+  );
+}
+
+function validEffectPolicy(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const required = [
+    "allow_idempotent_retry",
+    "min_abort_planes",
+    "min_commit_planes",
+    "require_fresh_evidence",
+  ];
+  if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(required)) return false;
+  return (
+    Number.isSafeInteger(value.min_commit_planes) && value.min_commit_planes >= 1 &&
+    Number.isSafeInteger(value.min_abort_planes) && value.min_abort_planes >= 1 &&
+    typeof value.require_fresh_evidence === "boolean" &&
+    typeof value.allow_idempotent_retry === "boolean"
+  );
+}
+
 function verify(record) {
   const checks = {};
   const errors = [];
@@ -280,6 +313,33 @@ function verify(record) {
     return { schema: BUNDLE_SCHEMA, valid: false, checks, errors: ["bundle structure is malformed"] };
   }
 
+  checks.certificate_schemas =
+    compilation.schema === COMPILATION_SCHEMA &&
+    effect.schema === EFFECT_SCHEMA;
+  if (!checks.certificate_schemas) errors.push("unsupported compilation/effect certificate schema");
+
+  checks.semantic_records = [
+    compilation.source,
+    compilation.target,
+    compilation.inferred_source,
+    compilation.refined_source,
+  ].every(validSemanticRecord);
+  if (!checks.semantic_records) errors.push("semantic type record is malformed or contains unknown fields");
+
+  checks.evidence_identity_shape = Object.entries(evidence).every(
+    ([key, value]) => typeof key === "string" && typeof value === "string"
+  );
+  if (!checks.evidence_identity_shape) errors.push("evidence identities must be string-to-string mappings");
+
+  checks.effect_policy = validEffectPolicy(effect.policy);
+  if (!checks.effect_policy) errors.push("effect policy is malformed");
+
+  const allowedEffectClasses = new Set(["idempotent", "reversible", "irreversible"]);
+  checks.effect_class =
+    allowedEffectClasses.has(effect.effect_class) &&
+    allowedEffectClasses.has(intent.effect_class);
+  if (!checks.effect_class) errors.push("unsupported physical effect class");
+
   checks.registry_wire_digest = bindings.adapter_registry_digest === digest(adapters);
   checks.evidence_wire_digest = bindings.evidence_identity_digest === digest(evidence);
   checks.compilation_wire_digest = bindings.compilation_digest === digest(compilation);
@@ -305,6 +365,17 @@ function verify(record) {
       adapterSemanticsValid = false;
       errors.push(`adapter[${index}] uses unknown semantic fields: ${unknown.join(",")}`);
     }
+    const effects = adapter.effects;
+    const requiredEvidence = adapter.required_evidence;
+    const semanticValuesValid =
+      Array.isArray(effects) && effects.every((x) => typeof x === "string") &&
+      Array.isArray(requiredEvidence) && requiredEvidence.every((x) => typeof x === "string") &&
+      Object.entries(requires).every(([key, value]) => typeof key === "string" && typeof value === "string") &&
+      Object.entries(produces).every(([key, value]) => typeof key === "string" && typeof value === "string");
+    if (!semanticValuesValid) {
+      adapterSemanticsValid = false;
+      errors.push(`adapter[${index}] has malformed effects/evidence/semantic values`);
+    }
     try {
       parseDecimal(adapter.cost_decimal, { nonnegative: true });
     } catch (error) {
@@ -322,9 +393,13 @@ function verify(record) {
 
   checks.installable_compilation = compilation.repair_candidate === null;
 
+  let producerSelectedCost = null;
   try {
     if (compilation.producer_selected_cost_decimal !== null) {
-      parseDecimal(compilation.producer_selected_cost_decimal, { nonnegative: true });
+      producerSelectedCost = parseDecimal(
+        compilation.producer_selected_cost_decimal,
+        { nonnegative: true }
+      );
     }
     checks.producer_selected_cost_decimal = true;
   } catch {
@@ -401,6 +476,14 @@ function verify(record) {
 
   checks.selected_path_replay = replayValid && pathShape && assignable(current, target);
 
+  checks.producer_cost_matches_replay =
+    checks.selected_path_replay &&
+    producerSelectedCost !== null &&
+    compareDecimal(producerSelectedCost, selectedCost) === 0;
+  if (!checks.producer_cost_matches_replay) {
+    errors.push("producer selected cost does not match exact wire replay cost");
+  }
+
   let minimumUnique = false;
   if (checks.selected_path_replay) {
     const solutions = enumerateSolutions(
@@ -434,7 +517,37 @@ function verify(record) {
   };
 }
 
+function selfTest() {
+  const astral = "\u{10000}";
+  const privateBmp = "\ue000";
+  const canonical = canonicalJson({ [astral]: 1, [privateBmp]: 2 });
+  const expected = "{" + JSON.stringify(privateBmp) + ":2," + JSON.stringify(astral) + ":1}";
+  if (canonical !== expected) {
+    throw new Error(`UTF-8 key ordering mismatch: ${canonical}`);
+  }
+
+  const sum = addDecimal(parseDecimal("0.1"), parseDecimal("0.2"));
+  if (compareDecimal(sum, parseDecimal("0.3")) !== 0) {
+    throw new Error("exact-decimal 0.1 + 0.2 must equal 0.3");
+  }
+  if (decimalString(sum) !== "0.3") {
+    throw new Error("exact-decimal canonical sum must be 0.3");
+  }
+
+  process.stdout.write(JSON.stringify({
+    valid: true,
+    verifier: "node-reference-v0.1",
+    canonicalization_profile: CANONICALIZATION_PROFILE,
+    decimal_tie: "0.1+0.2=0.3",
+    utf8_key_order: true,
+  }) + "\n");
+}
+
 function main() {
+  if (process.argv.length === 3 && process.argv[2] === "--self-test") {
+    selfTest();
+    return;
+  }
   if (process.argv.length !== 3) {
     console.error("usage: verify_bundle_v2.mjs <proof-bundle-v2.json>");
     process.exit(2);
