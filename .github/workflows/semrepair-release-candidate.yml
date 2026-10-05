@@ -119,6 +119,7 @@ jobs:
       - name: Install from public Git URL
         run: |
           python -m pip install --upgrade pip
+          python -m pip install jsonschema
           python -m pip install             "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc3#subdirectory=semrepair_validation"
       - name: Verify public import and version
         run: |
@@ -293,9 +294,27 @@ jobs:
           assert report["selected_cost_decimal"] == "0.3"
           PY
 
+      - name: Validate generated v0.2 bundle against packaged JSON Schema
+        run: |
+          python - <<'PY'
+          import json
+          from importlib.resources import files
+          from jsonschema import Draft202012Validator
+
+          schema_path = files("research.semantic_invariants").joinpath(
+              "semrepair_execution_proof_bundle_v0_2.schema.json"
+          )
+          schema = json.loads(schema_path.read_text(encoding="utf-8"))
+          bundle = json.load(open("/tmp/semrepair-proof-bundle-v2.json"))
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(bundle)
+          print("schema-valid")
+          PY
+
       - name: Verify v0.2 bundle with independent Node reference verifier
         run: |
           node --check semrepair_validation/reference/verify_bundle_v2.mjs
+          node semrepair_validation/reference/verify_bundle_v2.mjs --self-test
           node semrepair_validation/reference/verify_bundle_v2.mjs             /tmp/semrepair-proof-bundle-v2.json             | tee /tmp/semrepair-proof-bundle-v2-node-report.json
           python - <<'PY'
           import json
