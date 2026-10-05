@@ -1,0 +1,142 @@
+name: CASJ PushT Selective Repair
+
+on:
+  push:
+    branches:
+      - "validation/casj-pusht-public-gate"
+    paths:
+      - ".github/workflows/casj-pusht-selective-repair.yml"
+  workflow_dispatch:
+
+jobs:
+  selective-repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      PYTHONPATH: ${{ github.workspace }}/casj_validation
+    steps:
+      - name: Checkout frozen CASJ validation branch
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned LeRobot
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/lerobot
+          ref: 8c920c4270460851cedd2737657584586d3dc66f
+          path: lerobot-src
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache public checkpoint
+        uses: actions/cache@v4
+        with:
+          path: .cache/huggingface
+          key: casj-pusht-diffusion-v1
+
+      - name: Install pinned stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./lerobot-src[diffusion,pusht]"
+          python -m pip install -e ./casj_validation
+
+      - name: Run multi-state checkpoint-default assay
+        run: |
+          mkdir -p casj_validation/results
+          python casj_validation/experiments/public_pusht_gate.py \
+            --device cpu \
+            --seed 17 \
+            --warmup-steps 0 4 \
+            --replicates 2 \
+            --epsilon 4.0 \
+            --angle-epsilon 0.02 \
+            --heldout-dx 10.0 \
+            --heldout-dy -6.0 \
+            --heldout-dtheta 0.35 \
+            --output casj_validation/results/pusht_selective_repair.json
+
+      - name: Summarize selective repair calibration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          src = Path("casj_validation/results/pusht_selective_repair.json")
+          data = json.loads(src.read_text())
+          rows = []
+          for key, result in data["snapshots"].items():
+              certs = result["certificates"]
+              accepted = bool(certs) and all(c["accepted"] for c in certs)
+              raw_ratio = result["casj_to_stale_ratio"]
+              raw_harm = raw_ratio > 1.0
+              certified = result["rollout_branches"]["casj_certified"]
+              fresh = result["rollout_branches"]["fresh"]
+              exact_fallback = (
+                  (not accepted)
+                  and certified.get("valid")
+                  and fresh.get("valid")
+                  and certified.get("final_agent_position") == fresh.get("final_agent_position")
+                  and certified.get("final_block_position") == fresh.get("final_block_position")
+                  and certified.get("final_block_angle") == fresh.get("final_block_angle")
+              )
+              rows.append({
+                  "key": key,
+                  "accepted": accepted,
+                  "raw_ratio": raw_ratio,
+                  "raw_harm": raw_harm,
+                  "fallback_exactly_matches_fresh": exact_fallback,
+                  "stale_mse": result["stale_mse"],
+                  "global_mse": result["global_compensation_mse"],
+                  "raw_casj_mse": result["casj_repair_mse"],
+              })
+
+          accepted_rows = [r for r in rows if r["accepted"]]
+          rejected_rows = [r for r in rows if not r["accepted"]]
+          harmful = [r for r in rows if r["raw_harm"]]
+          false_accepts = [r for r in accepted_rows if r["raw_harm"]]
+          protected = [r for r in rejected_rows if r["raw_harm"] and r["fallback_exactly_matches_fresh"]]
+          report = {
+              "schema_version": 1,
+              "model_id": data["model_id"],
+              "dataset_id": data["dataset_id"],
+              "checkpoint_num_inference_steps": data["checkpoint_num_inference_steps"],
+              "effective_num_inference_steps": data["effective_num_inference_steps"],
+              "uses_checkpoint_default_inference_steps": data["uses_checkpoint_default_inference_steps"],
+              "n_states": len(rows),
+              "acceptance_rate": len(accepted_rows) / len(rows),
+              "raw_harm_rate": len(harmful) / len(rows),
+              "false_accept_rate": len(false_accepts) / max(len(accepted_rows), 1),
+              "rejected_harm_protection_rate": len(protected) / max(
+                  len([r for r in rejected_rows if r["raw_harm"]]), 1
+              ),
+              "fresh_exact_fallback_rate_on_rejection": sum(
+                  r["fallback_exactly_matches_fresh"] for r in rejected_rows
+              ) / max(len(rejected_rows), 1),
+              "rows": rows,
+              "claim_boundary": (
+                  "Four-state public-checkpoint calibration assay. "
+                  "Measures repair/refusal selectivity, not task-level policy performance "
+                  "or external adoption."
+              ),
+          }
+          assert report["uses_checkpoint_default_inference_steps"] is True
+          assert report["n_states"] == 4
+          Path("casj_validation/results/pusht_selective_repair_summary.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload selective-repair evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casj-pusht-selective-repair
+          path: casj_validation/results
+          if-no-files-found: error
