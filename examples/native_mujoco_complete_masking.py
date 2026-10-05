@@ -19,6 +19,11 @@ from math import cos, sin
 import mujoco
 import numpy as np
 
+from research.semantic_invariants.embodied_atomic_repair import (
+    AtomicRepairRequired,
+    authorize_repair_deployment,
+    certify_atomic_repair_bundle,
+)
 from research.semantic_invariants.embodied_repair_interactions import (
     RepairOutcome,
     analyze_repair_lattice,
@@ -145,6 +150,35 @@ def main() -> int:
     assert bundle.masking_mode == "complete"
     assert bundle.behaviorally_masked
 
+    implementations = {
+        "producer-order-repair": "native-mujoco/producer-order-repair@v1",
+        "dispatch-order-repair": "native-mujoco/dispatch-order-repair@v1",
+    }
+    certificate = certify_atomic_repair_bundle(
+        interaction=interaction,
+        repairs=("producer-order-repair", "dispatch-order-repair"),
+        implementations=implementations,
+    )
+
+    singleton_rejected = False
+    try:
+        authorize_repair_deployment(
+            interaction=interaction,
+            certificate=certificate,
+            requested_implementations={
+                "producer-order-repair": implementations["producer-order-repair"]
+            },
+        )
+    except AtomicRepairRequired:
+        singleton_rejected = True
+    assert singleton_rejected
+
+    authorization = authorize_repair_deployment(
+        interaction=interaction,
+        certificate=certificate,
+        requested_implementations=implementations,
+    )
+
     result = {
         "schema_version": 1,
         "mujoco_version": mujoco.__version__,
@@ -156,6 +190,9 @@ def main() -> int:
         ),
         "masking_mode": bundle.masking_mode,
         "repair_interaction_digest": interaction.digest,
+        "atomic_certificate_digest": certificate.digest,
+        "singleton_hotfix_rejected": singleton_rejected,
+        "authorized_repairs": list(authorization.repairs),
         "claim_boundary": (
             "Controlled native-MuJoCo semantic-corruption assay. It proves a "
             "real physics execution can hide exactly canceling boundary faults; "
