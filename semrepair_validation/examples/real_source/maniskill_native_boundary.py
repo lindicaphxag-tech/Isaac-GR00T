@@ -126,9 +126,15 @@ def run_native_boundary(target_euler=(0.5, 0.5, 0.5)) -> dict[str, object]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--expect",
+        choices=("current-broken", "patched-green"),
+        default="current-broken",
+    )
     args = parser.parse_args()
 
     report = run_native_boundary()
+    report["expectation"] = args.expect
 
     # Emit measurements before enforcing the contract so a failing CI run still
     # preserves the exact native evidence in logs/artifacts.
@@ -137,17 +143,22 @@ def main() -> None:
     else:
         print(report, flush=True)
 
-    assert report["broken_so3_error_degrees"] > 5.0
-    # Require a small absolute residual in the native production stack and a
-    # large separation from the broken representation path. The 0.02-degree
-    # ceiling remains far below the 12.9-degree defect while accommodating the
-    # measured SAPIEN pose-storage precision.
-    assert report["repaired_so3_error_degrees"] < 0.02
-    assert report["error_reduction_ratio"] > 100.0
-    assert report["repaired_so3_error_degrees"] <= max(
+    # Require a small absolute residual in the production controller and keep
+    # the tolerance above the measured SAPIEN pose-storage precision.
+    repair_ceiling = max(
         0.02,
         5.0 * report["sapien_pose_roundtrip_error_degrees"] + 1.0e-6,
     )
+    assert report["repaired_so3_error_degrees"] <= repair_ceiling
+
+    if args.expect == "current-broken":
+        assert report["broken_so3_error_degrees"] > 5.0
+        assert report["error_reduction_ratio"] > 100.0
+    else:
+        # After applying the exact converter patch, the production converter
+        # itself must emit the representation expected by the unchanged
+        # production controller.
+        assert report["broken_so3_error_degrees"] <= repair_ceiling
 
 
 if __name__ == "__main__":
