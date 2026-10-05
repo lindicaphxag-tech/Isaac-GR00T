@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - validation/pr786-current-head-v2
+  pull_request:
+    branches:
+      - validation/pr786-current-head-v2
   workflow_dispatch:
 
 permissions:
