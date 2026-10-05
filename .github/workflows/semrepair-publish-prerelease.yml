@@ -20,10 +20,14 @@ jobs:
       VALIDATION_RUN: "37318890379"
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Refuse duplicate release
+      - name: Refuse duplicate release or tag
         run: |
           if gh release view "$RELEASE_TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists"
+            exit 1
+          fi
+          if git ls-remote --tags "https://github.com/${{ github.repository }}.git"               "refs/tags/$RELEASE_TAG" | grep -q .; then
+            echo "Tag $RELEASE_TAG already exists without a release"
             exit 1
           fi
 
@@ -55,6 +59,49 @@ jobs:
           print(semrepair.__version__)
           PY
 
-      - name: Create immutable prerelease tag and release
+      - name: Create prerelease through GitHub REST
+        id: create_release
+        env:
+          REPOSITORY: ${{ github.repository }}
         run: |
-          gh release create "$RELEASE_TAG"             --repo "${{ github.repository }}"             --target "$RELEASE_TARGET"             --title "SemRepair 0.3.0rc1 — Proof-Carrying Semantic Runtime"             --notes-file semrepair_validation/RELEASE_NOTES_0_3_0_RC1.md             --prerelease             semrepair_validation/dist/*
+          mkdir -p release-diagnostics
+          jq -n             --arg tag "$RELEASE_TAG"             --arg target "$RELEASE_TARGET"             --arg name "SemRepair 0.3.0rc1 — Proof-Carrying Semantic Runtime"             --rawfile body semrepair_validation/RELEASE_NOTES_0_3_0_RC1.md             '{
+              tag_name: $tag,
+              target_commitish: $target,
+              name: $name,
+              body: $body,
+              draft: false,
+              prerelease: true,
+              generate_release_notes: false
+            }' > release-diagnostics/request.json
+
+          status="$(curl -sS             -o release-diagnostics/response.json             -w '%{http_code}'             -X POST             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GH_TOKEN"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/$REPOSITORY/releases"             -d @release-diagnostics/request.json)"
+
+          echo "$status" > release-diagnostics/http-status.txt
+          cat release-diagnostics/response.json
+
+          if [ "$status" != "201" ]; then
+            echo "GitHub release creation failed with HTTP $status"
+            exit 1
+          fi
+
+          release_id="$(jq -r .id release-diagnostics/response.json)"
+          upload_url="$(jq -r .upload_url release-diagnostics/response.json | sed 's/{?name,label}//')"
+          html_url="$(jq -r .html_url release-diagnostics/response.json)"
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "upload_url=$upload_url" >> "$GITHUB_OUTPUT"
+          echo "html_url=$html_url" >> "$GITHUB_OUTPUT"
+
+      - name: Upload wheel and sdist to prerelease
+        if: steps.create_release.outcome == 'success'
+        run: |
+          gh release upload "$RELEASE_TAG"             semrepair_validation/dist/*             --repo "${{ github.repository }}"             --clobber
+
+      - name: Persist release diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-release-publish-diagnostics
+          path: release-diagnostics/
+          if-no-files-found: warn
+          retention-days: 30
