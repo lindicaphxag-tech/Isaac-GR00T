@@ -46,6 +46,7 @@ GET_ACTION_WITH_FEATURES_KWARGS = (
     "backbone_output",
     "action_input",
     "options",
+    "noise",
 )
 
 
