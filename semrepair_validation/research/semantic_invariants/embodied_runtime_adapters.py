@@ -1,1 +1,70 @@
-"""Execute certified semantic adapter plans on runtime values.\n\nThe type compiler decides *which* semantic adapters are required. This module\nbinds those symbolic adapters to project-owned numerical implementations and\nchecks that execution follows the compiled plan exactly.\n"""\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass\nfrom typing import Callable, Generic, Mapping, TypeVar\n\nfrom .embodied_semantic_types import AdapterPlan\n\n\nT = TypeVar("T")\n\n\n@dataclass(frozen=True)\nclass RuntimeAdapter(Generic[T]):\n    name: str\n    transform: Callable[[T], T]\n    certification: str\n\n\n@dataclass(frozen=True)\nclass RuntimeRepairResult(Generic[T]):\n    value: T\n    applied: tuple[str, ...]\n    certifications: tuple[str, ...]\n\n\nclass MissingRuntimeAdapter(RuntimeError):\n    pass\n\n\ndef execute_adapter_plan(\n    value: T,\n    plan: AdapterPlan,\n    runtime_adapters: Mapping[str, RuntimeAdapter[T]],\n) -> RuntimeRepairResult[T]:\n    """Execute exactly the symbolic adapter sequence chosen by the compiler."""\n\n    current = value\n    applied: list[str] = []\n    certifications: list[str] = []\n\n    for semantic_adapter in plan.adapters:\n        runtime = runtime_adapters.get(semantic_adapter.name)\n        if runtime is None:\n            raise MissingRuntimeAdapter(\n                f"no runtime implementation for semantic adapter {semantic_adapter.name!r}"\n            )\n        if runtime.name != semantic_adapter.name:\n            raise MissingRuntimeAdapter(\n                f"runtime adapter identity mismatch: {runtime.name!r} != {semantic_adapter.name!r}"\n            )\n        if not runtime.certification:\n            raise MissingRuntimeAdapter(\n                f"runtime adapter {runtime.name!r} lacks certification evidence"\n            )\n        current = runtime.transform(current)\n        applied.append(runtime.name)\n        certifications.append(runtime.certification)\n\n    return RuntimeRepairResult(\n        value=current,\n        applied=tuple(applied),\n        certifications=tuple(certifications),\n    )
+"""Execute certified semantic adapter plans on runtime values.
+
+The type compiler decides which semantic adapters are required. This module
+binds those symbolic adapters to project-owned numerical implementations and
+checks that execution follows the compiled plan exactly.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Callable, Generic, Mapping, TypeVar
+
+from .embodied_semantic_types import AdapterPlan
+
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class RuntimeAdapter(Generic[T]):
+    name: str
+    transform: Callable[[T], T]
+    certification: str
+
+
+@dataclass(frozen=True)
+class RuntimeRepairResult(Generic[T]):
+    value: T
+    applied: tuple[str, ...]
+    certifications: tuple[str, ...]
+
+
+class MissingRuntimeAdapter(RuntimeError):
+    pass
+
+
+def execute_adapter_plan(
+    value: T,
+    plan: AdapterPlan,
+    runtime_adapters: Mapping[str, RuntimeAdapter[T]],
+) -> RuntimeRepairResult[T]:
+    """Execute exactly the symbolic adapter sequence chosen by the compiler."""
+
+    current = value
+    applied: list[str] = []
+    certifications: list[str] = []
+
+    for semantic_adapter in plan.adapters:
+        runtime = runtime_adapters.get(semantic_adapter.name)
+        if runtime is None:
+            raise MissingRuntimeAdapter(
+                f"no runtime implementation for semantic adapter {semantic_adapter.name!r}"
+            )
+        if runtime.name != semantic_adapter.name:
+            raise MissingRuntimeAdapter(
+                f"runtime adapter identity mismatch: {runtime.name!r} != {semantic_adapter.name!r}"
+            )
+        if not runtime.certification:
+            raise MissingRuntimeAdapter(
+                f"runtime adapter {runtime.name!r} lacks certification evidence"
+            )
+        current = runtime.transform(current)
+        applied.append(runtime.name)
+        certifications.append(runtime.certification)
+
+    return RuntimeRepairResult(
+        value=current,
+        applied=tuple(applied),
+        certifications=tuple(certifications),
+    )
