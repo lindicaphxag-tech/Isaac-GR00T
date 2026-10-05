@@ -248,7 +248,7 @@ def test_maniskill_style_mismatch_yields_unique_unverified_repair_candidate():
         SemanticRepairMediator(
             contract_id="embodied/representation/controller-roundtrip@0.2",
             program=result.repair_candidate,
-            verification_status="candidate",
+            certificate=None,  # type: ignore[arg-type]
         )
 
 
