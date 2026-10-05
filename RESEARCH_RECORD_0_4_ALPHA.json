@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "project": "SemRepair",
+  "development_version": "0.4.0a0",
+  "public_repository": "lindicaphxag-tech/Isaac-GR00T",
+  "public_branch": "semrepair-standalone-main",
+  "validated_head": "522db2c8c07a6d035caa15484f77312f12374291",
+  "validation": {
+    "workflow_run_id": 37387667570,
+    "conclusion": "success",
+    "python_versions": [
+      "3.10",
+      "3.12",
+      "3.13"
+    ],
+    "tests_per_python_job": 187,
+    "standalone_build": true,
+    "wheel_and_sdist": true,
+    "evidence_clis": true,
+    "lean_build": true,
+    "incomplete_proofs_rejected": true
+  },
+  "method_axis": {
+    "name": "semantic observability and atomic repair under compensating boundary faults",
+    "executable_components": [
+      "embodied_semantic_transport.py",
+      "embodied_semantic_observability.py",
+      "embodied_repair_interactions.py",
+      "embodied_atomic_repair.py",
+      "semrepair_repair_lattice_cli.py"
+    ],
+    "formal_component": "formal/SemRepairFormal/Masking.lean",
+    "formal_scope": "exact endpoint cancellation only",
+    "key_formal_result": "If consumer(producer(x)) = x for every input and the producer is non-identity at a witness, then repairing either boundary alone violates the endpoint identity specification while repairing both restores it.",
+    "prior_art_boundary": "Fault masking, higher-order interacting faults, and diagnosability are established prior concepts and are not claimed as new.",
+    "intended_novelty_wedge": [
+      "embodied semantic transports over representation/order/sign/scale boundaries",
+      "constructive external-or-internal observability witness synthesis",
+      "complete repair-lattice interaction evidence with fail-closed missing-cell handling",
+      "implementation-bound atomic deployment authorization from the measured interaction evidence",
+      "integration with proof-carrying semantic runtime authority"
+    ]
+  },
+  "empirical_bridge": {
+    "subject": "ManiSkill delta-pose converter -> PDEEPoseController",
+    "public_workflow_run_id": 37370267001,
+    "type": "partial masking / factorial causal witness",
+    "cells": {
+      "old_converter+old_controller_deg": 5.076696288575132,
+      "old_converter+pr1472_controller_deg": 64.74733765443057,
+      "pr1495_converter+old_controller_deg": 66.12800471585737,
+      "pr1495_converter+pr1472_controller_deg": 0.000004829673078902934
+    },
+    "upstream_prs": [
+      "mani-skill/ManiSkill#1472",
+      "mani-skill/ManiSkill#1495"
+    ],
+    "claim_boundary": "This is self-authored public causal evidence. Neither upstream PR is counted as maintainer-retained adoption."
+  },
+  "externalization": {
+    "generic_cli": "semrepair-repair-lattice --input <factorial.json> --json",
+    "example": "examples/maniskill_pr1472_pr1495_factorial.json",
+    "immutable_release": "0.3.0rc1 remains separate; 0.4.0a0 is a development line, not a published release"
+  },
+  "maturity_boundary": {
+    "prospective_i2_resolved": 0,
+    "maintained_external_repositories": 0,
+    "l8_claim": false,
+    "l9_claim": false
+  }
+}
