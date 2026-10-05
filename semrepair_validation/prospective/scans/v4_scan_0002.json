@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "protocol_generation": "v4",
+  "freeze_commit": "e386147915c0325f8321763e169ac03130058b1c",
+  "freeze_time_utc": "2026-10-05T18:22:35Z",
+  "scan_scope": "29-repository frozen watch set; focused semantic-boundary follow-up",
+  "query_window": "Issues visible on/after 2026-10-05, timestamp-filtered against freeze_time_utc",
+  "discovered": [
+    {
+      "repository": "isaac-sim/IsaacLab",
+      "issue": 8294,
+      "created_at": "2026-10-05T04:10:39Z",
+      "disposition": "pre-freeze-excluded",
+      "mechanism_match": "entity/order provenance mismatch between sensor body ids and articulation body ids",
+      "external_resolution_surface": "isaac-sim/IsaacLab#8295",
+      "reason": "Strong repository-disjoint external mechanism match, but created 14h11m56s before v4 freeze; cannot be promoted to prospective evidence."
+    },
+    {
+      "repository": "BehaviorTree/BehaviorTree.CPP",
+      "issue": 1228,
+      "created_at": "2026-10-05T18:48:31Z",
+      "disposition": "i0-self-revealed",
+      "mechanism_match": "effect cleanup/commit obligations across success, failure, exception, and halt exit paths",
+      "external_resolution_surface": "BehaviorTree/BehaviorTree.CPP#1229",
+      "reason": "Created 25m56s after v4 freeze, but the initial issue body already specifies the failure mechanism and a complete Finally-node repair contract before screening; no independent prediction packet can be claimed."
+    }
+  ],
+  "post_freeze_candidates": [
+    {
+      "repository": "BehaviorTree/BehaviorTree.CPP",
+      "issue": 1228,
+      "classification": "I0",
+      "admitted_i2": false
+    }
+  ],
+  "counters_after_scan": {
+    "screened_post_freeze": 1,
+    "excluded_i0": 1,
+    "admitted_i2": 0,
+    "independently_resolved_i2": 0
+  },
+  "claim_boundary": "IsaacLab #8294/#8295 strengthens retrospective external generality only. BehaviorTree.CPP #1228/#1229 is genuinely post-freeze but self-revealed, so it contributes zero I2 credit. Maintained-adoption credit remains unchanged."
+}
