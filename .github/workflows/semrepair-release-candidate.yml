@@ -7,6 +7,12 @@ on:
     paths:
       - "semrepair_validation/**"
       - ".github/workflows/semrepair-release-candidate.yml"
+  pull_request:
+    branches:
+      - semrepair-v0.3-rc3
+    paths:
+      - "semrepair_validation/**"
+      - ".github/workflows/semrepair-release-candidate.yml"
   workflow_dispatch:
 
 permissions:
