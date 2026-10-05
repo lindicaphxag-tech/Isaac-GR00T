@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "purpose": "Trigger a PR-scoped full SemRepair 0.3.0rc3 release-candidate audit against the latest rc3 base.",
+  "audited_base_sha": "75188adfe70338ba645c68032b393b2b02c7c2aa",
+  "counts_as_external_adoption": false,
+  "counts_as_prospective_i2": false,
+  "expected_release_gate": "all release-candidate jobs green before rc3 may be called validated"
+}
