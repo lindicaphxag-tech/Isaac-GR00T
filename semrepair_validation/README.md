@@ -59,11 +59,15 @@ enough in rc1:
    strict compensating bundle fail closed even when each local repair is
    individually correct.
 
-A public ManiSkill `PegInsertionSide-v1` four-way replay assay (workflow
-`37388740482`) measured main=8/10, converter-only=1/10,
-controller-only=0/10, and the composed pair=8/10; main and composed both
-retained 1238 saved steps. This is self-authored real-stack replay evidence,
-not learned-policy success, maintainer adoption, or a prospective I2 result.
+Public ManiSkill `PegInsertionSide-v1` factorial replay evidence now has
+two execution replicates. Both reproduce the severe singleton regressions:
+converter-only=1/10 and controller-only=0/10. The composed pair recovers to
+8/10 in both runs, while current-main varies between 8/10 and 9/10 across the
+parallel and serial executions. Therefore rc2 does **not** authorize the
+composed repair from task-success evidence alone. Replicated authorization
+fails closed on the conflicting baseline relation and requires a more direct
+semantic-fidelity metric. This is self-authored real-stack replay evidence, not
+learned-policy success, maintainer adoption, or a prospective I2 result.
 
 ## Install this public release candidate
 
