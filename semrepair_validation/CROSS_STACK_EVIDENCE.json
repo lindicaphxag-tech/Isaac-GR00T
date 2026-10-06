@@ -38,7 +38,38 @@
       "behavioral_validation": false,
       "external_adoption": false,
       "prospective": false
+    },
+    {
+      "id": "maniskill-compensating-repair-set",
+      "repository": "mani-skill/ManiSkill",
+      "source_commit": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+      "semantic_layer": "converter/controller interaction",
+      "method_surface": "factorial repair lattice -> interaction certificate -> repair-set atomicity",
+      "public_workflow_run_id": 37388740482,
+      "public_artifact_id": 11380266279,
+      "measured_cells": {
+        "main": {
+          "saved_episodes": 8,
+          "saved_steps": 1238
+        },
+        "converter_only": {
+          "saved_episodes": 1,
+          "saved_steps": 574
+        },
+        "controller_only": {
+          "saved_episodes": 0,
+          "saved_steps": 0
+        },
+        "composed": {
+          "saved_episodes": 8,
+          "saved_steps": 1238
+        }
+      },
+      "classification": "strict_compensating_bundle_complete_masking",
+      "behavioral_validation": true,
+      "external_adoption": false,
+      "prospective": false
     }
   ],
-  "claim_boundary": "Three pinned real-source stacks are staged for public executable audit. This registry does not count a case until its corresponding public CI job is green, and source asymmetry alone is not a defect/adoption claim."
+  "claim_boundary": "Public executable evidence includes a self-authored ManiSkill factorial replay showing a strict compensating repair bundle. It is real-stack behavioral evidence, but it is not maintainer-retained adoption, policy-training evidence, real-robot safety evidence, or a prospective I2 match."
 }
