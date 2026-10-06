@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "subject": "ManiSkill PegInsertionSide-v1 pd_ee_delta_pose converter-controller boundary",
+  "evidence_kind": "public_real_stack_factorial_replay",
+  "public_run": {
+    "repository": "lindicaphxag-tech/ManiSkill",
+    "workflow_run_id": 37388740482,
+    "workflow_name": "ManiSkill compensating semantic defects matrix",
+    "conclusion": "success",
+    "artifact_id": 11380266279,
+    "artifact_zip_sha256": "544380a51b13b57f58f49c677e66896275decf18746cb62d7120c32f12bb7989"
+  },
+  "frozen_inputs": {
+    "upstream_main_sha": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+    "converter_pr": "mani-skill/ManiSkill#1495",
+    "converter_head": "f96569f19688e4cee9415c491929541f0ebd1207",
+    "controller_pr": "mani-skill/ManiSkill#1472",
+    "controller_head": "eed9be164797d41540421bda8adb3840377d7087",
+    "task": "PegInsertionSide-v1",
+    "demonstrations": "first 10 official motion-planning demonstrations",
+    "control_mode": "pd_ee_delta_pose",
+    "sim_backend": "physx_cpu"
+  },
+  "metric": {
+    "name": "saved_replay_fraction",
+    "objective": "maximize",
+    "expected_episodes": 10,
+    "claim_boundary": "Replay conversion/success under the official trajectory replayer; not learned-policy success or real-robot safety."
+  },
+  "cells": [
+    {
+      "repairs": [],
+      "label": "main",
+      "episodes": 8,
+      "steps": 1238,
+      "value": 0.8,
+      "evidence_id": "run37388740482/main"
+    },
+    {
+      "repairs": [
+        "converter-representation"
+      ],
+      "label": "converter_only",
+      "episodes": 1,
+      "steps": 574,
+      "value": 0.1,
+      "evidence_id": "run37388740482/converter_only"
+    },
+    {
+      "repairs": [
+        "controller-sign"
+      ],
+      "label": "controller_only",
+      "episodes": 0,
+      "steps": 0,
+      "value": 0,
+      "evidence_id": "run37388740482/controller_only"
+    },
+    {
+      "repairs": [
+        "controller-sign",
+        "converter-representation"
+      ],
+      "label": "composed",
+      "episodes": 8,
+      "steps": 1238,
+      "value": 0.8,
+      "evidence_id": "run37388740482/composed"
+    }
+  ],
+  "expected_classification": {
+    "strict_compensating_bundle": true,
+    "bundle": [
+      "controller-sign",
+      "converter-representation"
+    ],
+    "authorization": {
+      "converter-representation": "reject",
+      "controller-sign": "reject",
+      "controller-sign+converter-representation": "allow"
+    }
+  },
+  "adoption_credit": false,
+  "prospective_i2_credit": false
+}
