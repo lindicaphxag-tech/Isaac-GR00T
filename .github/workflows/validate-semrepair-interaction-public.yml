@@ -28,6 +28,7 @@ jobs:
         run: |
           python -m pytest -q \
             validation_semrepair/tests/test_embodied_repair_interactions.py \
+            validation_semrepair/tests/test_embodied_repair_transaction.py \
             validation_semrepair/tests/test_embodied_atomic_repair.py \
             validation_semrepair/tests/test_embodied_semantic_transport.py \
             validation_semrepair/tests/test_embodied_semantic_observability.py
