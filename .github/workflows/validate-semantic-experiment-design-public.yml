@@ -32,6 +32,7 @@ jobs:
           set -euo pipefail
           test "$(git hash-object validation_semrepair/embodied_semantic_experiment_design.py)" = "ae46b4da05e9ab07c4ee2fd178a750ecbbff26f5"
           test "$(git hash-object validation_semrepair/embodied_semantic_identification_repair.py)" = "a7743d24196ea8d266832983b04d4d9b2679a54c"
+          test "$(git hash-object validation_semrepair/embodied_semantic_probe_synthesis.py)" = "0a30f3abd189c2fad1fc84cfca6eef9487f80ae8"
 
       - name: Compile validation kernel
         run: python -m compileall -q validation_semrepair
