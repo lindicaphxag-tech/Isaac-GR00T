@@ -377,3 +377,86 @@ def authorize_repair_subset(
         reasons=tuple(reasons),
         certificate_digest=certificate.digest,
     )
+
+
+@dataclass(frozen=True)
+class ReplicatedRepairAuthorization:
+    authorized: bool
+    requested_repairs: tuple[str, ...]
+    replicate_authorizations: tuple[RepairInteractionAuthorization, ...]
+    reasons: tuple[str, ...]
+
+    @property
+    def unanimous(self) -> bool:
+        decisions = {item.authorized for item in self.replicate_authorizations}
+        return len(decisions) <= 1
+
+
+def authorize_repair_subset_across_replicates(
+    certificates: Sequence[RepairInteractionCertificate],
+    requested_repairs: Sequence[str],
+    *,
+    reject_measured_regression: bool = True,
+    tolerance: float = 0.0,
+) -> ReplicatedRepairAuthorization:
+    """Authorize only when every frozen interaction replicate permits activation.
+
+    Embodied replay/task metrics can be nondeterministic. A favorable replicate
+    must not erase an unfavorable one. All certificates must describe the same
+    subject/metric/objective/repair set; then the requested repair set is
+    authorized iff every replicate-level authorization is true.
+
+    This is deliberately conservative. Conflicting replicate outcomes remain
+    evidence of ambiguity until a more direct semantic metric or additional
+    evidence resolves the disagreement.
+    """
+    if not certificates:
+        raise ValueError("at least one interaction certificate is required")
+
+    first = certificates[0]
+    signature = (
+        first.subject,
+        first.metric,
+        first.objective,
+        first.repairs,
+    )
+    for certificate in certificates[1:]:
+        other = (
+            certificate.subject,
+            certificate.metric,
+            certificate.objective,
+            certificate.repairs,
+        )
+        if other != signature:
+            raise ValueError(
+                "replicated interaction certificates must share subject, metric, "
+                "objective, and repair set"
+            )
+
+    decisions = tuple(
+        authorize_repair_subset(
+            certificate,
+            requested_repairs,
+            reject_measured_regression=reject_measured_regression,
+            tolerance=tolerance,
+        )
+        for certificate in certificates
+    )
+
+    reasons: list[str] = []
+    for index, decision in enumerate(decisions):
+        if decision.authorized:
+            continue
+        if decision.reasons:
+            reasons.extend(
+                f"replicate[{index}] {reason}" for reason in decision.reasons
+            )
+        else:
+            reasons.append(f"replicate[{index}] denied without a reason")
+
+    return ReplicatedRepairAuthorization(
+        authorized=all(item.authorized for item in decisions),
+        requested_repairs=tuple(sorted(set(requested_repairs))),
+        replicate_authorizations=decisions,
+        reasons=tuple(reasons),
+    )
