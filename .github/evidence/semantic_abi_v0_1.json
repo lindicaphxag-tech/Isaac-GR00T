@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "artifact": "semantic-abi-v0.1",
+  "public_repository": "lindicaphxag-tech/Isaac-GR00T",
+  "public_branch": "artifact/semantic-abi-v0.1",
+  "public_base": "validation/semrepair-interaction-public",
+  "public_base_sha": "b94699a811a04a234b765b8ec030501ff0095e90",
+  "source_repository": "lindicaphxag-tech/lindicaphxag-tech",
+  "source_branch": "research/semantic-experiment-design-v1",
+  "source_pr": 71,
+  "source_head": "1d576b2024672d9f3a6f80038e438433f09eb304",
+  "source_repair_aware_blob": "0083f76189a543fc5ea6430ea3fd939aeda1da2b",
+  "source_repair_aware_test_blob": "e7a8d694af48c664afaea871f4134f14ae5abb14",
+  "mirror_note": "Public mirror changes only package import paths where required; behavior is validated independently on the public branch.",
+  "claims_under_test": [
+    "exact finite adaptive diagnosis over a frozen experiment table",
+    "robust bounded-error semantic partitions",
+    "exact bounded semantic probe synthesis for the monomial bridge",
+    "factorized diagnosis-bound repair authorization",
+    "repair-aware stopping on one exact implementation/evidence-bound authority",
+    "compensating semantic aliases with different repair authorities fail closed",
+    "implementation, dependency, or evidence drift splits repair authority identity",
+    "independent value-only optimality verification and digest tamper rejection"
+  ],
+  "prior_art_boundary": [
+    "generic active diagnosis is not claimed as new",
+    "equivalence-class determination and decision-region determination are not claimed as new",
+    "optimal decision trees and value-of-information are not claimed as new",
+    "the embodied contribution is semantic ABI construction, compensating-fault observability, and implementation-bound factorized repair authority"
+  ],
+  "external_anchor": {
+    "issue": "mani-skill/ManiSkill#429",
+    "upstream_base": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+    "clean_candidate": "b0e1b85d5002ead77fc42a793183e5e0c72e01cb",
+    "differential_run": 37407332478,
+    "semantic_abi_run": 37408232594,
+    "maintained_adoption": false
+  },
+  "claim_boundary": "Self-authored public artifact. It is not prospective I2, independent reproduction, NVIDIA adoption, or maintained external reuse."
+}

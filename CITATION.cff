@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this research artifact, please cite this software artifact and record the exact commit SHA."
+title: "Semantic ABI v0.1: Authority-Optimal Diagnosis of Hidden Robot Interface Semantics"
+type: software
+authors:
+  - family-names: "lindicaphxag-tech"
+version: 0.1.0
+date-released: 2026-10-06
+repository-code: "https://github.com/lindicaphxag-tech/Isaac-GR00T"
+url: "https://github.com/lindicaphxag-tech/Isaac-GR00T/pull/20"
+abstract: >-
+  A CPU-reproducible research artifact for authority-optimal diagnosis of
+  hidden embodied semantic interfaces. It distinguishes full hidden-identity
+  recovery from the minimum evidence required to authorize one exact,
+  implementation/evidence/dependency-bound repair, and includes Lean 4
+  structural stopping theorems.
+keywords:
+  - embodied intelligence
+  - robot learning
+  - semantic interfaces
+  - active diagnosis
+  - formal methods
+  - reproducibility
