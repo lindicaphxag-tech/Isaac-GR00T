@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "semrepair"
-version = "0.3.0rc3"
+version = "0.3.0rc4"
 description = "Semantic type-and-effect compilation with certified repair for embodied-AI pipelines."
 requires-python = ">=3.10"
 readme = "README.md"
