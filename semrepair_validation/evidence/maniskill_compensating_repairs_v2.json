@@ -1,0 +1,160 @@
+{
+  "schema_version": 2,
+  "subject": "ManiSkill PegInsertionSide-v1 pd_ee_delta_pose converter-controller boundary",
+  "evidence_kind": "public_real_stack_factorial_replay_with_replication",
+  "metric": {
+    "name": "saved_replay_fraction",
+    "objective": "maximize",
+    "expected_episodes": 10,
+    "claim_boundary": "Task-level replay success is stochastic and may reward compensating semantic defects; it is not a semantic-fidelity proof."
+  },
+  "frozen_inputs": {
+    "upstream_main_sha": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+    "converter_pr": "mani-skill/ManiSkill#1495",
+    "current_converter_head": "cdd6db713ffe7edc3e0df3abfab51ea5320c1c0b",
+    "earlier_equivalent_converter_head": "f96569f19688e4cee9415c491929541f0ebd1207",
+    "earlier_to_current_code_diff_files": 0,
+    "controller_pr": "mani-skill/ManiSkill#1472",
+    "controller_head": "eed9be164797d41540421bda8adb3840377d7087",
+    "task": "PegInsertionSide-v1",
+    "demonstrations": "first 10 official motion-planning demonstrations",
+    "control_mode": "pd_ee_delta_pose",
+    "sim_backend": "physx_cpu"
+  },
+  "replicates": [
+    {
+      "id": "parallel-public-run",
+      "worker_mode": "cpu multiprocessing, num_envs=2",
+      "public_run_id": 37388740482,
+      "artifact_id": 11380266279,
+      "artifact_zip_sha256": "544380a51b13b57f58f49c677e66896275decf18746cb62d7120c32f12bb7989",
+      "converter_head": "f96569f19688e4cee9415c491929541f0ebd1207",
+      "cells": [
+        {
+          "repairs": [],
+          "label": "main",
+          "episodes": 8,
+          "steps": 1238,
+          "value": 0.8,
+          "evidence_id": "run37388740482/main"
+        },
+        {
+          "repairs": [
+            "converter-representation"
+          ],
+          "label": "converter_only",
+          "episodes": 1,
+          "steps": 574,
+          "value": 0.1,
+          "evidence_id": "run37388740482/converter_only"
+        },
+        {
+          "repairs": [
+            "controller-sign"
+          ],
+          "label": "controller_only",
+          "episodes": 0,
+          "steps": 0,
+          "value": 0,
+          "evidence_id": "run37388740482/controller_only"
+        },
+        {
+          "repairs": [
+            "controller-sign",
+            "converter-representation"
+          ],
+          "label": "composed",
+          "episodes": 8,
+          "steps": 1238,
+          "value": 0.8,
+          "evidence_id": "run37388740482/composed"
+        }
+      ]
+    },
+    {
+      "id": "serial-exact-head-public-run",
+      "worker_mode": "single-process CPU, num_envs=1",
+      "public_run_id": 37394500249,
+      "artifact_id": 11382447004,
+      "artifact_zip_sha256": "3fea69c1dc015340ba27d7519dfea83fec1f3919e53fc46ae41e5ef345ff610b",
+      "converter_head": "cdd6db713ffe7edc3e0df3abfab51ea5320c1c0b",
+      "cells": [
+        {
+          "repairs": [],
+          "label": "main",
+          "episodes": 9,
+          "steps": 1424,
+          "value": 0.9,
+          "evidence_id": "run37394500249/main"
+        },
+        {
+          "repairs": [
+            "converter-representation"
+          ],
+          "label": "converter_only",
+          "episodes": 1,
+          "steps": 574,
+          "value": 0.1,
+          "evidence_id": "run37394500249/converter_only"
+        },
+        {
+          "repairs": [
+            "controller-sign"
+          ],
+          "label": "controller_only",
+          "episodes": 0,
+          "steps": 0,
+          "value": 0,
+          "evidence_id": "run37394500249/controller_only"
+        },
+        {
+          "repairs": [
+            "controller-sign",
+            "converter-representation"
+          ],
+          "label": "composed",
+          "episodes": 8,
+          "steps": 1238,
+          "value": 0.8,
+          "evidence_id": "run37394500249/composed"
+        }
+      ]
+    }
+  ],
+  "robust_findings": {
+    "singleton_converter_regresses_in_all_replicates": true,
+    "singleton_controller_regresses_in_all_replicates": true,
+    "composed_recovers_substantially_over_singletons_in_all_replicates": true,
+    "strict_compensating_bundle_unanimous": false,
+    "complete_behavioral_masking_unanimous": false,
+    "task_success_authorization_for_composed": "fail_closed_ambiguous",
+    "next_required_metric": "direct semantic fidelity of reconstructed controller target/orientation"
+  },
+  "adaptive_converter_followup": {
+    "public_run_id": 37394500752,
+    "artifact_id": 11382322207,
+    "artifact_zip_sha256": "c8b9b2ca4e5462fc7860add6089bdf267bf99a03b491718980f4725a44fcdcea",
+    "result": {
+      "main": {
+        "episodes": 9,
+        "steps": 1424,
+        "value": 0.9
+      },
+      "adaptive_current": {
+        "episodes": 8,
+        "steps": 1238,
+        "value": 0.8
+      },
+      "adaptive_controller_fixed": {
+        "episodes": 8,
+        "steps": 1238,
+        "value": 0.8
+      }
+    },
+    "controller_mapping_invariant": true,
+    "baseline_non_regression": false,
+    "decision": "do_not_promote_upstream_yet"
+  },
+  "adoption_credit": false,
+  "prospective_i2_credit": false
+}

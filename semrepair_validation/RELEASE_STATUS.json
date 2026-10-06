@@ -1,0 +1,88 @@
+{
+  "schema_version": 3,
+  "artifact": "SemRepair",
+  "version": "0.3.0rc2",
+  "surface": "public-release-candidate-staging",
+  "repository": "lindicaphxag-tech/Isaac-GR00T",
+  "branch": "semrepair-0.3.0rc2",
+  "standalone_package_installable": true,
+  "citation_metadata_present": true,
+  "explicit_license_present": true,
+  "formal_core_present": true,
+  "real_stack_closed_loop": false,
+  "maintained_external_adoptions": 0,
+  "prospective_i2_matches": 0,
+  "counts_as_versioned_public_release": false,
+  "counts_as_l8": false,
+  "counts_as_l9": false,
+  "remaining_release_blockers": [
+    "rc2 public Python 3.10/3.12/3.13 validation has not yet passed",
+    "rc2 wheel/sdist clean-install validation has not yet passed",
+    "rc2 tag/GitHub prerelease has not yet been created",
+    "no maintained external adoption",
+    "no prospective I2 mechanism confirmation"
+  ],
+  "validated_head_sha": null,
+  "validation_run_id": null,
+  "validation_run_url": null,
+  "validation_conclusion": "pending",
+  "python_matrix": [
+    "3.10",
+    "3.12",
+    "3.13"
+  ],
+  "validation_surfaces": {
+    "editable_install": true,
+    "public_test_surface": true,
+    "source_to_compiler_example": true,
+    "behavioral_evidence": true,
+    "bounded_theorem_checker": true,
+    "production_conformance": true,
+    "proof_carrying_runtime_release_gate": true,
+    "wheel_and_sdist": true,
+    "pip_dependency_check": true,
+    "lean_formal_core": true,
+    "public_git_external_consumer": true,
+    "pinned_real_source_groot": true,
+    "pinned_real_source_maniskill": true,
+    "repair_implementation_identity": true,
+    "interaction_aware_authorization": true,
+    "maniskill_factorial_replay_capsule": false,
+    "replicated_interaction_authorization": true,
+    "maniskill_factorial_replay_capsule_v2": true
+  },
+  "quantitative_evidence": {
+    "production_conformance_cases": 2017,
+    "production_conformance_valid": true,
+    "replay_model_traces_checked": 4662,
+    "runtime_release_checks_passed": 7,
+    "runtime_release_checks_total": 7,
+    "external_consumer_version": "0.3.0rc1",
+    "wheel_sha256": "38a4833011b7bb45c616d64a800bb54ee63bfa3d80d15020fe9992f7f0312b6e"
+  },
+  "proof_carrying_runtime_validated": true,
+  "external_consumer_install_validated": false,
+  "release_candidate_artifact_uploaded": false,
+  "predecessor_release": {
+    "version": "0.3.0rc1",
+    "tag": "semrepair-v0.3.0rc1",
+    "release_id": 403794471,
+    "snapshot_commit": "8cd7e7ad01e50aa18f42d333765f4fd242228d66",
+    "published": true,
+    "clean_install_validated": true
+  },
+  "rc2_delta": {
+    "executable_identity_binding": true,
+    "self_declared_verification_rejected": true,
+    "interaction_aware_repair_authorization": true,
+    "real_stack_compensating_repair_capsule": true,
+    "replicated_interaction_authorization": true,
+    "public_factorial_run_ids": [
+      37388740482,
+      37394500249
+    ],
+    "task_success_authority": "fail_closed_ambiguous",
+    "next_required_evidence": "direct semantic fidelity of reconstructed controller target/orientation"
+  },
+  "self_authored_real_stack_behavioral_evidence": true
+}

@@ -1,0 +1,19 @@
+name: SemRepair semantic boundary
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  semantic-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SemRepair release candidate
+        run: |
+          python -m pip install             "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc1#subdirectory=semrepair_validation"
+      - name: Check embodied semantic boundary
+        run: semrepair-source --manifest path/to/semrepair.json --json

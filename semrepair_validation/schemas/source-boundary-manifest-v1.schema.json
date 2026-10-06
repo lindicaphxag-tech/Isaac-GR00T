@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/lindicaphxag-tech/Isaac-GR00T/semrepair-v0.3-rc1/semrepair_validation/schemas/source-boundary-manifest-v1.schema.json",
+  "title": "SemRepair source boundary manifest v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "producer",
+    "consumer",
+    "rules",
+    "adapters"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "producer": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "consumer": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/adapter"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "endpoint": {
+      "type": "object",
+      "required": [
+        "path",
+        "base_type"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_type": {
+          "type": "object",
+          "required": [
+            "role",
+            "entity"
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "frame": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "representation": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "convention": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "clock": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "freshness": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "provenance": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ordering": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "embodiment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "rule_id",
+        "callee_suffix",
+        "facts"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "callee_suffix": {
+          "type": "string",
+          "minLength": 1
+        },
+        "facts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "required_string_args": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "required_string_kwargs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "adapter": {
+      "type": "object",
+      "required": [
+        "name",
+        "requires",
+        "produces"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requires": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "produces": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "proof_required": {
+          "type": "boolean"
+        },
+        "witness_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
