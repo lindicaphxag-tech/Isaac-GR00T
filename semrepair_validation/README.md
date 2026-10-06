@@ -1,4 +1,4 @@
-# SemRepair 0.3.0rc3
+# SemRepair 0.3.0rc4
 
 SemRepair is a research prototype for **proof-carrying semantic repair and
 runtime execution across embodied-AI software boundaries**.
@@ -40,7 +40,7 @@ Development release-candidate branch:
 
 ```bash
 python -m pip install \
-  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc2#subdirectory=semrepair_validation"
+  "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc4#subdirectory=semrepair_validation"
 ```
 
 A fixed semver-style branch `semrepair-v0.3.0rc2` is frozen only after the
@@ -186,3 +186,47 @@ interoperability surface. It is not yet tagged or released.
 
 Neither release is NVIDIA adoption, a prospective I2 mechanism match, or L8/L9
 by itself.
+
+## Interaction-aware multi-plane authority
+
+0.3.0rc4 separates **local semantic correctness** from **execution-domain
+admissibility**.
+
+A repair can be locally correct and still be unsafe to activate in a composed
+stack.  The public ManiSkill interaction assay demonstrates this explicitly:
+
+| repair set | mean local SO(3) error | official-demo replay |
+| --- | ---: | ---: |
+| current main | 0.01896 deg | 9/10 |
+| converter only | 161.48989 deg | 1/10 |
+| controller only | 161.48621 deg | 0/10 |
+| composed | 0.01732 deg | 8/10 |
+
+The composed repair passes the semantic-fidelity plane but fails the
+execution-domain non-regression plane.  SemRepair therefore denies final
+physical authority.
+
+This is the intended behavior: a proof that one boundary is semantically
+correct does not override contradictory evidence from another declared
+execution plane.
+
+## rc4 trust-boundary hardening
+
+The public rc4 method head additionally enforces:
+
+- certificate binding to the actual executable repair source, not only a
+  symbolic primitive name;
+- automatic invalidation when `apply_fn` changes under the same declared ID;
+- no runtime authority from a self-declared `"verified"` string;
+- fail-closed incomplete compensating repair bundles;
+- all declared authorization planes must independently pass.
+
+Public pre-bump method validation:
+- trust-boundary run `37400490466`: Python 3.10/3.12/3.13 success;
+- full release-candidate run `37400490470`: success including Lean,
+  ManiSkill, MuJoCo, GR00T, LeRobot, external-consumer, and reusable-action
+  consumer jobs.
+
+The rc4 branch itself remains a candidate until its post-version-bump workflow
+is green.  These are self-authored public validation results and count as zero
+maintained external adoption.
