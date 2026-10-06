@@ -9,8 +9,7 @@ from research.semantic_invariants.embodied_repair_interactions import (
 
 
 EVIDENCE = (
-    Path(__file__).resolve().parents[2]
-    / "embodied_correctness"
+    Path(__file__).resolve().parents[1]
     / "evidence"
     / "maniskill_compensating_repairs_v2.json"
 )
