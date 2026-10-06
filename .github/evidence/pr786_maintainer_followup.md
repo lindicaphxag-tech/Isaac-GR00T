@@ -10,7 +10,14 @@ Shape: **1 commit / 2 files**
 
 Current upstream state: **open + mergeable**, no maintainer comments/reviews at the latest audit.
 
-Exact-head public fork validation: run `37380686525`.
+Exact-head public fork validation: run `37473373819`.
+
+Production-file identity at that evidence head is independently rechecked by Git blob:
+
+- `gr00t/eval/sim/wrapper/multistep_wrapper.py`: `779d696af205555bc4530f3afe8acfd0e9073c37` in both upstream PR #786 head and public validation head;
+- `tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py`: `9d0fd25b0fc480f610e7bbacb4a06ff274cecae9` in both heads.
+
+Public validation head: `ce4e5813f9863c0ca380b7f36bbe005ff093e077`.
 
 All three matrix jobs pass on Python 3.10 / 3.12 / 3.13 and each independently executes:
 
@@ -22,7 +29,7 @@ All three matrix jobs pass on Python 3.10 / 3.12 / 3.13 and each independently e
 
 ## Recommended single follow-up
 
-> Hi — one concise update for review: I squashed this to 1 commit / 2 files and revalidated the exact current head (`8ca15ac4`) independently on Python 3.10/3.12/3.13. The focused checks prove the production files are byte-identical to the PR head before exercising inner truncation, joint termination+truncation, wrapper-owned time-limit truncation, and success-boundary bookkeeping. The remaining project-level question is whether those four Gymnasium boundary semantics match the intended GR00T contract. If so, the patch is ready for review; if another owner is closer to this wrapper path, I’m happy to follow that routing.
+> Hi — one concise update for review: I squashed this to 1 commit / 2 files and revalidated the exact current head (`8ca15ac4`) independently on Python 3.10/3.12/3.13 in public run `37473373819`. The focused checks prove the production files are byte-identical to the PR head before exercising inner truncation, joint termination+truncation, wrapper-owned time-limit truncation, and success-boundary bookkeeping. The remaining project-level question is whether those four Gymnasium boundary semantics match the intended GR00T contract. If so, the patch is ready for review; if another owner is closer to this wrapper path, I’m happy to follow that routing.
 
 Suggested reviewer routing if a human reviewer must be named:
 
