@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "method": "adaptive semantic experiment design",
+  "source_repository": "lindicaphxag-tech/lindicaphxag-tech",
+  "source_branch": "research/semantic-experiment-design-v1",
+  "source_kernel_commit": "d1e10814134f6d70d52ac9b8ac7027775b8c039b",
+  "source_test_commit": "daa7a0e39d2b9862440d06cc86cf78f9fdbd4182",
+  "source_kernel_blob": "b375929fa17aeabdbc6d62dc865da64c0e26e92d",
+  "public_branch": "validation/semantic-experiment-design-public",
+  "claims_under_test": [
+    "exact finite adaptive diagnosis over a frozen experiment table",
+    "joint external-probe and internal-tap selection",
+    "risk-gated fail-closed unidentifiability",
+    "policy digest tamper detection",
+    "independent value-only optimality verification",
+    "adaptive internal instrumentation only on masked semantic branches"
+  ],
+  "claim_boundary": "Self-authored public validation only; not external adoption, prospective I2, or proof of global optimality over experiments absent from the frozen table."
+}
