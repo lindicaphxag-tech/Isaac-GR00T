@@ -1,90 +1,73 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "artifact": "SemRepair",
-  "version": "0.3.0rc3",
-  "surface": "release-candidate-pending-validation",
+  "version": "0.3.0rc4",
+  "surface": "release-candidate-pending-rc4-validation",
   "repository": "lindicaphxag-tech/Isaac-GR00T",
-  "development_branch": "semrepair-v0.3-rc3",
+  "development_branch": "semrepair-v0.3-rc4",
   "standalone_package_installable": true,
   "citation_metadata_present": true,
   "explicit_license_present": true,
   "formal_core_present": true,
-  "proof_bundle_wire_format": "semrepair-execution-proof-bundle/v0.2",
-  "proof_bundle_validation": "pending-public-ci",
   "maintained_external_adoptions": 0,
   "prospective_i2_matches": 0,
   "counts_as_versioned_public_release": false,
   "counts_as_l8": false,
   "counts_as_l9": false,
-  "validation_conclusion": "pending",
-  "inherited_validated_baseline": {
-    "version": "0.3.0rc2",
-    "development_branch": "semrepair-v0.3-rc2",
-    "validation_run": 37329404920,
-    "validated_code_head": "094e5d96c74440410f9bfeff1ec6413985483c2b"
+  "validation_conclusion": "pending-rc4-metadata-head",
+  "inherited_green_method_head": {
+    "branch": "validation/semrepair-trust-boundary-v1",
+    "head": "60b4e53458a7d2b34e50f759a494552abe51b387",
+    "trust_boundary_run": 37400490466,
+    "full_release_candidate_run": 37400490470,
+    "trust_python_matrix": [
+      "3.10",
+      "3.12",
+      "3.13"
+    ],
+    "trust_boundary_conclusion": "success",
+    "full_release_candidate_conclusion": "success"
   },
-  "rc2_delta": [
-    "language-neutral execution proof bundle",
-    "JSON Schema",
-    "independent bundle verifier",
-    "non-forgeable wire adapter checks",
-    "bounded unique minimum-cost path verification",
-    "installed proof-bundle CLI"
+  "rc4_delta": [
+    "automatic executable source identity binding for repair certificates",
+    "runtime rejection of self-declared verified status",
+    "evidence-bound repair interaction certificates",
+    "repair-set atomicity for strict compensating bundles",
+    "multi-plane authorization separating semantic fidelity from execution-domain non-regression"
   ],
+  "motivating_real_stack_evidence": {
+    "repository": "lindicaphxag-tech/ManiSkill",
+    "task": "PegInsertionSide-v1",
+    "direct_semantic_fidelity_run": 37399675762,
+    "official_demo_replay_run": 37399675564,
+    "semantic_plane": {
+      "objective": "minimize SO(3) converter-to-controller target error",
+      "main_mean_deg": 0.018963289444857253,
+      "converter_only_mean_deg": 161.48988926927308,
+      "controller_only_mean_deg": 161.48620550739378,
+      "composed_mean_deg": 0.01732115366644683,
+      "strict_compensating_bundle": true,
+      "composed_decision": "advance_to_execution_domain_gate"
+    },
+    "execution_plane": {
+      "objective": "maximize official-demo replay success",
+      "main": 0.9,
+      "converter_only": 0.1,
+      "controller_only": 0,
+      "composed": 0.8,
+      "strict_compensating_bundle": false,
+      "composed_decision": "reject-regression"
+    },
+    "final_multi_plane_authorization": "reject",
+    "claim_boundary": "Official simulator/replay evidence for a software interaction; not learned-policy training success, real-robot safety, or upstream adoption."
+  },
   "remaining_l8_blockers": [
     "no resolved prospective I2 mechanism matches",
     "no maintained external adoption"
   ],
   "remaining_release_blockers": [
-    "complete rc3 public CI must be green",
-    "rc3 has not been tagged or released"
+    "run the complete public rc4 workflow after version/metadata updates",
+    "rc4 has not been frozen/tagged/released"
   ],
-  "evidence_boundary": "rc3 is a candidate until its public workflow is fully green. It remains self-authored artifact evidence and contributes zero maintained-adoption and zero prospective-I2 credit.",
-  "python_matrix": [
-    "3.10",
-    "3.12",
-    "3.13"
-  ],
-  "interoperability_evidence": {
-    "proof_bundle_schema": "semrepair-execution-proof-bundle/v0.2",
-    "packaged_schema": true,
-    "public_git_external_consumer": true,
-    "installed_bundle_generation": true,
-    "installed_independent_cli_verification": true,
-    "non_forgeable_adapter_checks": true,
-    "unique_minimum_cost_verification": true,
-    "packaged_schema_v0_1": true,
-    "packaged_schema_v0_2": true,
-    "float_free_wire_surface": true,
-    "exact_decimal_path_verification": true,
-    "node_reference_verifier": "pending-public-ci",
-    "node_third_party_dependencies": 0
-  },
-  "native_execution": {
-    "maniskill": {
-      "status": "success",
-      "artifact_id": 11352879806,
-      "sha256": "8b00a6061e1f6dc4569db4e40e8b7c61df0aec07bf596de6f7c04bb32d795654",
-      "claim_boundary": "Pinned upstream production converter-controller representation boundary; retrospective and not maintained upstream adoption."
-    },
-    "mujoco": {
-      "status": "success",
-      "artifact_id": 11354160530,
-      "sha256": "0918ecc438a845ab1c265534426f49faa8f583f0634867de4dbd98751e8dcb07",
-      "claim_boundary": "Native MuJoCo controlled closed-loop semantic-corruption assay; not an upstream MuJoCo defect or adoption."
-    }
-  },
-  "distribution_artifact": {
-    "id": 11353671569,
-    "sha256": "2b0ce413fa6f743224a3b59232aae5ac33f533d7477614833a78e8c75df26643"
-  },
-  "rc3_delta": [
-    "exact-decimal language-neutral execution proof bundle v0.2",
-    "float-free hashed wire surface",
-    "NFC-normalized canonical wire JSON",
-    "exact Decimal minimum-cost verification",
-    "producer-digest versus wire-digest separation",
-    "0.1+0.2 versus 0.3 false-uniqueness regression",
-    "independent zero-dependency Node.js verifier"
-  ]
+  "evidence_boundary": "rc4 is a candidate. The method head passed public trust and full release gates before the rc4 metadata bump; the rc4 branch itself must rerun those gates before being frozen."
 }
