@@ -28,8 +28,8 @@ jobs:
 
       - name: Compile mirrored semantic kernel
         run: |
-          python -m py_compile             research/semantic_invariants/embodied_semantic_transport.py             research/semantic_invariants/embodied_semantic_observability.py             research/semantic_invariants/embodied_semantic_experiment_design.py
+          python -m py_compile             research/semantic_invariants/embodied_semantic_transport.py             research/semantic_invariants/embodied_semantic_observability.py             research/semantic_invariants/embodied_semantic_experiment_design.py             research/semantic_invariants/embodied_repair_synthesis.py             research/semantic_invariants/embodied_semantic_autorepair_bridge.py
 
-      - name: Run joint experiment-design tests
+      - name: Run experiment-design and diagnose-before-repair tests
         run: |
-          python -m pytest -q             research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py
+          python -m pytest -q             research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py             research/semantic_invariants/tests/test_embodied_semantic_autorepair_bridge.py
