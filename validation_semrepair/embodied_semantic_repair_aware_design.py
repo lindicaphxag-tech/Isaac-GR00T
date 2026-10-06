@@ -47,6 +47,68 @@ class RepairAuthority:
 
 
 @dataclass(frozen=True)
+class BoundRepairAuthority:
+    """Canonical implementation/evidence-bound repair authority.
+
+    Two semantically named repairs are the same terminal decision only when
+    their concrete bundle, implementations, dependencies, and evidence identity
+    are all identical.
+    """
+
+    repair_bundle_id: str
+    implementation_ids: tuple[str, ...]
+    evidence_digest: str
+    dependency_digest: str
+    authority_version: str = "semrepair-authority-v1"
+
+    def __post_init__(self) -> None:
+        fields = (
+            self.repair_bundle_id,
+            self.evidence_digest,
+            self.dependency_digest,
+            self.authority_version,
+        )
+        if any(not value for value in fields):
+            raise ValueError("bound authority fields must be non-empty")
+        if not self.implementation_ids or any(
+            not value for value in self.implementation_ids
+        ):
+            raise ValueError(
+                "bound authority requires concrete implementation identities"
+            )
+
+    @property
+    def authority_id(self) -> str:
+        payload = {
+            "authority_version": self.authority_version,
+            "repair_bundle_id": self.repair_bundle_id,
+            "implementation_ids": list(self.implementation_ids),
+            "evidence_digest": self.evidence_digest,
+            "dependency_digest": self.dependency_digest,
+        }
+        return "sha256:" + sha256(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+            ).encode("utf-8")
+        ).hexdigest()
+
+
+def bind_repair_authority(
+    hypothesis: str,
+    binding: BoundRepairAuthority,
+) -> RepairAuthority:
+    """Bind one hypothesis to the canonical concrete authority digest."""
+
+    return RepairAuthority(
+        hypothesis=hypothesis,
+        authority_id=binding.authority_id,
+    )
+
+
+@dataclass(frozen=True)
 class RepairDecisionLeaf:
     hypotheses: tuple[str, ...]
     authority_id: str
