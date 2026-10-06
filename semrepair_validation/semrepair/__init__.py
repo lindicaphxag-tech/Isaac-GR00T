@@ -24,7 +24,9 @@ from research.semantic_invariants.repair_activation_authority import (
     ActivationGatedSemanticRepairMediator,
     RepairActivationCertificate,
     RepairActivationRejected,
+    issue_activation_gate_evidence,
     issue_repair_activation_certificate,
+    verify_activation_gate_evidence,
     verify_repair_activation_certificate,
 )
 from research.semantic_invariants.embodied_semantic_types import (
@@ -54,8 +56,10 @@ __all__ = [
     "compile_semantic_boundary",
     "compile_source_boundary",
     "infer_type_from_source",
+    "issue_activation_gate_evidence",
     "issue_repair_activation_certificate",
     "synthesize_unique_adapter_plan",
+    "verify_activation_gate_evidence",
     "verify_repair_activation_certificate",
     "verify_repair_against_heldout",
 ]
