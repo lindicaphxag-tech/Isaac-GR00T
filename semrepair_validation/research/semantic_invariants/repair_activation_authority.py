@@ -165,7 +165,18 @@ def issue_activation_gate_evidence(
         metadata=metadata,
     )
     return ActivationGateEvidence(
-        **payload,
+        schema=GATE_EVIDENCE_SCHEMA,
+        gate=gate,
+        contract_id=contract_id,
+        program_fingerprint=payload["program_fingerprint"],
+        status=status,
+        evidence_digest=evidence_digest,
+        evidence_scope_digest=evidence_scope_digest,
+        evaluator_id=evaluator_id,
+        evidence_kind=evidence_kind,
+        independent_of_repair_path=independent_of_repair_path,
+        qualification=qualification,
+        metadata=dict(metadata or {}),
         decision_digest=_digest(payload),
     )
 
