@@ -1,10 +1,10 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "artifact": "SemRepair",
-  "version": "0.3.0rc1",
-  "surface": "public-release-candidate",
+  "version": "0.3.0rc2",
+  "surface": "public-release-candidate-staging",
   "repository": "lindicaphxag-tech/Isaac-GR00T",
-  "branch": "semrepair-v0.3-rc1",
+  "branch": "semrepair-0.3.0rc2",
   "standalone_package_installable": true,
   "citation_metadata_present": true,
   "explicit_license_present": true,
@@ -16,15 +16,16 @@
   "counts_as_l8": false,
   "counts_as_l9": false,
   "remaining_release_blockers": [
-    "dedicated standalone repository not yet available through the connected GitHub tool",
-    "no GitHub tag/release has been created",
+    "rc2 public Python 3.10/3.12/3.13 validation has not yet passed",
+    "rc2 wheel/sdist clean-install validation has not yet passed",
+    "rc2 tag/GitHub prerelease has not yet been created",
     "no maintained external adoption",
-    "no project-native real-stack closed-loop validation"
+    "no prospective I2 mechanism confirmation"
   ],
-  "validated_head_sha": "304f19661b21bf2a510f736b63f78d3bbe6d3aa9",
-  "validation_run_id": 37316616190,
-  "validation_run_url": "https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37316616190",
-  "validation_conclusion": "success",
+  "validated_head_sha": null,
+  "validation_run_id": null,
+  "validation_run_url": null,
+  "validation_conclusion": "pending",
   "python_matrix": [
     "3.10",
     "3.12",
@@ -43,7 +44,10 @@
     "lean_formal_core": true,
     "public_git_external_consumer": true,
     "pinned_real_source_groot": true,
-    "pinned_real_source_maniskill": true
+    "pinned_real_source_maniskill": true,
+    "repair_implementation_identity": true,
+    "interaction_aware_authorization": true,
+    "maniskill_factorial_replay_capsule": true
   },
   "quantitative_evidence": {
     "production_conformance_cases": 2017,
@@ -55,7 +59,22 @@
     "wheel_sha256": "38a4833011b7bb45c616d64a800bb54ee63bfa3d80d15020fe9992f7f0312b6e"
   },
   "proof_carrying_runtime_validated": true,
-  "external_consumer_install_validated": true,
-  "release_candidate_artifact_uploaded": true,
-  "release_candidate_artifact_id": 11347149478
+  "external_consumer_install_validated": false,
+  "release_candidate_artifact_uploaded": false,
+  "predecessor_release": {
+    "version": "0.3.0rc1",
+    "tag": "semrepair-v0.3.0rc1",
+    "release_id": 403794471,
+    "snapshot_commit": "8cd7e7ad01e50aa18f42d333765f4fd242228d66",
+    "published": true,
+    "clean_install_validated": true
+  },
+  "rc2_delta": {
+    "executable_identity_binding": true,
+    "self_declared_verification_rejected": true,
+    "interaction_aware_repair_authorization": true,
+    "real_stack_compensating_repair_capsule": true,
+    "public_factorial_run_id": 37388740482
+  },
+  "self_authored_real_stack_behavioral_evidence": true
 }
