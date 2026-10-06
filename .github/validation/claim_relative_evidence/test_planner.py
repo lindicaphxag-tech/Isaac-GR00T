@@ -421,9 +421,7 @@ def test_digest_binds_claim_authority():
 
 
 def test_real_maniskill_case_routes_each_claim_to_its_authorized_oracle():
-    from maniskill_claim_authority_case import (
-        build_maniskill_claim_authority_case,
-    )
+    from maniskill_claim_authority_case import build_maniskill_claim_authority_case
 
     result = build_maniskill_claim_authority_case()
 
