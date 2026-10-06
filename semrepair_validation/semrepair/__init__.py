@@ -30,7 +30,7 @@ from research.semantic_invariants.embodied_semantic_types import (
     synthesize_unique_adapter_plan,
 )
 
-__version__ = "0.3.0rc3"
+__version__ = "0.3.0rc4"
 
 __all__ = [
     "CompilationResult",
