@@ -460,3 +460,80 @@ def authorize_repair_subset_across_replicates(
         replicate_authorizations=decisions,
         reasons=tuple(reasons),
     )
+
+
+
+@dataclass(frozen=True)
+class RepairAuthorizationPlane:
+    plane_id: str
+    certificate: RepairInteractionCertificate
+
+    def __post_init__(self) -> None:
+        if not self.plane_id:
+            raise ValueError("plane_id must be non-empty")
+
+
+@dataclass(frozen=True)
+class MultiPlaneRepairAuthorization:
+    authorized: bool
+    requested_repairs: tuple[str, ...]
+    plane_decisions: tuple[tuple[str, RepairInteractionAuthorization], ...]
+    reasons: tuple[str, ...]
+
+
+def authorize_repair_subset_across_planes(
+    planes: Sequence[RepairAuthorizationPlane],
+    requested_repairs: Sequence[str],
+    *,
+    reject_measured_regression: bool = True,
+    tolerance: float = 0.0,
+) -> MultiPlaneRepairAuthorization:
+    """Require independent authorization on every declared evidence plane.
+
+    A repair can be semantically correct yet still regress an execution-domain
+    metric.  Semantic fidelity, replay/task non-regression, safety and
+    post-effect evidence therefore remain distinct authority planes.
+
+    All planes must describe the same candidate repair set.  Their metric,
+    objective and evidence may differ.  Missing planes are never inferred.
+    """
+
+    if not planes:
+        raise ValueError("at least one authorization plane is required")
+
+    repair_signature = planes[0].certificate.repairs
+    seen_plane_ids: set[str] = set()
+    decisions: list[tuple[str, RepairInteractionAuthorization]] = []
+    reasons: list[str] = []
+
+    for plane in planes:
+        if plane.plane_id in seen_plane_ids:
+            raise ValueError(f"duplicate authorization plane: {plane.plane_id!r}")
+        seen_plane_ids.add(plane.plane_id)
+
+        if plane.certificate.repairs != repair_signature:
+            raise ValueError(
+                "all authorization planes must describe the same repair set"
+            )
+
+        decision = authorize_repair_subset(
+            plane.certificate,
+            requested_repairs,
+            reject_measured_regression=reject_measured_regression,
+            tolerance=tolerance,
+        )
+        decisions.append((plane.plane_id, decision))
+        if not decision.authorized:
+            if decision.reasons:
+                reasons.extend(
+                    f"{plane.plane_id}: {reason}" for reason in decision.reasons
+                )
+            else:
+                reasons.append(f"{plane.plane_id}: denied without a reason")
+
+    return MultiPlaneRepairAuthorization(
+        authorized=all(decision.authorized for _, decision in decisions),
+        requested_repairs=tuple(sorted(set(requested_repairs))),
+        plane_decisions=tuple(decisions),
+        reasons=tuple(reasons),
+    )
