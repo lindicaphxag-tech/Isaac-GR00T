@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.3.0-rc4
+
+This release candidate hardens repair authority after public real-stack
+interaction testing exposed a non-monotone semantic-repair failure mode.
+
+### Executable repair identity
+
+- binds verification certificates to a stable implementation ID **and** the
+  actual callable source, containing source-file digest, defaults, keyword
+  defaults, and closure captures;
+- invalidates an old certificate when the executable `apply_fn` changes even
+  if the symbolic primitive name and declared implementation ID stay the same;
+- rejects custom primitives without an inspectable/stable executable identity.
+
+### Runtime authority
+
+- a caller can no longer install a repair by self-declaring
+  `verification_status="verified"`;
+- runtime installation requires a real program-bound
+  `RepairVerificationCertificate`.
+
+### Interaction-aware multi-plane authorization
+
+- adds evidence-bound repair interaction certificates;
+- fails closed on incomplete strict compensating repair bundles;
+- separates local semantic fidelity from execution-domain non-regression;
+- final physical authority requires **every declared evidence plane** to pass.
+
+The motivating public ManiSkill assay deliberately preserves the negative
+result: on the same first 10 official PegInsertionSide demonstrations,
+current-main replay saved 9/10 episodes, converter-only saved 1/10,
+controller-only 0/10, and the composed repair 8/10.  A separate direct
+converter->controller SO(3) assay shows the composed repair is semantically
+accurate while the singleton repairs are catastrophically wrong.  Therefore
+semantic correctness alone does not authorize execution.
+
+### Public validation
+
+- trust-boundary matrix: workflow `37400490466`, Python 3.10/3.12/3.13,
+  focused trust tests + full public core suite: success;
+- complete release-candidate workflow `37400490470`: success, including Lean,
+  native ManiSkill, native MuJoCo, real-source GR00T/LeRobot, external-consumer
+  and reusable-action-consumer jobs.
+
+### Claim boundary
+
+This remains self-authored public software validation. It contributes zero
+maintained external-adoption credit and zero prospective-I2 credit.
+
 ## 0.3.0-rc3
 
 This release candidate hardens the language-neutral proof bundle against
