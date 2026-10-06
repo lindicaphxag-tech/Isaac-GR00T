@@ -45,9 +45,17 @@ jobs:
           python -m pip install -e "./lerobot-src[diffusion,pusht]"
           python -m pip install -e ./casj_validation
 
-      - name: Run PI-CASJ unit gates
-        run: |
-          python -m pytest -q casj_validation/tests/test_continuation.py casj_validation/tests/test_finite_equivariance.py casj_validation/tests/test_temporal_scope.py casj_validation/tests/test_trust_region.py
+      - name: Unit gate — trust region
+        run: python -m pytest -q casj_validation/tests/test_trust_region.py
+
+      - name: Unit gate — PI-CASJ continuation
+        run: python -m pytest -q casj_validation/tests/test_continuation.py
+
+      - name: Unit gate — temporal event scope
+        run: python -m pytest -q casj_validation/tests/test_temporal_scope.py
+
+      - name: Unit gate — finite equivariance
+        run: python -m pytest -q casj_validation/tests/test_finite_equivariance.py
 
       - name: Record environment identity
         run: |
