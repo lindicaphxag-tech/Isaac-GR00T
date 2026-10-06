@@ -80,6 +80,7 @@ jobs:
       - name: Run paired public-checkpoint CASJ smoke
         run: |
           mkdir -p casj_validation/results
+          set +e
           python casj_validation/experiments/public_pusht_gate.py \
             --device cpu \
             --seed 17 \
@@ -91,7 +92,11 @@ jobs:
             --heldout-dx 10.0 \
             --heldout-dy -6.0 \
             --heldout-dtheta 0.35 \
-            --output casj_validation/results/pusht_public_smoke.json
+            --output casj_validation/results/pusht_public_smoke.json \
+            > casj_validation/results/public_smoke.log 2>&1
+          code=$?
+          cat casj_validation/results/public_smoke.log
+          exit $code
 
       - name: Validate machine-readable evidence boundary
         run: |
