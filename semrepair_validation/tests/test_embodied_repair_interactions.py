@@ -1,9 +1,11 @@
 import pytest
 
 from research.semantic_invariants.embodied_repair_interactions import (
+    RepairAuthorizationPlane,
     RepairOutcome,
     analyze_repair_lattice,
     authorize_repair_subset,
+    authorize_repair_subset_across_planes,
 )
 
 
@@ -228,3 +230,129 @@ def test_interaction_authorization_rejects_unknown_repair():
 
     with pytest.raises(ValueError, match="unknown repairs"):
         authorize_repair_subset(cert, ("not-in-certificate",))
+
+
+
+def test_multi_plane_authorization_rejects_semantically_correct_execution_regression():
+    semantic = analyze_repair_lattice(
+        subject="maniskill converter-controller",
+        metric="orientation_error_deg",
+        objective="minimize",
+        repairs=("controller-sign", "converter-representation"),
+        outcomes=(
+            _out((), 5.076696288574988, "semantic/main"),
+            _out(("controller-sign",), 64.74733765443055, "semantic/controller"),
+            _out(("converter-representation",), 66.12799929304104, "semantic/converter"),
+            _out(
+                ("controller-sign", "converter-representation"),
+                0.0,
+                "semantic/composed",
+            ),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="maniskill converter-controller",
+        metric="official_demo_replay_success",
+        objective="maximize",
+        repairs=("controller-sign", "converter-representation"),
+        outcomes=(
+            _out((), 0.9, "replay/main"),
+            _out(("controller-sign",), 0.0, "replay/controller"),
+            _out(("converter-representation",), 0.1, "replay/converter"),
+            _out(
+                ("controller-sign", "converter-representation"),
+                0.8,
+                "replay/composed",
+            ),
+        ),
+    )
+
+    semantic_only = authorize_repair_subset(
+        semantic,
+        ("controller-sign", "converter-representation"),
+    )
+    assert semantic_only.authorized
+
+    joint = authorize_repair_subset_across_planes(
+        (
+            RepairAuthorizationPlane("semantic-fidelity", semantic),
+            RepairAuthorizationPlane("execution-domain", execution),
+        ),
+        ("controller-sign", "converter-representation"),
+    )
+
+    assert not joint.authorized
+    assert any(
+        reason.startswith("execution-domain:") and "regresses" in reason
+        for reason in joint.reasons
+    )
+
+
+def test_multi_plane_authorization_allows_bundle_only_when_every_plane_passes():
+    semantic = analyze_repair_lattice(
+        subject="pipeline",
+        metric="semantic_error",
+        objective="minimize",
+        repairs=("a", "b"),
+        outcomes=(
+            _out((), 1.0, "semantic/base"),
+            _out(("a",), 2.0, "semantic/a"),
+            _out(("b",), 2.0, "semantic/b"),
+            _out(("a", "b"), 0.0, "semantic/ab"),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="pipeline",
+        metric="task_success",
+        objective="maximize",
+        repairs=("a", "b"),
+        outcomes=(
+            _out((), 0.9, "execution/base"),
+            _out(("a",), 0.1, "execution/a"),
+            _out(("b",), 0.2, "execution/b"),
+            _out(("a", "b"), 0.9, "execution/ab"),
+        ),
+    )
+
+    joint = authorize_repair_subset_across_planes(
+        (
+            RepairAuthorizationPlane("semantic-fidelity", semantic),
+            RepairAuthorizationPlane("execution-domain", execution),
+        ),
+        ("a", "b"),
+    )
+    assert joint.authorized
+
+
+def test_multi_plane_authorization_rejects_mismatched_repair_sets():
+    left = analyze_repair_lattice(
+        subject="left",
+        metric="error",
+        objective="minimize",
+        repairs=("a",),
+        outcomes=(
+            _out((), 1.0, "l0"),
+            _out(("a",), 0.0, "la"),
+        ),
+    )
+    right = analyze_repair_lattice(
+        subject="right",
+        metric="error",
+        objective="minimize",
+        repairs=("a", "b"),
+        outcomes=(
+            _out((), 1.0, "r0"),
+            _out(("a",), 0.8, "ra"),
+            _out(("b",), 0.7, "rb"),
+            _out(("a", "b"), 0.0, "rab"),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="same repair set"):
+        authorize_repair_subset_across_planes(
+            (
+                RepairAuthorizationPlane("left", left),
+                RepairAuthorizationPlane("right", right),
+            ),
+            ("a",),
+        )
