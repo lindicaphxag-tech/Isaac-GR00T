@@ -210,7 +210,7 @@ def test_local_certificate_cannot_be_rebound_to_different_program():
             contract_id=CONTRACT_ID,
             program=other_result.program,
             local_verification=local,
-            gates=_passing_gates(program),
+            gates=_passing_gates(other_result.program),
         )
     except RepairActivationRejected:
         pass
