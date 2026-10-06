@@ -33,11 +33,39 @@ jobs:
           python -m pip install "mujoco>=3.2,<4"
 
       - name: Run 2x2 physical fault-interaction assay
+        shell: bash
         run: |
-          python semrepair_validation/examples/mujoco_native/semantic_fault_masking_factorial.py --json | tee semantic_fault_masking_report.json
+          set -euo pipefail
+          PYTHONPATH=semrepair_validation \
+            python semrepair_validation/examples/mujoco_native/semantic_fault_masking_factorial.py --json \
+            | tee semantic_fault_masking_report.json
+
+      - name: Validate semantic evidence payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s semantic_fault_masking_report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("semantic_fault_masking_report.json").read_text())
+          static = report["static_prediction"]
+          lattice = report["repair_lattice"]
+          assert static["structurally_masked"] is True
+          assert static["net_is_identity"] is True
+          assert lattice["single_repair_paradox"] is True
+          assert lattice["behavioral_masking"] is True
+          assert lattice["producer_repair_only"] > lattice["baseline_both_faults"] + 0.25
+          assert lattice["dispatch_repair_only"] > lattice["baseline_both_faults"] + 0.25
+          assert lattice["both_repairs"] < 0.02
+          print(json.dumps(lattice, sort_keys=True))
+          PY
 
       - name: Publish deterministic evidence digest
+        shell: bash
         run: |
+          set -euo pipefail
           sha256sum semantic_fault_masking_report.json | tee semantic_fault_masking_report.sha256
 
       - uses: actions/upload-artifact@v4
