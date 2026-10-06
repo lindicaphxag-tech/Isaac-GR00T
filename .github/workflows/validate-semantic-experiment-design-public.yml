@@ -30,8 +30,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object validation_semrepair/embodied_semantic_experiment_design.py)" = "b375929fa17aeabdbc6d62dc865da64c0e26e92d"
-          test "$(git hash-object validation_semrepair/embodied_semantic_identification_repair.py)" = "55d24447e08c71b5e2a3186cb5578a29b5f6692f"
+          test "$(git hash-object validation_semrepair/embodied_semantic_experiment_design.py)" = "ae46b4da05e9ab07c4ee2fd178a750ecbbff26f5"
+          test "$(git hash-object validation_semrepair/embodied_semantic_identification_repair.py)" = "a7743d24196ea8d266832983b04d4d9b2679a54c"
 
       - name: Compile validation kernel
         run: python -m compileall -q validation_semrepair
