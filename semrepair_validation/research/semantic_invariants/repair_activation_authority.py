@@ -16,6 +16,10 @@ import json
 from typing import Any, Mapping, Sequence
 
 from .embodied_repair_runtime import RepairReceipt, SemanticRepairMediator
+from .evidence_qualification import (
+    EvidenceQualificationCertificate,
+    assert_evidence_qualified,
+)
 from .embodied_repair_synthesis import RepairProgram, Vector
 from .embodied_repair_verification import (
     RepairVerificationCertificate,
@@ -25,7 +29,7 @@ from .embodied_repair_verification import (
 
 
 GATE_EVIDENCE_SCHEMA = "semrepair-activation-gate-evidence/v0.2"
-ACTIVATION_CERTIFICATE_SCHEMA = "semrepair-activation-authority/v0.2"
+ACTIVATION_CERTIFICATE_SCHEMA = "semrepair-activation-authority/v0.3"
 REQUIRED_ACTIVATION_GATES = (
     "anchor",
     "value",
@@ -71,6 +75,7 @@ class ActivationGateEvidence:
     evaluator_id: str
     evidence_kind: str
     independent_of_repair_path: bool
+    qualification: EvidenceQualificationCertificate
     metadata: dict[str, Any] | None
     decision_digest: str
 
@@ -86,6 +91,7 @@ def _unsigned_gate_payload(
     evaluator_id: str,
     evidence_kind: str,
     independent_of_repair_path: bool,
+    qualification: EvidenceQualificationCertificate,
     metadata: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     return {
@@ -99,6 +105,7 @@ def _unsigned_gate_payload(
         "evaluator_id": evaluator_id,
         "evidence_kind": evidence_kind,
         "independent_of_repair_path": independent_of_repair_path,
+        "qualification": asdict(qualification),
         "metadata": dict(metadata or {}),
     }
 
@@ -114,6 +121,7 @@ def issue_activation_gate_evidence(
     evaluator_id: str,
     evidence_kind: str,
     independent_of_repair_path: bool,
+    qualification: EvidenceQualificationCertificate,
     metadata: Mapping[str, Any] | None = None,
 ) -> ActivationGateEvidence:
     if gate not in REQUIRED_ACTIVATION_GATES:
@@ -130,6 +138,18 @@ def issue_activation_gate_evidence(
         raise ValueError("evaluator_id must be non-empty")
     if not evidence_kind:
         raise ValueError("evidence_kind must be non-empty")
+    try:
+        assert_evidence_qualified(
+            qualification,
+            contract_id=contract_id,
+            program=program,
+            evidence_digest=evidence_digest,
+            evidence_scope_digest=evidence_scope_digest,
+        )
+    except ValueError as exc:
+        raise RepairActivationRejected(
+            "activation gate requires qualified measurement evidence"
+        ) from exc
 
     payload = _unsigned_gate_payload(
         gate=gate,
@@ -141,6 +161,7 @@ def issue_activation_gate_evidence(
         evaluator_id=evaluator_id,
         evidence_kind=evidence_kind,
         independent_of_repair_path=independent_of_repair_path,
+        qualification=qualification,
         metadata=metadata,
     )
     return ActivationGateEvidence(
@@ -173,6 +194,16 @@ def verify_activation_gate_evidence(
         return False
     if not evidence.evaluator_id or not evidence.evidence_kind:
         return False
+    try:
+        assert_evidence_qualified(
+            evidence.qualification,
+            contract_id=contract_id,
+            program=program,
+            evidence_digest=evidence.evidence_digest,
+            evidence_scope_digest=evidence.evidence_scope_digest,
+        )
+    except ValueError:
+        return False
 
     payload = _unsigned_gate_payload(
         gate=evidence.gate,
@@ -184,6 +215,7 @@ def verify_activation_gate_evidence(
         evaluator_id=evidence.evaluator_id,
         evidence_kind=evidence.evidence_kind,
         independent_of_repair_path=evidence.independent_of_repair_path,
+        qualification=evidence.qualification,
         metadata=evidence.metadata,
     )
     return evidence.decision_digest == _digest(payload)
