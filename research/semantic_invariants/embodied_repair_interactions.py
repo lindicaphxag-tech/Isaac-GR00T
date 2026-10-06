@@ -23,6 +23,12 @@ import json
 from math import isfinite
 from typing import Literal, Sequence
 
+from .embodied_measurement_qualification import (
+    MeasurementQualificationCertificate,
+    MeasurementNotQualified,
+    require_qualified_measurement,
+)
+
 
 Objective = Literal["minimize", "maximize"]
 
@@ -458,5 +464,170 @@ def authorize_repair_subset_across_replicates(
         authorized=all(item.authorized for item in decisions),
         requested_repairs=tuple(sorted(set(requested_repairs))),
         replicate_authorizations=decisions,
+        reasons=tuple(reasons),
+    )
+
+
+
+@dataclass(frozen=True)
+class RepairAuthorizationPlane:
+    plane_id: str
+    certificate: RepairInteractionCertificate
+
+    def __post_init__(self) -> None:
+        if not self.plane_id:
+            raise ValueError("plane_id must be non-empty")
+
+
+@dataclass(frozen=True)
+class MultiPlaneRepairAuthorization:
+    authorized: bool
+    requested_repairs: tuple[str, ...]
+    plane_decisions: tuple[tuple[str, RepairInteractionAuthorization], ...]
+    reasons: tuple[str, ...]
+
+
+def authorize_repair_subset_across_planes(
+    planes: Sequence[RepairAuthorizationPlane],
+    requested_repairs: Sequence[str],
+    *,
+    reject_measured_regression: bool = True,
+    tolerance: float = 0.0,
+) -> MultiPlaneRepairAuthorization:
+    """Require independent authorization on every declared evidence plane.
+
+    A repair can be semantically correct yet still regress an execution-domain
+    metric.  Semantic fidelity, replay/task non-regression, safety and
+    post-effect evidence therefore remain distinct authority planes.
+
+    All planes must describe the same candidate repair set.  Their metric,
+    objective and evidence may differ.  Missing planes are never inferred.
+    """
+
+    if not planes:
+        raise ValueError("at least one authorization plane is required")
+
+    repair_signature = planes[0].certificate.repairs
+    seen_plane_ids: set[str] = set()
+    decisions: list[tuple[str, RepairInteractionAuthorization]] = []
+    reasons: list[str] = []
+
+    for plane in planes:
+        if plane.plane_id in seen_plane_ids:
+            raise ValueError(f"duplicate authorization plane: {plane.plane_id!r}")
+        seen_plane_ids.add(plane.plane_id)
+
+        if plane.certificate.repairs != repair_signature:
+            raise ValueError(
+                "all authorization planes must describe the same repair set"
+            )
+
+        decision = authorize_repair_subset(
+            plane.certificate,
+            requested_repairs,
+            reject_measured_regression=reject_measured_regression,
+            tolerance=tolerance,
+        )
+        decisions.append((plane.plane_id, decision))
+        if not decision.authorized:
+            if decision.reasons:
+                reasons.extend(
+                    f"{plane.plane_id}: {reason}" for reason in decision.reasons
+                )
+            else:
+                reasons.append(f"{plane.plane_id}: denied without a reason")
+
+    return MultiPlaneRepairAuthorization(
+        authorized=all(decision.authorized for _, decision in decisions),
+        requested_repairs=tuple(sorted(set(requested_repairs))),
+        plane_decisions=tuple(decisions),
+        reasons=tuple(reasons),
+    )
+
+
+
+@dataclass(frozen=True)
+class QualifiedRepairAuthorizationPlane:
+    plane_id: str
+    certificate: RepairInteractionCertificate
+    measurement: MeasurementQualificationCertificate
+
+    def __post_init__(self) -> None:
+        if not self.plane_id:
+            raise ValueError("plane_id must be non-empty")
+
+
+@dataclass(frozen=True)
+class QualifiedMultiPlaneRepairAuthorization:
+    authorized: bool
+    requested_repairs: tuple[str, ...]
+    plane_decisions: tuple[tuple[str, RepairInteractionAuthorization], ...]
+    measurement_digests: tuple[tuple[str, str], ...]
+    reasons: tuple[str, ...]
+
+
+def authorize_repair_subset_across_qualified_planes(
+    planes: Sequence[QualifiedRepairAuthorizationPlane],
+    requested_repairs: Sequence[str],
+    *,
+    reject_measured_regression: bool = True,
+    tolerance: float = 0.0,
+) -> QualifiedMultiPlaneRepairAuthorization:
+    """Require qualified measurements before any evidence plane can authorize.
+
+    Repeatable but semantically non-identifying measurements are rejected before
+    their interaction metric is consulted.  This prevents exact self-consistency
+    signals from acquiring repair authority when the same latent semantic error
+    can produce the same observation.
+    """
+    if not planes:
+        raise ValueError("at least one qualified authorization plane is required")
+
+    repair_signature = planes[0].certificate.repairs
+    seen: set[str] = set()
+    decisions: list[tuple[str, RepairInteractionAuthorization]] = []
+    measurement_digests: list[tuple[str, str]] = []
+    reasons: list[str] = []
+
+    for plane in planes:
+        if plane.plane_id in seen:
+            raise ValueError(f"duplicate authorization plane: {plane.plane_id!r}")
+        seen.add(plane.plane_id)
+
+        if plane.certificate.repairs != repair_signature:
+            raise ValueError(
+                "all qualified authorization planes must describe the same repair set"
+            )
+
+        try:
+            require_qualified_measurement(plane.measurement)
+        except MeasurementNotQualified as exc:
+            reasons.append(f"{plane.plane_id}: {exc}")
+            continue
+
+        decision = authorize_repair_subset(
+            plane.certificate,
+            requested_repairs,
+            reject_measured_regression=reject_measured_regression,
+            tolerance=tolerance,
+        )
+        decisions.append((plane.plane_id, decision))
+        measurement_digests.append((plane.plane_id, plane.measurement.digest))
+
+        if not decision.authorized:
+            if decision.reasons:
+                reasons.extend(
+                    f"{plane.plane_id}: {reason}" for reason in decision.reasons
+                )
+            else:
+                reasons.append(f"{plane.plane_id}: denied without a reason")
+
+    return QualifiedMultiPlaneRepairAuthorization(
+        authorized=(len(decisions) == len(planes)) and all(
+            decision.authorized for _, decision in decisions
+        ),
+        requested_repairs=tuple(sorted(set(requested_repairs))),
+        plane_decisions=tuple(decisions),
+        measurement_digests=tuple(measurement_digests),
         reasons=tuple(reasons),
     )
