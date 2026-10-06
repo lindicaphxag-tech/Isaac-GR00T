@@ -1,0 +1,56 @@
+name: Validate PR 786 squashed current-head semantics
+# Fresh evidence trigger: 2026-10-06
+
+on:
+  push:
+    branches:
+      - validation/pr786-current-head-v3
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  focused-boundary-contract:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # On pull_request GitHub otherwise checks out the synthetic merge ref,
+          # which includes unrelated fork-main commits and breaks the exact-head
+          # evidence assertion. Always validate the source branch commit itself.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Assert exact production head identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          PR786=8ca15ac4f3e76f1a4151bfd1f59572d306d99b49
+          git merge-base --is-ancestor "$PR786" HEAD
+          test "$(git show "$PR786":gr00t/eval/sim/wrapper/multistep_wrapper.py | git hash-object --stdin)" = "$(git hash-object gr00t/eval/sim/wrapper/multistep_wrapper.py)"
+          test "$(git show "$PR786":tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py | git hash-object --stdin)" = "$(git hash-object tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py)"
+          changed="$(git diff --name-only "$PR786"..HEAD | sort)"
+          expected="$(printf '%s\n' \
+            '.github/evidence/pr786_maintainer_followup.md' \
+            '.github/validation/pr786_current_head_v3.json' \
+            '.github/validation/validate_multistep_boundary_v3.py' \
+            '.github/workflows/validate-pr786-current-head-v3.yml' | sort)"
+          test "$changed" = "$expected"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Install dependency-light runtime requirements
+        run: python -m pip install --upgrade pip numpy gymnasium
+
+      - name: Validate production MultiStep boundary semantics
+        run: PYTHONPATH=. python .github/validation/validate_multistep_boundary_v3.py

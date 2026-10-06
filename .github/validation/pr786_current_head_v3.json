@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "upstream_pr": "NVIDIA/Isaac-GR00T#786",
+  "production_head": "8ca15ac4f3e76f1a4151bfd1f59572d306d99b49",
+  "production_shape": {
+    "commits": 1,
+    "changed_files": 2
+  },
+  "validation_branch": "validation/pr786-current-head-v3",
+  "invariants": [
+    "inner truncation stops action chunk and remains truncated",
+    "joint termination+truncation preserves both flags",
+    "wrapper max_episode_steps is truncation, not termination",
+    "terminate_on_success updates returned boundary and internal dones consistently"
+  ],
+  "claim_boundary": "self-authored exact-head validation; not upstream CI approval or maintained adoption"
+}
