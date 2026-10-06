@@ -127,3 +127,40 @@ def test_unversioned_primitive_cannot_receive_installable_certificate():
             heldout=[RepairExample((-1.0, -2.0), (1.0, 2.0))],
             verifier_id="heldout-bank-v1",
         )
+
+def test_same_declared_identity_with_changed_apply_fn_invalidates_old_certificate():
+    original = RepairProgram(
+        (
+            RepairPrimitive(
+                name="semantic-cast",
+                family="representation",
+                cost=1,
+                apply_fn=lambda value, context: tuple(value),
+                implementation_id="semantic-cast@v1",
+            ),
+        )
+    )
+    cert = verify_repair_against_heldout(
+        contract_id="embodied/implementation-binding@0.1",
+        program=original,
+        heldout=[RepairExample((1.0, 2.0), (1.0, 2.0))],
+        verifier_id="implementation-binding-bank-v1",
+    )
+
+    drifted = RepairProgram(
+        (
+            RepairPrimitive(
+                name="semantic-cast",
+                family="representation",
+                cost=1,
+                apply_fn=lambda value, context: tuple(reversed(value)),
+                implementation_id="semantic-cast@v1",
+            ),
+        )
+    )
+
+    assert not certificate_matches_program(
+        cert,
+        contract_id="embodied/implementation-binding@0.1",
+        program=drifted,
+    )
