@@ -51,6 +51,7 @@ class SemanticExperiment:
     risk: float = 0.0
     probe: str | None = None
     tap_after_factor: str | None = None
+    observation_atol: float = 0.0
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -59,6 +60,10 @@ class SemanticExperiment:
             raise ValueError("experiment cost must be finite and positive")
         if (not isfinite(self.risk)) or self.risk < 0:
             raise ValueError("experiment risk must be finite and non-negative")
+        if (not isfinite(self.observation_atol)) or self.observation_atol < 0:
+            raise ValueError(
+                "observation_atol must be finite and non-negative"
+            )
         names = tuple(name for name, _ in self.outcomes)
         if len(names) != len(set(names)):
             raise ValueError("experiment outcomes contain duplicate hypotheses")
@@ -130,20 +135,106 @@ def _effective_cost(experiment: SemanticExperiment, risk_weight: float) -> float
     return experiment.cost + risk_weight * experiment.risk
 
 
+def _numeric_observation(value: Observation) -> tuple[float, ...] | None:
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return None
+    if isinstance(value, (int, float)):
+        return (float(value),)
+    if isinstance(value, tuple):
+        flattened: list[float] = []
+        for item in value:
+            numeric = _numeric_observation(item)
+            if numeric is None:
+                return None
+            flattened.extend(numeric)
+        return tuple(flattened)
+    return None
+
+
+def _observation_distance(left: Observation, right: Observation) -> float:
+    lhs = _numeric_observation(left)
+    rhs = _numeric_observation(right)
+    if lhs is None or rhs is None or len(lhs) != len(rhs):
+        return (
+            0.0
+            if _canonical_observation(left) == _canonical_observation(right)
+            else float("inf")
+        )
+    return max(abs(a - b) for a, b in zip(lhs, rhs, strict=True))
+
+
+def _observation_compatible(
+    expected: Observation,
+    observed: Observation,
+    *,
+    atol: float,
+) -> bool:
+    return _observation_distance(expected, observed) <= atol
+
+
 def _partition(
     hypotheses: frozenset[str],
     experiment: SemanticExperiment,
 ) -> tuple[tuple[Observation, frozenset[str]], ...]:
-    groups: dict[str, tuple[Observation, set[str]]] = {}
-    for hypothesis in hypotheses:
-        outcome = experiment.outcome_for(hypothesis)
-        key = _canonical_observation(outcome)
-        if key not in groups:
-            groups[key] = (outcome, set())
-        groups[key][1].add(hypothesis)
+    """Conservative robust partition under bounded observation error.
+
+    Each predicted observation denotes an L-infinity ball of radius
+    observation_atol. Hypotheses whose balls overlap cannot be assigned to
+    different branches without risking an ambiguous runtime observation.
+    Connected overlap components are therefore merged conservatively.
+    """
+
+    ordered = tuple(sorted(hypotheses))
+    if experiment.observation_atol == 0.0:
+        groups: dict[str, tuple[Observation, set[str]]] = {}
+        for hypothesis in ordered:
+            outcome = experiment.outcome_for(hypothesis)
+            key = _canonical_observation(outcome)
+            if key not in groups:
+                groups[key] = (outcome, set())
+            groups[key][1].add(hypothesis)
+        return tuple(
+            (groups[key][0], frozenset(groups[key][1]))
+            for key in sorted(groups)
+        )
+
+    remaining = set(ordered)
+    components: list[tuple[Observation, frozenset[str]]] = []
+    diameter = 2.0 * experiment.observation_atol
+    while remaining:
+        seed = min(remaining)
+        stack = [seed]
+        component = {seed}
+        remaining.remove(seed)
+        while stack:
+            current = stack.pop()
+            current_outcome = experiment.outcome_for(current)
+            neighbors = [
+                other
+                for other in sorted(remaining)
+                if _observation_distance(
+                    current_outcome,
+                    experiment.outcome_for(other),
+                )
+                <= diameter
+            ]
+            for other in neighbors:
+                remaining.remove(other)
+                component.add(other)
+                stack.append(other)
+        representative = min(component)
+        components.append(
+            (
+                experiment.outcome_for(representative),
+                frozenset(component),
+            )
+        )
+
     return tuple(
-        (groups[key][0], frozenset(groups[key][1]))
-        for key in sorted(groups)
+        sorted(
+            components,
+            key=lambda item: tuple(sorted(item[1])),
+        )
     )
 
 
@@ -189,6 +280,7 @@ def _result_digest(
                 "risk": experiment.risk,
                 "probe": experiment.probe,
                 "tap_after_factor": experiment.tap_after_factor,
+                "observation_atol": experiment.observation_atol,
             }
             for experiment in experiments
         ],
@@ -260,18 +352,40 @@ def _observational_equivalence_groups(
     hypotheses: Sequence[str],
     experiments: Sequence[SemanticExperiment],
 ) -> tuple[tuple[str, ...], ...]:
-    signatures: dict[tuple[str, ...], list[str]] = {}
-    for hypothesis in hypotheses:
-        signature = tuple(
-            _canonical_observation(experiment.outcome_for(hypothesis))
-            for experiment in experiments
-        )
-        signatures.setdefault(signature, []).append(hypothesis)
-    return tuple(
-        tuple(sorted(group))
-        for group in signatures.values()
-        if len(group) > 1
-    )
+    """Return conservative ambiguity components across all experiments."""
+
+    names = tuple(sorted(hypotheses))
+    adjacency = {name: set() for name in names}
+    for i, left in enumerate(names):
+        for right in names[i + 1 :]:
+            never_robustly_separated = all(
+                _observation_distance(
+                    experiment.outcome_for(left),
+                    experiment.outcome_for(right),
+                )
+                <= 2.0 * experiment.observation_atol
+                for experiment in experiments
+            )
+            if never_robustly_separated:
+                adjacency[left].add(right)
+                adjacency[right].add(left)
+
+    remaining = set(names)
+    groups: list[tuple[str, ...]] = []
+    while remaining:
+        seed = min(remaining)
+        stack = [seed]
+        component = {seed}
+        remaining.remove(seed)
+        while stack:
+            current = stack.pop()
+            for other in sorted(adjacency[current] & remaining):
+                remaining.remove(other)
+                component.add(other)
+                stack.append(other)
+        if len(component) > 1:
+            groups.append(tuple(sorted(component)))
+    return tuple(sorted(groups))
 
 
 def solve_optimal_semantic_diagnosis(
@@ -660,6 +774,7 @@ def build_transport_experiments(
     tap_costs: Mapping[str, float] | None = None,
     include_external_output: bool = True,
     round_digits: int = 12,
+    observation_atol: float = 0.0,
 ) -> tuple[SemanticExperiment, ...]:
     """Build joint probe/tap experiments for monomial semantic hypotheses."""
 
@@ -733,6 +848,7 @@ def build_transport_experiments(
                     risk=0.0,
                     probe=probe_name,
                     tap_after_factor=None,
+                    observation_atol=observation_atol,
                 )
             )
 
@@ -753,6 +869,7 @@ def build_transport_experiments(
                     risk=0.0,
                     probe=probe_name,
                     tap_after_factor=tap_name,
+                    observation_atol=observation_atol,
                 )
             )
 
