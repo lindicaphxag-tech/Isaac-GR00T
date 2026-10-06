@@ -27,7 +27,7 @@ from .embodied_semantic_experiment_design import (
     Observation,
     OptimalDiagnosisResult,
     SemanticExperiment,
-    _canonical_observation,
+    _observation_compatible,
 )
 from .embodied_semantic_observability import SemanticDiagnosisHypothesis
 from .embodied_semantic_transport import MonomialSemanticTransport
@@ -101,28 +101,33 @@ def execute_diagnosis_policy(
             )
         experiment = experiment_by_name[policy.experiment]
         observed = observe(experiment)
-        observed_key = _canonical_observation(observed)
-        branch = next(
-            (
-                item
-                for item in policy.branches
-                if _canonical_observation(item.outcome) == observed_key
-            ),
-            None,
-        )
-        if branch is None:
+        compatible_branches = []
+        for item in policy.branches:
+            child_hypotheses = item.child.hypotheses
+            if any(
+                _observation_compatible(
+                    experiment.outcome_for(hypothesis),
+                    observed,
+                    atol=experiment.observation_atol,
+                )
+                for hypothesis in child_hypotheses
+            ):
+                compatible_branches.append(item)
+
+        if len(compatible_branches) != 1:
             return DiagnosisExecution(
                 status="refused",
                 identified_hypothesis=None,
                 policy_digest=result.digest,
                 steps=tuple(steps),
-                reason="observation is outside the frozen hypothesis table",
+                reason=(
+                    "observation is outside the declared error bound"
+                    if not compatible_branches
+                    else "observation is ambiguous under the declared error bound"
+                ),
             )
-
-        if isinstance(branch.child, DiagnosisDecision):
-            reachable = branch.child.hypotheses
-        else:
-            reachable = branch.child.hypotheses
+        branch = compatible_branches[0]
+        reachable = branch.child.hypotheses
         steps.append(
             DiagnosisExecutionStep(
                 experiment=experiment.name,
