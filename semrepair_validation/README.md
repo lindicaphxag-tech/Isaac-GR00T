@@ -1,4 +1,4 @@
-# SemRepair 0.3.0-rc1
+# SemRepair 0.3.0-rc2
 
 SemRepair is a research prototype for **semantic type-and-effect compilation**
 across embodied-AI and robot-learning software boundaries.
@@ -29,6 +29,9 @@ type + effect compilation
 independent verification certificate
         |
         v
+interaction-aware repair-set authorization
+        |
+        v
 proof-carrying semantic runtime
         |
         +--> stable physical-effect identity
@@ -38,6 +41,29 @@ proof-carrying semantic runtime
         v
 certified runtime mediation
 ```
+
+## 0.3.0-rc2 hardening
+
+This candidate adds three authority-boundary properties that were not strong
+enough in rc1:
+
+1. **Executable identity binding.** Repair certificates bind stable primitive
+   identity plus inspectable callable/source-file digests, defaults and closure
+   captures. A changed implementation invalidates an old certificate even when
+   its symbolic repair name is unchanged.
+2. **No self-declared verification authority.** Runtime installation requires a
+   matching `RepairVerificationCertificate`; a caller-provided
+   `verification_status="verified"` string has no authority.
+3. **Repair-set atomicity.** A complete factorial interaction certificate can
+   identify compensating semantic defects. Non-empty proper subsets of a
+   strict compensating bundle fail closed even when each local repair is
+   individually correct.
+
+A public ManiSkill `PegInsertionSide-v1` four-way replay assay (workflow
+`37388740482`) measured main=8/10, converter-only=1/10,
+controller-only=0/10, and the composed pair=8/10; main and composed both
+retained 1238 saved steps. This is self-authored real-stack replay evidence,
+not learned-policy success, maintainer adoption, or a prospective I2 result.
 
 ## Install this public release candidate
 
@@ -148,8 +174,7 @@ does not modify NVIDIA production code.
 
 ## Claim boundary
 
-This is a **public release candidate**, not a maintained NVIDIA/Isaac-GR00T
-integration.
+This is a **public release-candidate update derived from the published 0.3.0rc1 snapshot**, not a maintained NVIDIA/Isaac-GR00T integration.
 
 It does **not** count as:
 
@@ -158,6 +183,6 @@ It does **not** count as:
 - project-native real-stack closed-loop validation;
 - L8 achieved;
 - L9 achieved;
-- a GitHub tagged Release.
+- a new rc2 GitHub tagged Release before rc2 publication.
 
 Those gates stay false until external evidence exists.
