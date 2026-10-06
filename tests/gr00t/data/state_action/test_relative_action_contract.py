@@ -1,6 +1,5 @@
-import numpy as np
-
 from gr00t.data.state_action.state_action_processor import StateActionProcessor
+import numpy as np
 
 
 EMBODIMENT = "relative_contract_test"
