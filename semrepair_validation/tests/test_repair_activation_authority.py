@@ -12,12 +12,15 @@ from research.semantic_invariants.repair_activation_authority import (
     ActivationGateEvidence,
     ActivationGatedSemanticRepairMediator,
     RepairActivationRejected,
+    issue_activation_gate_evidence,
     issue_repair_activation_certificate,
+    verify_activation_gate_evidence,
     verify_repair_activation_certificate,
 )
 
 
 CONTRACT_ID = "embodied/repair-activation-test@0.4"
+_GATE_PROGRAM = None
 
 
 def _program():
@@ -47,6 +50,7 @@ def _local(program):
 
 
 def _gate(name, *, status="pass", independent=False):
+    assert _GATE_PROGRAM is not None
     kinds = {
         "anchor": "external-semantic-anchor",
         "value": "paired-semantic-fidelity",
@@ -54,17 +58,22 @@ def _gate(name, *, status="pass", independent=False):
         "interaction": "factorial-repair-interaction",
         "execution": "paired-execution-replay",
     }
-    return ActivationGateEvidence(
+    return issue_activation_gate_evidence(
         gate=name,
+        contract_id=CONTRACT_ID,
+        program=_GATE_PROGRAM,
         status=status,
         evidence_digest=(name[0] * 64),
+        evidence_scope_digest=(name[-1] * 64),
         evaluator_id=f"{name}-evaluator-v1",
         evidence_kind=kinds[name],
         independent_of_repair_path=independent,
     )
 
 
-def _passing_gates():
+def _passing_gates(program):
+    global _GATE_PROGRAM
+    _GATE_PROGRAM = program
     return (
         _gate("anchor", independent=True),
         _gate("value"),
@@ -81,7 +90,7 @@ def test_local_verification_plus_all_activation_gates_authorizes():
         contract_id=CONTRACT_ID,
         program=program,
         local_verification=local,
-        gates=_passing_gates(),
+        gates=_passing_gates(program),
     )
 
     assert verify_repair_activation_certificate(
@@ -101,7 +110,7 @@ def test_missing_gate_fails_closed():
             contract_id=CONTRACT_ID,
             program=program,
             local_verification=local,
-            gates=_passing_gates()[:-1],
+            gates=_passing_gates(program)[:-1],
         )
     except RepairActivationRejected:
         pass
@@ -112,7 +121,7 @@ def test_missing_gate_fails_closed():
 def test_unknown_or_failed_gate_fails_closed():
     program = _program()
     local = _local(program)
-    gates = list(_passing_gates())
+    gates = list(_passing_gates(program))
     gates[3] = _gate("interaction", status="unknown")
 
     try:
@@ -131,7 +140,7 @@ def test_unknown_or_failed_gate_fails_closed():
 def test_circular_anchor_evidence_cannot_authorize():
     program = _program()
     local = _local(program)
-    gates = list(_passing_gates())
+    gates = list(_passing_gates(program))
     gates[0] = _gate("anchor", independent=False)
 
     try:
@@ -150,7 +159,7 @@ def test_circular_anchor_evidence_cannot_authorize():
 def test_execution_gate_must_be_independent_of_local_semantic_path():
     program = _program()
     local = _local(program)
-    gates = list(_passing_gates())
+    gates = list(_passing_gates(program))
     gates[-1] = _gate("execution", independent=False)
 
     try:
@@ -173,7 +182,7 @@ def test_tampered_activation_digest_is_rejected():
         contract_id=CONTRACT_ID,
         program=program,
         local_verification=local,
-        gates=_passing_gates(),
+        gates=_passing_gates(program),
     )
     tampered = replace(activation, decision_digest="0" * 64)
 
@@ -205,12 +214,61 @@ def test_local_certificate_cannot_be_rebound_to_different_program():
             contract_id=CONTRACT_ID,
             program=other_result.program,
             local_verification=local,
-            gates=_passing_gates(),
+            gates=_passing_gates(program),
         )
     except RepairActivationRejected:
         pass
     else:
         raise AssertionError("activation must remain bound to verified executable identity")
+
+
+def test_tampered_gate_evidence_cannot_be_reused_as_authority():
+    program = _program()
+    local = _local(program)
+    gate = _passing_gates(program)[0]
+    tampered = replace(gate, evidence_digest="f" * 64)
+
+    assert not verify_activation_gate_evidence(
+        tampered,
+        contract_id=CONTRACT_ID,
+        program=program,
+    )
+
+    gates = list(_passing_gates(program))
+    gates[0] = tampered
+    try:
+        issue_repair_activation_certificate(
+            contract_id=CONTRACT_ID,
+            program=program,
+            local_verification=local,
+            gates=gates,
+        )
+    except RepairActivationRejected:
+        pass
+    else:
+        raise AssertionError("tampered gate evidence must not authorize activation")
+
+
+def test_gate_evidence_is_bound_to_program_identity():
+    program = _program()
+    gate = _passing_gates(program)[0]
+
+    other_result = synthesize_minimal_repair(
+        [
+            RepairExample((1.0, -2.0, 3.0), (1.0, 2.0, 3.0)),
+            RepairExample((4.0, -5.0, 6.0), (4.0, 5.0, 6.0)),
+        ],
+        build_vector_repair_catalog(3),
+        max_depth=1,
+        allowed_families={"sign"},
+    )
+    assert other_result.program is not None
+
+    assert not verify_activation_gate_evidence(
+        gate,
+        contract_id=CONTRACT_ID,
+        program=other_result.program,
+    )
 
 
 def test_activation_gated_mediator_carries_authority_digest():
@@ -220,7 +278,7 @@ def test_activation_gated_mediator_carries_authority_digest():
         contract_id=CONTRACT_ID,
         program=program,
         local_verification=local,
-        gates=_passing_gates(),
+        gates=_passing_gates(program),
     )
     mediator = ActivationGatedSemanticRepairMediator(
         contract_id=CONTRACT_ID,
