@@ -1,9 +1,18 @@
 import pytest
 
 from research.semantic_invariants.embodied_repair_interactions import (
+    QualifiedRepairAuthorizationPlane,
+    RepairAuthorizationPlane,
     RepairOutcome,
     analyze_repair_lattice,
     authorize_repair_subset,
+    authorize_repair_subset_across_planes,
+    authorize_repair_subset_across_qualified_planes,
+)
+
+from research.semantic_invariants.embodied_measurement_qualification import (
+    MeasurementWorld,
+    qualify_measurement,
 )
 
 
@@ -228,3 +237,237 @@ def test_interaction_authorization_rejects_unknown_repair():
 
     with pytest.raises(ValueError, match="unknown repairs"):
         authorize_repair_subset(cert, ("not-in-certificate",))
+
+
+
+def test_multi_plane_authorization_rejects_semantically_correct_execution_regression():
+    semantic = analyze_repair_lattice(
+        subject="maniskill converter-controller",
+        metric="orientation_error_deg",
+        objective="minimize",
+        repairs=("controller-sign", "converter-representation"),
+        outcomes=(
+            _out((), 5.076696288574988, "semantic/main"),
+            _out(("controller-sign",), 64.74733765443055, "semantic/controller"),
+            _out(("converter-representation",), 66.12799929304104, "semantic/converter"),
+            _out(
+                ("controller-sign", "converter-representation"),
+                0.0,
+                "semantic/composed",
+            ),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="maniskill converter-controller",
+        metric="official_demo_replay_success",
+        objective="maximize",
+        repairs=("controller-sign", "converter-representation"),
+        outcomes=(
+            _out((), 0.9, "replay/main"),
+            _out(("controller-sign",), 0.0, "replay/controller"),
+            _out(("converter-representation",), 0.1, "replay/converter"),
+            _out(
+                ("controller-sign", "converter-representation"),
+                0.8,
+                "replay/composed",
+            ),
+        ),
+    )
+
+    semantic_only = authorize_repair_subset(
+        semantic,
+        ("controller-sign", "converter-representation"),
+    )
+    assert semantic_only.authorized
+
+    joint = authorize_repair_subset_across_planes(
+        (
+            RepairAuthorizationPlane("semantic-fidelity", semantic),
+            RepairAuthorizationPlane("execution-domain", execution),
+        ),
+        ("controller-sign", "converter-representation"),
+    )
+
+    assert not joint.authorized
+    assert any(
+        reason.startswith("execution-domain:") and "regresses" in reason
+        for reason in joint.reasons
+    )
+
+
+def test_multi_plane_authorization_allows_bundle_only_when_every_plane_passes():
+    semantic = analyze_repair_lattice(
+        subject="pipeline",
+        metric="semantic_error",
+        objective="minimize",
+        repairs=("a", "b"),
+        outcomes=(
+            _out((), 1.0, "semantic/base"),
+            _out(("a",), 2.0, "semantic/a"),
+            _out(("b",), 2.0, "semantic/b"),
+            _out(("a", "b"), 0.0, "semantic/ab"),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="pipeline",
+        metric="task_success",
+        objective="maximize",
+        repairs=("a", "b"),
+        outcomes=(
+            _out((), 0.9, "execution/base"),
+            _out(("a",), 0.1, "execution/a"),
+            _out(("b",), 0.2, "execution/b"),
+            _out(("a", "b"), 0.9, "execution/ab"),
+        ),
+    )
+
+    joint = authorize_repair_subset_across_planes(
+        (
+            RepairAuthorizationPlane("semantic-fidelity", semantic),
+            RepairAuthorizationPlane("execution-domain", execution),
+        ),
+        ("a", "b"),
+    )
+    assert joint.authorized
+
+
+def test_multi_plane_authorization_rejects_mismatched_repair_sets():
+    left = analyze_repair_lattice(
+        subject="left",
+        metric="error",
+        objective="minimize",
+        repairs=("a",),
+        outcomes=(
+            _out((), 1.0, "l0"),
+            _out(("a",), 0.0, "la"),
+        ),
+    )
+    right = analyze_repair_lattice(
+        subject="right",
+        metric="error",
+        objective="minimize",
+        repairs=("a", "b"),
+        outcomes=(
+            _out((), 1.0, "r0"),
+            _out(("a",), 0.8, "ra"),
+            _out(("b",), 0.7, "rb"),
+            _out(("a", "b"), 0.0, "rab"),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="same repair set"):
+        authorize_repair_subset_across_planes(
+            (
+                RepairAuthorizationPlane("left", left),
+                RepairAuthorizationPlane("right", right),
+            ),
+            ("a",),
+        )
+
+
+
+def test_qualified_planes_reject_repeatable_but_nonidentifying_evidence():
+    interaction = analyze_repair_lattice(
+        subject="lerobot relative-action mapping",
+        metric="roundtrip_error",
+        objective="minimize",
+        repairs=("mapping-repair",),
+        outcomes=(
+            _out((), 0.0, "legacy-roundtrip"),
+            _out(("mapping-repair",), 0.0, "repaired-roundtrip"),
+        ),
+    )
+    measurement = qualify_measurement(
+        measurement_id="lerobot/relative-action-roundtrip-v1",
+        semantic_anchor_id=None,
+        repeat_outcome_digests=("roundtrip:0",) * 32,
+        worlds=(
+            MeasurementWorld("correct", "roundtrip:0", "forward:correct"),
+            MeasurementWorld("wrong-prefix", "roundtrip:0", "forward:wrong"),
+        ),
+    )
+
+    result = authorize_repair_subset_across_qualified_planes(
+        (
+            QualifiedRepairAuthorizationPlane(
+                "roundtrip-self-consistency",
+                interaction,
+                measurement,
+            ),
+        ),
+        ("mapping-repair",),
+    )
+
+    assert not result.authorized
+    assert result.plane_decisions == ()
+    assert any("not qualified" in reason for reason in result.reasons)
+
+
+def test_qualified_planes_preserve_execution_nonregression_gate():
+    semantic = analyze_repair_lattice(
+        subject="maniskill converter-controller",
+        metric="orientation_error_deg",
+        objective="minimize",
+        repairs=("controller-sign", "converter-representation"),
+        outcomes=(
+            _out((), 0.02, "semantic/main"),
+            _out(("controller-sign",), 2.7, "semantic/controller"),
+            _out(("converter-representation",), 2.7, "semantic/converter"),
+            _out(
+                ("controller-sign", "converter-representation"),
+                0.014,
+                "semantic/composed",
+            ),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="maniskill converter-controller",
+        metric="official_demo_replay_success",
+        objective="maximize",
+        repairs=("controller-sign", "converter-representation"),
+        outcomes=(
+            _out((), 0.9, "replay/main"),
+            _out(("controller-sign",), 0.0, "replay/controller"),
+            _out(("converter-representation",), 0.1, "replay/converter"),
+            _out(
+                ("controller-sign", "converter-representation"),
+                0.8,
+                "replay/composed",
+            ),
+        ),
+    )
+
+    semantic_measurement = qualify_measurement(
+        measurement_id="maniskill/paired-so3-fidelity-v2",
+        semantic_anchor_id="controller-contract/desired-so3",
+        repeat_outcome_digests=("paired-corpus-digest",) * 3,
+    )
+    execution_measurement = qualify_measurement(
+        measurement_id="maniskill/official-demo-replay-v1",
+        semantic_anchor_id="env/PegInsertionSide-v1/success",
+        repeat_outcome_digests=("success-sets-exact",) * 5,
+    )
+
+    result = authorize_repair_subset_across_qualified_planes(
+        (
+            QualifiedRepairAuthorizationPlane(
+                "semantic-fidelity",
+                semantic,
+                semantic_measurement,
+            ),
+            QualifiedRepairAuthorizationPlane(
+                "execution-domain",
+                execution,
+                execution_measurement,
+            ),
+        ),
+        ("controller-sign", "converter-representation"),
+    )
+
+    assert not result.authorized
+    assert len(result.plane_decisions) == 2
+    assert len(result.measurement_digests) == 2
+    assert any(
+        reason.startswith("execution-domain:") and "regresses" in reason
+        for reason in result.reasons
+    )
