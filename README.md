@@ -8,6 +8,8 @@
 SemRepair is a research prototype for **proof-carrying semantic repair and
 runtime execution across embodied-AI software boundaries**.
 
+> **Reviewer / maintainer quick entry:** [`REVIEWER_START_HERE.md`](REVIEWER_START_HERE.md) gives a 60-second evidence map, a 10-minute falsification checklist, public run IDs, and the exact boundary between self-authored validation and external adoption.
+
 It targets failures where tensors remain shape/dtype-valid while physical
 meaning changes silently: rotation representation, joint ordering, clock/scope,
 action provenance, sensor freshness, dependency provenance, and physical-effect
