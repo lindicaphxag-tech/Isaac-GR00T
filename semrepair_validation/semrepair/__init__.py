@@ -1,6 +1,11 @@
 """Public SemRepair release-candidate API."""
 
 from research.semantic_invariants.embodied_repair_runtime import SemanticRepairMediator
+from research.semantic_invariants.embodied_repair_interactions import (
+    RepairInteractionCertificate,
+    analyze_repair_lattice,
+    authorize_repair_subset,
+)
 from research.semantic_invariants.embodied_repair_verification import (
     RepairVerificationCertificate,
     verify_repair_against_heldout,
@@ -26,11 +31,12 @@ from research.semantic_invariants.embodied_semantic_types import (
     synthesize_unique_adapter_plan,
 )
 
-__version__ = "0.3.0rc1"
+__version__ = "0.3.0rc2"
 
 __all__ = [
     "CompilationResult",
     "FieldInferenceSpec",
+    "RepairInteractionCertificate",
     "RepairVerificationCertificate",
     "SemanticAdapter",
     "SemanticEventTransition",
@@ -39,6 +45,8 @@ __all__ = [
     "SemanticRepairMediator",
     "SemanticTensorType",
     "active_semantic_inference",
+    "analyze_repair_lattice",
+    "authorize_repair_subset",
     "compile_semantic_boundary",
     "compile_source_boundary",
     "infer_type_from_source",
