@@ -46,7 +46,10 @@ jobs:
           python -m pip install -e ./casj_validation
 
       - name: Unit gate — trust region
-        run: python -m pytest -q casj_validation/tests/test_trust_region.py
+        run: |
+          mkdir -p casj_validation/results
+          python -m pytest -q casj_validation/tests/test_trust_region.py \
+            --junitxml=casj_validation/results/unit_trust_region.xml
 
       - name: Unit gate — PI-CASJ continuation
         run: python -m pytest -q casj_validation/tests/test_continuation.py
