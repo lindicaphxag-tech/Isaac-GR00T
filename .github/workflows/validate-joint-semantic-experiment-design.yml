@@ -1,0 +1,35 @@
+name: Joint semantic experiment design validation
+
+on:
+  push:
+    branches:
+      - validation/joint-semantic-experiment-design
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependency-light test surface
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Compile mirrored semantic kernel
+        run: |
+          python -m py_compile             research/semantic_invariants/embodied_semantic_transport.py             research/semantic_invariants/embodied_semantic_observability.py             research/semantic_invariants/embodied_semantic_experiment_design.py
+
+      - name: Run joint experiment-design tests
+        run: |
+          python -m pytest -q             research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py
