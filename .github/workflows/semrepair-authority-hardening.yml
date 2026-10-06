@@ -35,6 +35,8 @@ jobs:
             research/semantic_invariants/embodied_repair_synthesis.py \
             research/semantic_invariants/embodied_repair_verification.py \
             research/semantic_invariants/embodied_repair_runtime.py \
+            research/semantic_invariants/embodied_measurement_identifiability.py \
+            research/semantic_invariants/embodied_measurement_qualification.py \
             research/semantic_invariants/embodied_repair_interactions.py \
             research/semantic_invariants/embodied_atomic_repair.py \
             research/semantic_invariants/embodied_execution_domain.py \
@@ -45,6 +47,8 @@ jobs:
           python -m pytest -q \
             research/semantic_invariants/tests/test_embodied_repair_verification.py \
             research/semantic_invariants/tests/test_embodied_repair_runtime.py \
+            research/semantic_invariants/tests/test_embodied_measurement_identifiability.py \
+            research/semantic_invariants/tests/test_embodied_measurement_qualification.py \
             research/semantic_invariants/tests/test_embodied_repair_interactions.py \
             research/semantic_invariants/tests/test_embodied_atomic_repair.py \
             research/semantic_invariants/tests/test_embodied_execution_domain.py \
