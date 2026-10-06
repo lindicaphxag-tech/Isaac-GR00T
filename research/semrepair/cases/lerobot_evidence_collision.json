@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "case": "LeRobot relative-action state/action mapping",
+  "external_anchor_verified": false,
+  "internal_evidence": {
+    "metrics": ["roundtrip_linf_error"],
+    "equivalence_tolerance": 1e-12
+  },
+  "external_semantic_oracle": {
+    "name": "one_way_relative_target_linf_error",
+    "material_separation": 1.0
+  },
+  "variants": [
+    {
+      "id": "correct_explicit_state_action_map",
+      "internal_scores": {"roundtrip_linf_error": 0.0},
+      "external_semantic_score": 0.0
+    },
+    {
+      "id": "legacy_shared_prefix_anchor",
+      "internal_scores": {"roundtrip_linf_error": 0.0},
+      "external_semantic_score": 59.7
+    }
+  ],
+  "source_binding": {
+    "repository": "huggingface/lerobot",
+    "commit": "8c920c4270460851cedd2737657584586d3dc66f",
+    "source_sha256": "1c99f2a66649579cf6536d1970f71172b0b50bcb8decd226a9aa8969c0b0f171",
+    "public_witness_run": 37406064561
+  }
+}
