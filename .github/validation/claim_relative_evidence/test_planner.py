@@ -418,3 +418,28 @@ def test_digest_binds_claim_authority():
     )
     assert task.status == rotation.status == "identified"
     assert task.digest != rotation.digest
+
+
+def test_real_maniskill_case_routes_each_claim_to_its_authorized_oracle():
+    from maniskill_claim_authority_case import (
+        build_maniskill_claim_authority_case,
+    )
+
+    result = build_maniskill_claim_authority_case()
+
+    assert result.rotation_plan.status == "identified"
+    assert isinstance(result.rotation_plan.root, DiagnosisDecision)
+    assert (
+        result.rotation_plan.root.experiment
+        == "paired_so3_controller_target_fidelity"
+    )
+    assert result.rotation_plan.authorized_experiments == (
+        "paired_so3_controller_target_fidelity",
+    )
+
+    assert result.task_plan.status == "identified"
+    assert isinstance(result.task_plan.root, DiagnosisDecision)
+    assert result.task_plan.root.experiment == "official_demo_task_replay"
+    assert result.task_plan.authorized_experiments == (
+        "official_demo_task_replay",
+    )
