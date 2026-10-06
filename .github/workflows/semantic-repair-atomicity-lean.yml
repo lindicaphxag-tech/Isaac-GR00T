@@ -37,7 +37,8 @@ jobs:
 
       - name: Compile declared core plus atomicity theorem
         working-directory: semrepair_validation/formal
+        shell: bash
         run: |
-          lean SemRepairFormal/Core.lean
-          lean SemRepairFormal/AtomicRepair.lean
-          lean SemRepairFormal.lean
+          set -euo pipefail
+          lake --version
+          lake build SemRepairFormal
