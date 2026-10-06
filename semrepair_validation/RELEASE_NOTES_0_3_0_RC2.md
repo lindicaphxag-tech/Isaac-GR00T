@@ -32,21 +32,23 @@ policy allows it.
 
 ## Public real-stack evidence
 
-A self-authored public ManiSkill assay replays the same first 10 official
-`PegInsertionSide-v1` motion-planning demonstrations across four cells:
+Two self-authored public ManiSkill executions replay the same first 10 official
+`PegInsertionSide-v1` motion-planning demonstrations across four cells.
 
-| Cell | Saved episodes | Saved steps |
-| --- | ---: | ---: |
-| current main | 8/10 | 1238 |
-| converter-only #1495 | 1/10 | 574 |
-| controller-only #1472 | 0/10 | 0 |
-| composed #1472 + #1495 | 8/10 | 1238 |
+Parallel execution (`37388740482`) produced 8/10 main, 1/10 converter-only,
+0/10 controller-only, and 8/10 composed.
 
-Public workflow: `37388740482`.
+Serial exact-head execution (`37394500249`) produced 9/10 main, 1/10
+converter-only, 0/10 controller-only, and 8/10 composed.
 
-This establishes a real-stack compensating-defect example for the interaction
-kernel. It does not establish learned-policy improvement, real-robot safety,
-maintainer-retained adoption, or prospective I2 confirmation.
+The singleton regressions and composed recovery are repeatable, but the
+main-vs-composed relation is not. rc2 therefore does not treat task-success
+evidence as sufficient authority for the composed repair. Replicated
+authorization fails closed until a direct semantic-fidelity metric resolves
+the ambiguity.
+
+This is real-stack interaction evidence, not learned-policy improvement,
+real-robot safety, maintainer-retained adoption, or prospective I2 confirmation.
 
 ## External evidence boundary
 
