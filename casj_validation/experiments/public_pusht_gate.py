@@ -582,28 +582,39 @@ def evaluate_snapshot(
     )
     coarse_fraction = 2.0 * fine_fraction
 
-    pi_casj_certificate = certify_path_integrated_transport(
-        lambda tau: estimate_pathwise_directional_derivative_via_query(
-            policy_query=policy_query,
-            history=history,
-            randomness=randomness,
-            support_delta=heldout_delta,
-            path_fraction=tau,
-            fine_step_fraction=fine_fraction,
-            coarse_step_fraction=coarse_fraction,
-        ),
-        reference_action_scale=max(float(np.linalg.norm(casj_delta)), 1.0),
-        coarse_intervals=2,
-    )
-    pi_casj_repaired = baseline + pi_casj_certificate.correction
-    pi_casj_certified_chunk = (
-        pi_casj_repaired.copy()
-        if pi_casj_certificate.accepted
-        else fresh.copy()
-    )
-    pi_casj_certified_fallback = (
-        None if pi_casj_certificate.accepted else "fresh_requery"
-    )
+    # PI-CASJ is retained as a diagnostic, not as the primary runtime
+    # repair claim.  A diagnostic-specific state-restoration failure must not
+    # censor the independently specified FIE / temporal public evidence.
+    pi_casj_error = None
+    try:
+        pi_casj_certificate = certify_path_integrated_transport(
+            lambda tau: estimate_pathwise_directional_derivative_via_query(
+                policy_query=policy_query,
+                history=history,
+                randomness=randomness,
+                support_delta=heldout_delta,
+                path_fraction=tau,
+                fine_step_fraction=fine_fraction,
+                coarse_step_fraction=coarse_fraction,
+            ),
+            reference_action_scale=max(float(np.linalg.norm(casj_delta)), 1.0),
+            coarse_intervals=2,
+        )
+        pi_casj_repaired = baseline + pi_casj_certificate.correction
+        pi_casj_certified_chunk = (
+            pi_casj_repaired.copy()
+            if pi_casj_certificate.accepted
+            else fresh.copy()
+        )
+        pi_casj_certified_fallback = (
+            None if pi_casj_certificate.accepted else "fresh_requery"
+        )
+    except (RuntimeError, ValueError) as exc:
+        pi_casj_certificate = None
+        pi_casj_repaired = None
+        pi_casj_certified_chunk = fresh.copy()
+        pi_casj_certified_fallback = "fresh_requery_after_diagnostic_error"
+        pi_casj_error = f"{type(exc).__name__}: {exc}"
 
     directional_fine = estimate_directional_curvature_via_query(
         policy_query=policy_query,
@@ -625,7 +636,11 @@ def evaluate_snapshot(
     stale_mse = float(np.mean((baseline - fresh) ** 2))
     global_mse = float(np.mean((global_comp - fresh) ** 2))
     casj_mse = float(np.mean((casj_repaired - fresh) ** 2))
-    pi_casj_mse = float(np.mean((pi_casj_repaired - fresh) ** 2))
+    pi_casj_mse = (
+        float(np.mean((pi_casj_repaired - fresh) ** 2))
+        if pi_casj_repaired is not None
+        else None
+    )
     event_current_stale_mse = float(
         np.mean((baseline - event_current_fresh) ** 2)
     )
@@ -789,8 +804,15 @@ def evaluate_snapshot(
         "casj_raw_linear": execute_chunk_branch(
             env, start_state=disturbed_state, chunk=casj_repaired
         ),
-        "pi_casj_raw": execute_chunk_branch(
-            env, start_state=disturbed_state, chunk=pi_casj_repaired
+        "pi_casj_raw": (
+            execute_chunk_branch(
+                env, start_state=disturbed_state, chunk=pi_casj_repaired
+            )
+            if pi_casj_repaired is not None
+            else {
+                "valid": False,
+                "reason": pi_casj_error,
+            }
         ),
         "pi_casj_certified": execute_chunk_branch(
             env, start_state=disturbed_state, chunk=pi_casj_certified_chunk
@@ -866,21 +888,37 @@ def evaluate_snapshot(
         "global_compensation_mse": global_mse,
         "casj_repair_mse": casj_mse,
         "pi_casj_repair_mse": pi_casj_mse,
-        "pi_casj_to_stale_ratio": pi_casj_mse / max(stale_mse, 1e-12),
-        "pi_casj_certificate": {
-            "accepted": pi_casj_certificate.accepted,
-            "richardson_error_norm": pi_casj_certificate.richardson_error_norm,
-            "error_to_correction": pi_casj_certificate.error_to_correction,
-            "error_to_reference_scale": pi_casj_certificate.error_to_reference_scale,
-            "max_local_scale_instability": (
-                pi_casj_certificate.max_local_scale_instability
-            ),
-            "coarse_intervals": pi_casj_certificate.coarse_intervals,
-            "fine_intervals": pi_casj_certificate.fine_intervals,
-            "derivative_nodes": pi_casj_certificate.derivative_queries,
-            "policy_queries": 4 * pi_casj_certificate.derivative_queries,
-            "reason": pi_casj_certificate.reason,
-        },
+        "pi_casj_to_stale_ratio": (
+            pi_casj_mse / max(stale_mse, 1e-12)
+            if pi_casj_mse is not None
+            else None
+        ),
+        "pi_casj_certificate": (
+            {
+                "status": "ok",
+                "accepted": pi_casj_certificate.accepted,
+                "richardson_error_norm": pi_casj_certificate.richardson_error_norm,
+                "error_to_correction": pi_casj_certificate.error_to_correction,
+                "error_to_reference_scale": (
+                    pi_casj_certificate.error_to_reference_scale
+                ),
+                "max_local_scale_instability": (
+                    pi_casj_certificate.max_local_scale_instability
+                ),
+                "coarse_intervals": pi_casj_certificate.coarse_intervals,
+                "fine_intervals": pi_casj_certificate.fine_intervals,
+                "derivative_nodes": pi_casj_certificate.derivative_queries,
+                "policy_queries": 4 * pi_casj_certificate.derivative_queries,
+                "reason": pi_casj_certificate.reason,
+            }
+            if pi_casj_certificate is not None
+            else {
+                "status": "diagnostic_error",
+                "accepted": False,
+                "policy_queries": None,
+                "reason": pi_casj_error,
+            }
+        ),
         "pi_casj_certified_fallback": pi_casj_certified_fallback,
         "event_current_stale_mse": event_current_stale_mse,
         "event_current_casj_mse": event_current_casj_mse,
@@ -954,7 +992,9 @@ def evaluate_snapshot(
         "baseline_chunk": baseline.tolist(),
         "fresh_chunk": fresh.tolist(),
         "casj_repaired_chunk": casj_repaired.tolist(),
-        "pi_casj_repaired_chunk": pi_casj_repaired.tolist(),
+        "pi_casj_repaired_chunk": (
+            pi_casj_repaired.tolist() if pi_casj_repaired is not None else None
+        ),
         "pi_casj_certified_chunk": pi_casj_certified_chunk.tolist(),
         "event_current_fresh_chunk": event_current_fresh.tolist(),
         "event_current_casj_repaired_chunk": (
