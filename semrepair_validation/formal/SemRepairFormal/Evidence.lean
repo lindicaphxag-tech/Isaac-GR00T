@@ -98,36 +98,4 @@ theorem no_authorized_tree_can_identify_claim_equivalent_distinct_hypotheses
   rw [hidentified.1, hidentified.2] at hsame
   exact hne hsame
 
-theorem extending_claim_authority_can_only_break_equivalence_with_new_evidence
-    {Claim : Type uC}
-    {Hypothesis : Type uH}
-    {Experiment : Type uE}
-    {Observation : Type uO}
-    (authorizedNarrow authorizedWide : Claim → Experiment → Prop)
-    (claim : Claim)
-    (observe : Hypothesis → Experiment → Observation)
-    (left right : Hypothesis)
-    (hsubset :
-      ∀ experiment,
-        authorizedNarrow claim experiment →
-        authorizedWide claim experiment)
-    (hwideDifferent :
-      ¬ ClaimObservationallyEquivalent
-        authorizedWide claim observe left right)
-    (hnarrowSame :
-      ClaimObservationallyEquivalent
-        authorizedNarrow claim observe left right) :
-    ∃ experiment,
-      authorizedWide claim experiment ∧
-      ¬ authorizedNarrow claim experiment ∧
-      observe left experiment ≠ observe right experiment := by
-  classical
-  by_contra hnoWitness
-  apply hwideDifferent
-  intro experiment hwide
-  by_contra hdiff
-  by_cases hnarrow : authorizedNarrow claim experiment
-  · exact hdiff (hnarrowSame experiment hnarrow)
-  · exact hnoWitness ⟨experiment, hwide, hnarrow, hdiff⟩
-
 end SemRepair.Evidence
