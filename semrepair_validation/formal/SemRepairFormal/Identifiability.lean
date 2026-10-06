@@ -78,7 +78,7 @@ theorem authorization_requires_execution_gate
     (e : ActivationEvidence)
     (h : Authorized e) :
     e.executionGate = true :=
-  h.2.2.2.2.2.1
+  h.2.2.2.2.2
 
 /--
 Even perfect internal self-consistency cannot authorize a repair when the
