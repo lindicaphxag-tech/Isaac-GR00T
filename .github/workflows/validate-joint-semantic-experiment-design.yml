@@ -28,8 +28,17 @@ jobs:
 
       - name: Compile mirrored semantic kernel
         run: |
-          python -m py_compile             research/semantic_invariants/embodied_semantic_transport.py             research/semantic_invariants/embodied_semantic_observability.py             research/semantic_invariants/embodied_semantic_experiment_design.py             research/semantic_invariants/embodied_repair_synthesis.py             research/semantic_invariants/embodied_semantic_autorepair_bridge.py
+          python -m py_compile             research/semantic_invariants/embodied_semantic_transport.py             research/semantic_invariants/embodied_semantic_observability.py             research/semantic_invariants/embodied_semantic_experiment_design.py             research/semantic_invariants/embodied_repair_synthesis.py             research/semantic_invariants/embodied_semantic_autorepair_bridge.py             research/semantic_invariants/reproduce_joint_semantic_experiment_design.py
 
       - name: Run experiment-design and diagnose-before-repair tests
         run: |
           python -m pytest -q             research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py             research/semantic_invariants/tests/test_embodied_semantic_autorepair_bridge.py
+
+      - name: Run deterministic public reproduction capsule
+        run: |
+          python research/semantic_invariants/reproduce_joint_semantic_experiment_design.py             | tee joint_semantic_experiment_design_${{ matrix.python-version }}.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: joint-semantic-experiment-design-${{ matrix.python-version }}
+          path: joint_semantic_experiment_design_${{ matrix.python-version }}.json
