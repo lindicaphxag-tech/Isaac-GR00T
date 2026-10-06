@@ -78,52 +78,60 @@ def test_certificate_is_not_transferable_to_other_contract():
         program=program,
     )
 
-
-def test_certificate_rejects_same_named_primitive_with_different_implementation_identity():
-    program = _sign_program()
-    cert = verify_repair_against_heldout(
-        contract_id="embodied/test@0.1",
-        program=program,
-        heldout=[RepairExample((-1.0, 2.0, -3.0), (1.0, 2.0, 3.0))],
-        verifier_id="heldout-bank-v1",
-    )
-
-    original = program.operations[0]
-    substituted = RepairProgram(
+def test_same_declared_identity_with_changed_apply_fn_invalidates_old_certificate():
+    original = RepairProgram(
         (
             RepairPrimitive(
-                name=original.name,
-                family=original.family,
-                cost=original.cost,
-                apply_fn=original.apply_fn,
-                implementation_id="attacker-v1:same-name-different-code",
+                name="semantic-cast",
+                family="representation",
+                cost=1,
+                apply_fn=lambda value, context: tuple(value),
+                implementation_id="semantic-cast@v1",
+            ),
+        )
+    )
+    cert = verify_repair_against_heldout(
+        contract_id="embodied/implementation-binding@0.1",
+        program=original,
+        heldout=[RepairExample((1.0, 2.0), (1.0, 2.0))],
+        verifier_id="implementation-binding-bank-v1",
+    )
+
+    drifted = RepairProgram(
+        (
+            RepairPrimitive(
+                name="semantic-cast",
+                family="representation",
+                cost=1,
+                apply_fn=lambda value, context: tuple(reversed(value)),
+                implementation_id="semantic-cast@v1",
             ),
         )
     )
 
     assert not certificate_matches_program(
         cert,
-        contract_id="embodied/test@0.1",
-        program=substituted,
+        contract_id="embodied/implementation-binding@0.1",
+        program=drifted,
     )
 
 
-def test_unversioned_primitive_cannot_receive_installable_certificate():
+def test_unidentified_custom_implementation_cannot_receive_certificate():
     program = RepairProgram(
         (
             RepairPrimitive(
-                name="anonymous-sign",
-                family="sign",
+                name="anonymous-custom",
+                family="custom",
                 cost=1,
-                apply_fn=lambda value, context: tuple(-x for x in value),
+                apply_fn=lambda value, context: tuple(value),
             ),
         )
     )
 
     with pytest.raises(RepairVerificationFailed, match="implementation identity"):
         verify_repair_against_heldout(
-            contract_id="embodied/test@0.1",
+            contract_id="embodied/unidentified@0.1",
             program=program,
-            heldout=[RepairExample((-1.0, -2.0), (1.0, 2.0))],
-            verifier_id="heldout-bank-v1",
+            heldout=[RepairExample((1.0,), (1.0,))],
+            verifier_id="implementation-binding-bank-v1",
         )
