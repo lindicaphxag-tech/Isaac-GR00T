@@ -1,9 +1,7 @@
 name: CASJ VQ-BeT PushT Cross-Family Gate
 
 on:
-  push:
-    branches:
-      - "validation/casj-pusht-public-gate"
+  pull_request:
     paths:
       - ".github/workflows/casj-vqbet-pusht-gate.yml"
       - "casj_validation/experiments/public_vqbet_pusht_gate.py"
