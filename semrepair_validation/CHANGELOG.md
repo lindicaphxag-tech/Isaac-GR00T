@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.0-rc2
+
+### Authority hardening
+
+- bind repair certificates to executable source identity, not symbolic names;
+- reject custom verified-runtime primitives without stable/inspectable identity;
+- require a real matching verification certificate at runtime;
+- reject self-declared `verification_status="verified"` authority.
+
+### Interaction-aware repair
+
+- add complete factorial repair-lattice analysis;
+- detect partial/complete compensating semantic defects;
+- add evidence-bound repair interaction certificates;
+- fail closed on incomplete subsets of strict compensating repair bundles.
+
+### Real-stack evidence
+
+- add the public ManiSkill four-way PegInsertionSide replay capsule from workflow
+  `37388740482`: 8/10 main, 1/10 converter-only, 0/10 controller-only,
+  8/10 composed; main and composed each retain 1238 saved steps;
+- explicitly assign zero external-adoption and zero prospective-I2 credit.
+
 ## 0.3.0-rc1
 
 This release candidate isolates the constructive SemRepair method from the
