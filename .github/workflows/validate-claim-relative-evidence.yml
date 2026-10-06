@@ -26,10 +26,14 @@ jobs:
       - name: Install validation dependencies
         run: python -m pip install --upgrade pip pytest ruff
 
-      - name: Lint claim-authority planner
+      - name: Lint claim-authority surface
         run: |
-          ruff check             .github/validation/claim_relative_evidence/planner.py             .github/validation/claim_relative_evidence/test_planner.py
+          ruff check             .github/validation/claim_relative_evidence/planner.py             .github/validation/claim_relative_evidence/test_planner.py             .github/validation/claim_relative_evidence/maniskill_claim_authority_case.py
 
       - name: Run claim-authority tests
         working-directory: .github/validation/claim_relative_evidence
         run: python -m pytest -q test_planner.py
+
+      - name: Emit real ManiSkill claim routing
+        working-directory: .github/validation/claim_relative_evidence
+        run: python maniskill_claim_authority_case.py
