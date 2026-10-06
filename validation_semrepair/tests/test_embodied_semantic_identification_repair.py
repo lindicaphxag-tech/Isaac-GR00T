@@ -137,7 +137,7 @@ def test_unseen_observation_fails_closed_before_repair_authority():
 
     assert execution.status == "refused"
     assert execution.identified_hypothesis is None
-    assert "outside the frozen hypothesis table" in execution.reason
+    assert "outside the declared error bound" in execution.reason
     assert authorization is None
 
 
