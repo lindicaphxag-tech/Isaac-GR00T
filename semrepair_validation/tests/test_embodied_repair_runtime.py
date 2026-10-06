@@ -152,3 +152,18 @@ def test_runtime_rejects_certificate_reuse_for_other_contract():
         pass
     else:
         raise AssertionError("certificate must be bound to its contract")
+
+def test_self_declared_verified_keyword_has_no_runtime_authority():
+    program = _sign_repair()
+    try:
+        SemanticRepairMediator(
+            contract_id="embodied/self-declared@0.1",
+            program=program,
+            verification_status="verified",  # type: ignore[call-arg]
+        )
+    except TypeError:
+        pass
+    else:
+        raise AssertionError(
+            "a self-declared verified string must never be accepted by the runtime constructor"
+        )
