@@ -1,0 +1,28 @@
+name: Native MuJoCo nuisance semantic witness
+
+on:
+  push:
+    branches:
+      - validation/nuisance-mujoco-real-stack
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-mujoco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned native simulator
+        run: python -m pip install --upgrade pip "mujoco==3.14.0"
+
+      - name: Run native semantic x nuisance witness
+        env:
+          PYTHONPATH: .github/validation
+        run: python .github/validation/nuisance_mujoco_case.py
