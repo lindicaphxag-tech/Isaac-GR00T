@@ -6,13 +6,13 @@ robotics framework.
 The smallest useful integration is one source-boundary manifest plus one CI
 command.
 
-## 1. Install the current public release candidate
+## 1. Install the latest published release candidate
 
 ```bash
-python -m pip install   "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3-rc1#subdirectory=semrepair_validation"
+python -m pip install   "git+https://github.com/lindicaphxag-tech/Isaac-GR00T.git@semrepair-v0.3.0rc1#subdirectory=semrepair_validation"
 ```
 
-This branch is a staging surface, not NVIDIA adoption.
+The command above intentionally installs the published rc1 tag. rc2 is not published yet; this branch is an rc2 staging surface, not NVIDIA adoption.
 
 ## 2. Add a source-boundary manifest
 
