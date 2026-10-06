@@ -265,3 +265,97 @@ def test_authority_or_result_digest_tampering_is_rejected():
     assert not verify_repair_aware_semantic_diagnosis(
         tampered_authority, experiments
     ).valid
+
+
+def test_repair_authority_quotient_never_costs_more_than_full_identification():
+    hypotheses = ("h0", "h1", "h2", "h3")
+    experiments = (
+        _experiment(
+            "coarse",
+            {"h0": "A", "h1": "A", "h2": "B", "h3": "C"},
+            cost=1.0,
+        ),
+        _experiment(
+            "fine",
+            {"h0": 0, "h1": 1, "h2": 2, "h3": 3},
+            cost=4.0,
+        ),
+    )
+    authorities = _authorities(
+        {
+            "h0": "bundle:A",
+            "h1": "bundle:A",
+            "h2": "bundle:B",
+            "h3": "reject",
+        }
+    )
+
+    full = solve_optimal_semantic_diagnosis(
+        hypotheses,
+        experiments,
+        objective="uniform_expected",
+    )
+    repair = solve_repair_aware_semantic_diagnosis(
+        hypotheses,
+        experiments,
+        authorities,
+        objective="uniform_expected",
+    )
+
+    assert full.complete and repair.complete
+    assert repair.optimal_cost <= full.optimal_cost
+    assert repair.optimal_cost == pytest.approx(1.0)
+    assert full.optimal_cost == pytest.approx(3.0)
+
+
+def test_unique_authority_per_hypothesis_reduces_to_full_identification():
+    hypotheses = ("h0", "h1", "h2")
+    experiments = (
+        _experiment(
+            "split",
+            {"h0": 0, "h1": 1, "h2": 1},
+            cost=1.0,
+        ),
+        _experiment(
+            "refine",
+            {"h0": 0, "h1": 0, "h2": 1},
+            cost=2.0,
+        ),
+    )
+    authorities = _authorities(
+        {"h0": "A0", "h1": "A1", "h2": "A2"}
+    )
+
+    full = solve_optimal_semantic_diagnosis(
+        hypotheses,
+        experiments,
+        objective="uniform_expected",
+    )
+    repair = solve_repair_aware_semantic_diagnosis(
+        hypotheses,
+        experiments,
+        authorities,
+        objective="uniform_expected",
+    )
+
+    assert full.complete and repair.complete
+    assert repair.optimal_cost == pytest.approx(full.optimal_cost)
+
+
+def test_single_authority_class_has_zero_diagnostic_value_requirement():
+    hypotheses = ("h0", "h1", "h2")
+    authorities = _authorities(
+        {"h0": "same", "h1": "same", "h2": "same"}
+    )
+
+    repair = solve_repair_aware_semantic_diagnosis(
+        hypotheses,
+        (),
+        authorities,
+    )
+
+    assert repair.complete
+    assert repair.optimal_cost == 0.0
+    assert isinstance(repair.policy, RepairDecisionLeaf)
+    assert set(repair.policy.hypotheses) == set(hypotheses)
+    assert repair.policy.authority_id == "same"
