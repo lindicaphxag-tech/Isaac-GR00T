@@ -4,8 +4,8 @@ Local held-out verification proves that one repair program satisfies one frozen
 semantic witness bank. It does not by itself prove that the repair is
 identifiable, interaction-safe, protocol-compatible, or execution-safe.
 
-This module adds a second, program-bound certificate whose only purpose is
-runtime activation authority.
+This module adds program-bound gate evidence plus a second certificate whose
+only purpose is runtime activation authority.
 """
 
 from __future__ import annotations
@@ -24,7 +24,8 @@ from .embodied_repair_verification import (
 )
 
 
-ACTIVATION_CERTIFICATE_SCHEMA = "semrepair-activation-authority/v0.1"
+GATE_EVIDENCE_SCHEMA = "semrepair-activation-gate-evidence/v0.2"
+ACTIVATION_CERTIFICATE_SCHEMA = "semrepair-activation-authority/v0.2"
 REQUIRED_ACTIVATION_GATES = (
     "anchor",
     "value",
@@ -58,32 +59,134 @@ def verification_certificate_fingerprint(
 
 @dataclass(frozen=True)
 class ActivationGateEvidence:
-    """One independently inspectable activation obligation.
+    """Integrity- and program-bound evidence for one activation obligation."""
 
-    independent_of_repair_path does not assert social independence. It means
-    the evidence is not algebraically produced only by the same transformation
-    path whose semantics it is supposed to identify.
-    """
-
+    schema: str
     gate: str
+    contract_id: str
+    program_fingerprint: str
     status: str
     evidence_digest: str
+    evidence_scope_digest: str
     evaluator_id: str
     evidence_kind: str
     independent_of_repair_path: bool
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None
+    decision_digest: str
 
-    def __post_init__(self) -> None:
-        if self.gate not in REQUIRED_ACTIVATION_GATES:
-            raise ValueError(f"unknown activation gate: {self.gate!r}")
-        if self.status not in VALID_GATE_STATUS:
-            raise ValueError(f"invalid gate status: {self.status!r}")
-        if not self.evidence_digest:
-            raise ValueError("evidence_digest must be non-empty")
-        if not self.evaluator_id:
-            raise ValueError("evaluator_id must be non-empty")
-        if not self.evidence_kind:
-            raise ValueError("evidence_kind must be non-empty")
+
+def _unsigned_gate_payload(
+    *,
+    gate: str,
+    contract_id: str,
+    program_fingerprint: str,
+    status: str,
+    evidence_digest: str,
+    evidence_scope_digest: str,
+    evaluator_id: str,
+    evidence_kind: str,
+    independent_of_repair_path: bool,
+    metadata: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    return {
+        "schema": GATE_EVIDENCE_SCHEMA,
+        "gate": gate,
+        "contract_id": contract_id,
+        "program_fingerprint": program_fingerprint,
+        "status": status,
+        "evidence_digest": evidence_digest,
+        "evidence_scope_digest": evidence_scope_digest,
+        "evaluator_id": evaluator_id,
+        "evidence_kind": evidence_kind,
+        "independent_of_repair_path": independent_of_repair_path,
+        "metadata": dict(metadata or {}),
+    }
+
+
+def issue_activation_gate_evidence(
+    *,
+    gate: str,
+    contract_id: str,
+    program: RepairProgram,
+    status: str,
+    evidence_digest: str,
+    evidence_scope_digest: str,
+    evaluator_id: str,
+    evidence_kind: str,
+    independent_of_repair_path: bool,
+    metadata: Mapping[str, Any] | None = None,
+) -> ActivationGateEvidence:
+    if gate not in REQUIRED_ACTIVATION_GATES:
+        raise ValueError(f"unknown activation gate: {gate!r}")
+    if status not in VALID_GATE_STATUS:
+        raise ValueError(f"invalid gate status: {status!r}")
+    if not contract_id:
+        raise ValueError("contract_id must be non-empty")
+    if not evidence_digest:
+        raise ValueError("evidence_digest must be non-empty")
+    if not evidence_scope_digest:
+        raise ValueError("evidence_scope_digest must be non-empty")
+    if not evaluator_id:
+        raise ValueError("evaluator_id must be non-empty")
+    if not evidence_kind:
+        raise ValueError("evidence_kind must be non-empty")
+
+    payload = _unsigned_gate_payload(
+        gate=gate,
+        contract_id=contract_id,
+        program_fingerprint=repair_program_fingerprint(program),
+        status=status,
+        evidence_digest=evidence_digest,
+        evidence_scope_digest=evidence_scope_digest,
+        evaluator_id=evaluator_id,
+        evidence_kind=evidence_kind,
+        independent_of_repair_path=independent_of_repair_path,
+        metadata=metadata,
+    )
+    return ActivationGateEvidence(
+        **payload,
+        decision_digest=_digest(payload),
+    )
+
+
+def verify_activation_gate_evidence(
+    evidence: ActivationGateEvidence | None,
+    *,
+    contract_id: str,
+    program: RepairProgram,
+) -> bool:
+    if evidence is None or evidence.schema != GATE_EVIDENCE_SCHEMA:
+        return False
+    if evidence.gate not in REQUIRED_ACTIVATION_GATES:
+        return False
+    if evidence.status not in VALID_GATE_STATUS:
+        return False
+    if evidence.contract_id != contract_id:
+        return False
+    try:
+        program_fingerprint = repair_program_fingerprint(program)
+    except Exception:
+        return False
+    if evidence.program_fingerprint != program_fingerprint:
+        return False
+    if not evidence.evidence_digest or not evidence.evidence_scope_digest:
+        return False
+    if not evidence.evaluator_id or not evidence.evidence_kind:
+        return False
+
+    payload = _unsigned_gate_payload(
+        gate=evidence.gate,
+        contract_id=evidence.contract_id,
+        program_fingerprint=evidence.program_fingerprint,
+        status=evidence.status,
+        evidence_digest=evidence.evidence_digest,
+        evidence_scope_digest=evidence.evidence_scope_digest,
+        evaluator_id=evidence.evaluator_id,
+        evidence_kind=evidence.evidence_kind,
+        independent_of_repair_path=evidence.independent_of_repair_path,
+        metadata=evidence.metadata,
+    )
+    return evidence.decision_digest == _digest(payload)
 
 
 @dataclass(frozen=True)
@@ -102,19 +205,14 @@ class RepairActivationCertificate:
 
 
 def _gate_payload(gate: ActivationGateEvidence) -> dict[str, Any]:
-    return {
-        "gate": gate.gate,
-        "status": gate.status,
-        "evidence_digest": gate.evidence_digest,
-        "evaluator_id": gate.evaluator_id,
-        "evidence_kind": gate.evidence_kind,
-        "independent_of_repair_path": gate.independent_of_repair_path,
-        "metadata": gate.metadata,
-    }
+    return asdict(gate)
 
 
 def _validate_gate_set(
     gates: Sequence[ActivationGateEvidence],
+    *,
+    contract_id: str,
+    program: RepairProgram,
 ) -> tuple[ActivationGateEvidence, ...]:
     gates = tuple(gates)
     names = [gate.gate for gate in gates]
@@ -128,6 +226,20 @@ def _validate_gate_set(
     if missing or extra:
         raise RepairActivationRejected(
             f"activation gate set mismatch: missing={missing!r} extra={extra!r}"
+        )
+
+    invalid = [
+        gate.gate
+        for gate in gates
+        if not verify_activation_gate_evidence(
+            gate,
+            contract_id=contract_id,
+            program=program,
+        )
+    ]
+    if invalid:
+        raise RepairActivationRejected(
+            f"activation contains invalid or stale gate evidence={invalid!r}"
         )
 
     not_passed = [gate.gate for gate in gates if gate.status != "pass"]
@@ -175,7 +287,11 @@ def issue_repair_activation_certificate(
             "activation requires a matching program-bound local verification certificate"
         )
 
-    ordered = _validate_gate_set(gates)
+    ordered = _validate_gate_set(
+        gates,
+        contract_id=contract_id,
+        program=program,
+    )
     payload = {
         "schema": ACTIVATION_CERTIFICATE_SCHEMA,
         "contract_id": contract_id,
@@ -220,7 +336,11 @@ def verify_repair_activation_certificate(
         return False
 
     try:
-        ordered = _validate_gate_set(certificate.gates)
+        ordered = _validate_gate_set(
+            certificate.gates,
+            contract_id=contract_id,
+            program=program,
+        )
         program_fingerprint = repair_program_fingerprint(program)
     except (RepairActivationRejected, ValueError):
         return False
