@@ -48,8 +48,13 @@ jobs:
       - name: Unit gate — trust region
         run: |
           mkdir -p casj_validation/results
+          set +e
           python -m pytest -q casj_validation/tests/test_trust_region.py \
-            --junitxml=casj_validation/results/unit_trust_region.xml
+            --junitxml=casj_validation/results/unit_trust_region.xml \
+            > casj_validation/results/unit_trust_region.log 2>&1
+          code=$?
+          cat casj_validation/results/unit_trust_region.log
+          exit $code
 
       - name: Unit gate — PI-CASJ continuation
         run: python -m pytest -q casj_validation/tests/test_continuation.py
