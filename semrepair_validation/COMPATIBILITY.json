@@ -1,14 +1,19 @@
 {
   "schema_version": 1,
   "artifact": "SemRepair",
-  "software_version": "0.3.0rc1",
-  "source_manifest_versions": [1],
+  "software_version": "0.3.0rc2",
+  "source_manifest_versions": [
+    1
+  ],
   "semantic_type_generation": "0.3",
   "certificate_policy": {
     "transfer_across_contract_ids": false,
     "transfer_across_program_fingerprints": false,
     "transfer_across_incompatible_semantic_generations": false,
-    "heldout_evidence_fingerprint_required": true
+    "heldout_evidence_fingerprint_required": true,
+    "executable_implementation_identity_required": true,
+    "self_declared_verified_status_has_authority": false,
+    "interaction_certificate_required_for_known_compensating_bundles": true
   },
   "non_forgeable_fields": [
     "provenance",
@@ -25,5 +30,5 @@
     "non_forgeability_change_requires_new_generation": true,
     "prospective_adjudication_change_requires_new_protocol_generation": true
   },
-  "status": "public-release-candidate"
+  "status": "public-release-candidate-staging"
 }
