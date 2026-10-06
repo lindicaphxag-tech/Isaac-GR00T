@@ -91,3 +91,20 @@ The narrower research object is the composition of hidden embodied semantic ABI 
 ## Claim boundary
 
 Everything in this directory is self-authored public method validation. It does not count as prospective I2 evidence, independent reproduction, maintainer retention, or L8/L9 external adoption.
+
+
+## Equivalence-class prior-art boundary
+
+The authority quotient is not presented as new active-learning mathematics.
+Equivalence Class Determination (Golovin, Krause, Ray; NeurIPS 2010) already
+formalizes testing until the correct decision-equivalence class is known, and
+Decision Region Determination later generalizes the decision-region objective.
+
+Accordingly, the Bellman solver in this capsule is an exact finite
+oracle/certificate over the supplied table.
+
+The embodied contribution is the definition of the class itself: an exact
+implementation/evidence-bound **factorized repair authority**. Two semantic
+hypotheses with identical end-to-end behavior remain different repair classes
+when they require different local boundary repairs. That is what prevents a
+compensated double fault from collapsing to a no-op class.
