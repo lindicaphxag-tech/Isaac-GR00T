@@ -91,7 +91,11 @@ class RepairPrimitive:
     family: str
     cost: int
     apply_fn: Callable[[Vector, Context], Vector]
-    implementation_id: str | None = None
+    implementation_id: str = ""
+
+    def __post_init__(self) -> None:
+        if self.implementation_id is not None and not isinstance(self.implementation_id, str):
+            raise TypeError("implementation_id must be a string")
 
     def apply(self, value: Vector, context: Context) -> Vector:
         return tuple(float(item) for item in self.apply_fn(value, context))
@@ -159,7 +163,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                 apply_fn=lambda value, context, order=order: tuple(
                     value[index] for index in order
                 ),
-                implementation_id=f"builtin-v0:permute:{order}",
+                implementation_id=f"semrepair/permute/{order}@v1",
             )
         )
 
@@ -176,7 +180,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                     item * sign
                     for item, sign in zip(value, signs, strict=True)
                 ),
-                implementation_id=f"builtin-v0:sign:{signs}",
+                implementation_id=f"semrepair/sign/{tuple(int(sign) for sign in signs)}@v1",
             )
         )
 
@@ -189,7 +193,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                 apply_fn=lambda value, context, scale=scale: tuple(
                     scale * item for item in value
                 ),
-                implementation_id=f"builtin-v0:scale:{scale:g}",
+                implementation_id=f"semrepair/scale/{scale:g}@v1",
             )
         )
 
@@ -203,7 +207,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                     apply_fn=lambda value, context: _matrix_to_euler_xyz(
                         _axis_angle_to_matrix(value)
                     ),
-                    implementation_id="builtin-v0:axis-angle-to-euler-xyz",
+                    implementation_id="semrepair/axis-angle-to-euler-xyz@v1",
                 ),
                 RepairPrimitive(
                     name="com-velocity->link-velocity",
@@ -217,7 +221,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                             strict=True,
                         )
                     ),
-                    implementation_id="builtin-v0:com-velocity-to-link-velocity",
+                    implementation_id="semrepair/com-velocity-to-link-velocity@v1",
                 ),
                 RepairPrimitive(
                     name="link-velocity->com-velocity",
@@ -231,7 +235,7 @@ def build_vector_repair_catalog(dimension: int) -> tuple[RepairPrimitive, ...]:
                             strict=True,
                         )
                     ),
-                    implementation_id="builtin-v0:link-velocity-to-com-velocity",
+                    implementation_id="semrepair/link-velocity-to-com-velocity@v1",
                 ),
             ]
         )
