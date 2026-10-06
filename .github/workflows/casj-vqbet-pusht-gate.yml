@@ -1,0 +1,86 @@
+name: CASJ VQ-BeT PushT Cross-Family Gate
+
+on:
+  push:
+    branches:
+      - "validation/casj-pusht-public-gate"
+    paths:
+      - ".github/workflows/casj-vqbet-pusht-gate.yml"
+      - "casj_validation/experiments/public_vqbet_pusht_gate.py"
+      - "casj_validation/casj/**"
+  workflow_dispatch:
+
+jobs:
+  vqbet-support-response:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SDL_VIDEODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      PYTHONPATH: ${{ github.workspace }}/casj_validation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout pinned LeRobot
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/lerobot
+          ref: 8c920c4270460851cedd2737657584586d3dc66f
+          path: lerobot-src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache public checkpoint
+        uses: actions/cache@v4
+        with:
+          path: .cache/huggingface
+          key: casj-pusht-vqbet-v1
+
+      - name: Install pinned public stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./lerobot-src[pusht]"
+          python -m pip install -e "./casj_validation[test]"
+
+      - name: Run VQ-BeT paired-intervention gate
+        run: |
+          mkdir -p casj_validation/results
+          python casj_validation/experiments/public_vqbet_pusht_gate.py \
+            --device cpu \
+            --seed 17 \
+            --warmup-steps 0 4 \
+            --epsilon 4.0 \
+            --angle-epsilon 0.02 \
+            --output casj_validation/results/vqbet_pusht_support_gate.json
+
+      - name: Validate evidence schema
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("casj_validation/results/vqbet_pusht_support_gate.json")
+          d=json.loads(p.read_text())
+          assert d["model_id"] == "lerobot/vqbet_pusht"
+          assert d["policy_family"] == "vqbet"
+          assert len(d["snapshots"]) == 2
+          for key, row in d["snapshots"].items():
+              assert row["paired_randomness_replay_error"] <= 1e-7, key
+              assert row["input_intervention_changed_pixels"] is True, key
+              assert row["query_count"] > 0, key
+              assert row["fine_jacobian"], key
+              assert row["coarse_jacobian"], key
+              assert row["scale_drift"], key
+          print(json.dumps(d, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload VQ-BeT public-policy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casj-vqbet-pusht-support-gate
+          path: casj_validation/results/vqbet_pusht_support_gate.json
+          if-no-files-found: error
