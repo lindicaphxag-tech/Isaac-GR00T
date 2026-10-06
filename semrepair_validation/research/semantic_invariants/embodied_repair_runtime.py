@@ -72,23 +72,33 @@ class SemanticRepairMediator:
         *,
         contract_id: str,
         program: RepairProgram,
-        certificate: RepairVerificationCertificate,
+        certificate: RepairVerificationCertificate | None = None,
+        verification_status: str | None = None,
         guard: Callable[[Vector, Context], bool] | None = None,
     ) -> None:
         if not contract_id:
             raise ValueError("contract_id must be non-empty")
+        if certificate is None:
+            raise RepairNotVerifiedError(
+                "runtime installation requires a real RepairVerificationCertificate; "
+                "self-declared verification_status is not authority"
+            )
+        if verification_status is not None and verification_status != certificate.status:
+            raise RepairNotVerifiedError(
+                "self-declared verification status disagrees with certificate"
+            )
         if not certificate_matches_program(
             certificate,
             contract_id=contract_id,
             program=program,
         ):
             raise RepairNotVerifiedError(
-                "runtime installation requires a valid program-bound verification certificate"
+                "verification certificate does not match contract/program implementation"
             )
         self.contract_id = contract_id
         self.program = program
         self.verification_status = certificate.status
-        self.verification_certificate = certificate
+        self.certificate = certificate
         self.guard = guard
 
     @classmethod
