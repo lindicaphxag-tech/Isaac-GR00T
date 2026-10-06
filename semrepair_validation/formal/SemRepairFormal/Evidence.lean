@@ -121,11 +121,13 @@ theorem extending_claim_authority_can_only_break_equivalence_with_new_evidence
       authorizedWide claim experiment ∧
       ¬ authorizedNarrow claim experiment ∧
       observe left experiment ≠ observe right experiment := by
-  simp only [ClaimObservationallyEquivalent] at hwideDifferent hnarrowSame
-  push_neg at hwideDifferent
-  rcases hwideDifferent with ⟨experiment, hwide, hdiff⟩
-  refine ⟨experiment, hwide, ?_, hdiff⟩
-  intro hnarrow
-  exact hdiff (hnarrowSame experiment hnarrow)
+  classical
+  by_contra hnoWitness
+  apply hwideDifferent
+  intro experiment hwide
+  by_contra hdiff
+  by_cases hnarrow : authorizedNarrow claim experiment
+  · exact hdiff (hnarrowSame experiment hnarrow)
+  · exact hnoWitness ⟨experiment, hwide, hnarrow, hdiff⟩
 
 end SemRepair.Evidence
