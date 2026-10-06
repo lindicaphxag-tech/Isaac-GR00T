@@ -18,9 +18,12 @@
 
 ### Real-stack evidence
 
-- add the public ManiSkill four-way PegInsertionSide replay capsule from workflow
-  `37388740482`: 8/10 main, 1/10 converter-only, 0/10 controller-only,
-  8/10 composed; main and composed each retain 1238 saved steps;
+- add replicated public ManiSkill four-way PegInsertionSide replay evidence:
+  converter-only=1/10 and controller-only=0/10 in both measured settings,
+  composed=8/10 in both, while main changes from 8/10 to 9/10 between the
+  parallel and serial executions;
+- add replicated fail-closed authorization: conflicting task-success evidence
+  cannot grant full-bundle authority;
 - explicitly assign zero external-adoption and zero prospective-I2 credit.
 
 ## 0.3.0-rc1
