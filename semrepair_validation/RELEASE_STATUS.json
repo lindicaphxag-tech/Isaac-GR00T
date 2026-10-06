@@ -47,7 +47,9 @@
     "pinned_real_source_maniskill": true,
     "repair_implementation_identity": true,
     "interaction_aware_authorization": true,
-    "maniskill_factorial_replay_capsule": true
+    "maniskill_factorial_replay_capsule": false,
+    "replicated_interaction_authorization": true,
+    "maniskill_factorial_replay_capsule_v2": true
   },
   "quantitative_evidence": {
     "production_conformance_cases": 2017,
@@ -74,7 +76,13 @@
     "self_declared_verification_rejected": true,
     "interaction_aware_repair_authorization": true,
     "real_stack_compensating_repair_capsule": true,
-    "public_factorial_run_id": 37388740482
+    "replicated_interaction_authorization": true,
+    "public_factorial_run_ids": [
+      37388740482,
+      37394500249
+    ],
+    "task_success_authority": "fail_closed_ambiguous",
+    "next_required_evidence": "direct semantic fidelity of reconstructed controller target/orientation"
   },
   "self_authored_real_stack_behavioral_evidence": true
 }
