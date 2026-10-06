@@ -9,6 +9,7 @@ from research.semantic_invariants.embodied_atomic_repair import (
 from research.semantic_invariants.embodied_authority_kernel import (
     LocalRepairProof,
     PreDispatchAuthorityRejected,
+    authorize_evidence_qualified_pre_dispatch,
     authorize_pre_dispatch,
 )
 from research.semantic_invariants.embodied_execution_domain import (
@@ -16,7 +17,11 @@ from research.semantic_invariants.embodied_execution_domain import (
     ProjectionAuthorityRequired,
     issue_projection_certificate,
 )
+from research.semantic_invariants.embodied_measurement_qualification import (
+    qualify_measurement,
+)
 from research.semantic_invariants.embodied_repair_interactions import (
+    QualifiedRepairAuthorizationPlane,
     RepairOutcome,
     analyze_repair_lattice,
 )
@@ -65,11 +70,17 @@ def _proof(name, fn):
         heldout=(RepairExample((0.25,), (0.25,)),),
         verifier_id="authority-kernel-test-bank",
     )
+    measurement = qualify_measurement(
+        measurement_id=f"measurement/{name}@v1",
+        semantic_anchor_id=f"test-oracle/{name}@v1",
+        repeat_outcome_digests=(f"stable:{name}",) * 3,
+    )
     return LocalRepairProof(
         repair_name=name,
         contract_id=contract,
         program=program,
         certificate=certificate,
+        measurement=measurement,
     )
 
 
@@ -102,6 +113,25 @@ def _atomic(interaction, a, b):
         },
     )
 
+
+
+def _qualified_plane(
+    plane_id,
+    interaction,
+    *,
+    measurement_id,
+    semantic_anchor_id,
+    repeat_digest,
+):
+    return QualifiedRepairAuthorizationPlane(
+        plane_id=plane_id,
+        certificate=interaction,
+        measurement=qualify_measurement(
+            measurement_id=measurement_id,
+            semantic_anchor_id=semantic_anchor_id,
+            repeat_outcome_digests=(repeat_digest,) * 3,
+        ),
+    )
 
 def test_single_local_repair_inside_domain_receives_authority():
     a = _proof("repair-a", _identity_a)
@@ -238,6 +268,7 @@ def test_drifted_local_program_cannot_enter_composed_authority():
         contract_id=a.contract_id,
         program=drifted,
         certificate=a.certificate,
+        measurement=a.measurement,
     )
     domain = L2BallExecutionDomain("action-ball@v1", 1, 1.0)
 
@@ -297,6 +328,7 @@ def test_exhaustive_predispatch_bypass_matrix_matches_policy():
                                 contract_id=base_a.contract_id,
                                 program=drifted,
                                 certificate=base_a.certificate,
+                                measurement=base_a.measurement,
                             )
 
                         if interaction_required and full_bundle:
@@ -367,3 +399,203 @@ def test_exhaustive_predispatch_bypass_matrix_matches_policy():
                         }
 
     assert cases == 32
+
+
+def test_non_identifying_measurement_cannot_enter_authority():
+    a = _proof("repair-a", _identity_a)
+    bad_measurement = qualify_measurement(
+        measurement_id="roundtrip-only@v1",
+        semantic_anchor_id=None,
+        repeat_outcome_digests=("repeatable-roundtrip",) * 3,
+    )
+    proof = LocalRepairProof(
+        repair_name=a.repair_name,
+        contract_id=a.contract_id,
+        program=a.program,
+        certificate=a.certificate,
+        measurement=bad_measurement,
+    )
+    domain = L2BallExecutionDomain("action-ball@v1", 1, 1.0)
+
+    with pytest.raises(PreDispatchAuthorityRejected, match="not qualified"):
+        authorize_pre_dispatch(
+            repairs=(proof,),
+            raw_action=(0.25,),
+            semantic_target=(0.25,),
+            domain=domain,
+            forward=lambda x: x,
+            forward_model_id="identity-forward@v1",
+            distance=_euclidean,
+        )
+
+
+def test_missing_measurement_cannot_enter_authority():
+    a = _proof("repair-a", _identity_a)
+    proof = LocalRepairProof(
+        repair_name=a.repair_name,
+        contract_id=a.contract_id,
+        program=a.program,
+        certificate=a.certificate,
+        measurement=None,
+    )
+    domain = L2BallExecutionDomain("action-ball@v1", 1, 1.0)
+
+    with pytest.raises(PreDispatchAuthorityRejected, match="no measurement qualification"):
+        authorize_pre_dispatch(
+            repairs=(proof,),
+            raw_action=(0.25,),
+            semantic_target=(0.25,),
+            domain=domain,
+            forward=lambda x: x,
+            forward_model_id="identity-forward@v1",
+            distance=_euclidean,
+        )
+
+
+def test_high_level_authority_requires_execution_effect_plane():
+    a = _proof("repair-a", _identity_a)
+    semantic = analyze_repair_lattice(
+        subject="pipeline",
+        metric="semantic_error",
+        objective="minimize",
+        repairs=("repair-a",),
+        outcomes=(
+            RepairOutcome(frozenset(), 1.0, "semantic/base"),
+            RepairOutcome(frozenset(("repair-a",)), 0.0, "semantic/repaired"),
+        ),
+    )
+    domain = L2BallExecutionDomain("action-ball@v1", 1, 1.0)
+
+    with pytest.raises(PreDispatchAuthorityRejected, match="execution-effect"):
+        authorize_evidence_qualified_pre_dispatch(
+            repairs=(a,),
+            raw_action=(0.25,),
+            semantic_target=(0.25,),
+            domain=domain,
+            forward=lambda x: x,
+            forward_model_id="identity-forward@v1",
+            distance=_euclidean,
+            qualified_planes=(
+                _qualified_plane(
+                    "semantic-fidelity",
+                    semantic,
+                    measurement_id="semantic-fidelity@v1",
+                    semantic_anchor_id="controller-contract@v1",
+                    repeat_digest="semantic:stable",
+                ),
+            ),
+        )
+
+
+def test_high_level_authority_rejects_semantically_better_execution_regression():
+    a = _proof("repair-a", _identity_a)
+    semantic = analyze_repair_lattice(
+        subject="pipeline",
+        metric="semantic_error",
+        objective="minimize",
+        repairs=("repair-a",),
+        outcomes=(
+            RepairOutcome(frozenset(), 1.0, "semantic/base"),
+            RepairOutcome(frozenset(("repair-a",)), 0.1, "semantic/repaired"),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="pipeline",
+        metric="task_success",
+        objective="maximize",
+        repairs=("repair-a",),
+        outcomes=(
+            RepairOutcome(frozenset(), 0.9, "execution/base"),
+            RepairOutcome(frozenset(("repair-a",)), 0.8, "execution/repaired"),
+        ),
+    )
+    domain = L2BallExecutionDomain("action-ball@v1", 1, 1.0)
+
+    with pytest.raises(
+        PreDispatchAuthorityRejected,
+        match="execution-effect.*regresses",
+    ):
+        authorize_evidence_qualified_pre_dispatch(
+            repairs=(a,),
+            raw_action=(0.25,),
+            semantic_target=(0.25,),
+            domain=domain,
+            forward=lambda x: x,
+            forward_model_id="identity-forward@v1",
+            distance=_euclidean,
+            qualified_planes=(
+                _qualified_plane(
+                    "semantic-fidelity",
+                    semantic,
+                    measurement_id="semantic-fidelity@v1",
+                    semantic_anchor_id="controller-contract@v1",
+                    repeat_digest="semantic:stable",
+                ),
+                _qualified_plane(
+                    "execution-effect",
+                    execution,
+                    measurement_id="task-success@v1",
+                    semantic_anchor_id="env/task-success@v1",
+                    repeat_digest="success-set:stable",
+                ),
+            ),
+        )
+
+
+def test_high_level_authority_binds_all_qualified_plane_digests():
+    a = _proof("repair-a", _identity_a)
+    semantic = analyze_repair_lattice(
+        subject="pipeline",
+        metric="semantic_error",
+        objective="minimize",
+        repairs=("repair-a",),
+        outcomes=(
+            RepairOutcome(frozenset(), 1.0, "semantic/base"),
+            RepairOutcome(frozenset(("repair-a",)), 0.1, "semantic/repaired"),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="pipeline",
+        metric="task_success",
+        objective="maximize",
+        repairs=("repair-a",),
+        outcomes=(
+            RepairOutcome(frozenset(), 0.8, "execution/base"),
+            RepairOutcome(frozenset(("repair-a",)), 0.9, "execution/repaired"),
+        ),
+    )
+    domain = L2BallExecutionDomain("action-ball@v1", 1, 1.0)
+    planes=(
+        _qualified_plane(
+            "semantic-fidelity",
+            semantic,
+            measurement_id="semantic-fidelity@v1",
+            semantic_anchor_id="controller-contract@v1",
+            repeat_digest="semantic:stable",
+        ),
+        _qualified_plane(
+            "execution-effect",
+            execution,
+            measurement_id="task-success@v1",
+            semantic_anchor_id="env/task-success@v1",
+            repeat_digest="success-set:stable",
+        ),
+    )
+
+    authority=authorize_evidence_qualified_pre_dispatch(
+        repairs=(a,),
+        raw_action=(0.25,),
+        semantic_target=(0.25,),
+        domain=domain,
+        forward=lambda x: x,
+        forward_model_id="identity-forward@v1",
+        distance=_euclidean,
+        qualified_planes=planes,
+    )
+
+    assert authority.authorized_action == (0.25,)
+    assert len(authority.qualified_plane_digests) == 2
+    assert {item[0] for item in authority.qualified_plane_digests} == {
+        "semantic-fidelity",
+        "execution-effect",
+    }
