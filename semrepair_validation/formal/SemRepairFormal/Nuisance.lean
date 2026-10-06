@@ -56,6 +56,6 @@ theorem same_semantic_worlds_need_not_be_nuisance_identified
   dsimp [SemanticallyCorrect]
   constructor
   · exact hlabel
-  · rw [hlabel, hsame]
+  · exact hlabel.trans hsame
 
 end SemRepair.Nuisance
