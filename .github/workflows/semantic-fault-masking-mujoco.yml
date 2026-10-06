@@ -13,12 +13,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Bind experiment to public rc1 snapshot
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin 8cd7e7ad01e50aa18f42d333765f4fd242228d66
           git merge-base --is-ancestor 8cd7e7ad01e50aa18f42d333765f4fd242228d66 HEAD
           test -f semrepair_validation/pyproject.toml
 
