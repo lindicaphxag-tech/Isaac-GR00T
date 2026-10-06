@@ -1,0 +1,40 @@
+name: Public semantic experiment design
+
+on:
+  push:
+    branches:
+      - validation/semantic-experiment-design-public
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-design:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependency-light test runtime
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Prove mirrored kernel identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object validation_semrepair/embodied_semantic_experiment_design.py)" = "b375929fa17aeabdbc6d62dc865da64c0e26e92d"
+
+      - name: Compile validation kernel
+        run: python -m compileall -q validation_semrepair
+
+      - name: Run exact experiment-design and observability tests
+        run: |
+          python -m pytest -q             validation_semrepair/tests/test_embodied_semantic_experiment_design.py             validation_semrepair/tests/test_embodied_semantic_observability.py             validation_semrepair/tests/test_embodied_semantic_transport.py
