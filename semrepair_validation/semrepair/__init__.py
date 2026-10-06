@@ -19,6 +19,14 @@ from research.semantic_invariants.embodied_semantic_source_bridge import (
     compile_source_boundary,
     infer_type_from_source,
 )
+from research.semantic_invariants.repair_activation_authority import (
+    ActivationGateEvidence,
+    ActivationGatedSemanticRepairMediator,
+    RepairActivationCertificate,
+    RepairActivationRejected,
+    issue_repair_activation_certificate,
+    verify_repair_activation_certificate,
+)
 from research.semantic_invariants.embodied_semantic_types import (
     SemanticAdapter,
     SemanticEventTransition,
@@ -26,11 +34,15 @@ from research.semantic_invariants.embodied_semantic_types import (
     synthesize_unique_adapter_plan,
 )
 
-__version__ = "0.3.0rc1"
+__version__ = "0.4.0.dev0"
 
 __all__ = [
+    "ActivationGateEvidence",
+    "ActivationGatedSemanticRepairMediator",
     "CompilationResult",
     "FieldInferenceSpec",
+    "RepairActivationCertificate",
+    "RepairActivationRejected",
     "RepairVerificationCertificate",
     "SemanticAdapter",
     "SemanticEventTransition",
@@ -42,6 +54,8 @@ __all__ = [
     "compile_semantic_boundary",
     "compile_source_boundary",
     "infer_type_from_source",
+    "issue_repair_activation_certificate",
     "synthesize_unique_adapter_plan",
+    "verify_repair_activation_certificate",
     "verify_repair_against_heldout",
 ]
