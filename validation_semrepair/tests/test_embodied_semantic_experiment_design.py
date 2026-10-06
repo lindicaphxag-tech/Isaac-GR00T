@@ -220,3 +220,46 @@ def test_experiment_domain_mismatch_is_rejected():
                 ),
             ),
         )
+
+
+def test_greedy_information_gain_can_be_suboptimal_for_total_diagnosis_cost():
+    hypotheses = ("h0", "h1", "h2", "h3", "h4")
+    experiments = (
+        _experiment(
+            "e0",
+            {"h0": 0, "h1": 1, "h2": 1, "h3": 1, "h4": 0},
+            cost=3.0,
+        ),
+        _experiment(
+            "e1",
+            {"h0": 0, "h1": 1, "h2": 2, "h3": 2, "h4": 2},
+            cost=3.0,
+        ),
+        _experiment(
+            "e2",
+            {"h0": 0, "h1": 1, "h2": 2, "h3": 1, "h4": 0},
+            cost=3.0,
+        ),
+        _experiment(
+            "e3",
+            {"h0": 0, "h1": 1, "h2": 0, "h3": 1, "h4": 1},
+            cost=3.0,
+        ),
+    )
+
+    result = solve_optimal_semantic_diagnosis(
+        hypotheses,
+        experiments,
+        objective="uniform_expected",
+    )
+
+    assert result.complete
+    assert result.optimal_cost == pytest.approx(4.8)
+    assert isinstance(result.policy, DiagnosisDecision)
+    assert result.policy.experiment == "e1"
+
+    # Greedy one-step information gain prefers e2:
+    # IG(e2)=1.521928... bits > IG(e1)=1.370950... bits.
+    # Following that greedy root yields expected total cost 5.4, so the
+    # locally most informative probe is not globally cost-optimal.
+    assert result.optimal_cost < 5.4
