@@ -198,3 +198,47 @@ def test_bundle_verification_binds_source_evidence_identity():
 
     assert verify_factorwise_bundle(authorization, original)
     assert not verify_factorwise_bundle(authorization, changed)
+
+
+def test_numeric_observation_within_declared_error_bound_still_identifies():
+    experiments = (
+        SemanticExperiment(
+            "numeric",
+            outcomes=(("a", (0.05, -0.1)), ("b", (0.8, 0.7))),
+            observation_atol=1.0e-6,
+        ),
+    )
+    result = solve_optimal_semantic_diagnosis(("a", "b"), experiments)
+
+    execution = execute_diagnosis_policy(
+        result,
+        experiments,
+        observe=lambda experiment: (
+            0.050000000745,
+            -0.10000000149,
+        ),
+    )
+
+    assert execution.status == "identified"
+    assert execution.identified_hypothesis == "a"
+
+
+def test_numeric_observation_outside_declared_bound_refuses_authority():
+    experiments = (
+        SemanticExperiment(
+            "numeric",
+            outcomes=(("a", (0.0,)), ("b", (1.0,))),
+            observation_atol=0.1,
+        ),
+    )
+    result = solve_optimal_semantic_diagnosis(("a", "b"), experiments)
+
+    execution = execute_diagnosis_policy(
+        result,
+        experiments,
+        observe=lambda experiment: (2.0,),
+    )
+
+    assert execution.status == "refused"
+    assert execution.identified_hypothesis is None
+    assert "outside the declared error bound" in execution.reason
