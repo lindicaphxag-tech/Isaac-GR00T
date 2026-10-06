@@ -8,9 +8,11 @@ from validation_semrepair.embodied_semantic_experiment_design import (
     solve_optimal_semantic_diagnosis,
 )
 from validation_semrepair.embodied_semantic_repair_aware_design import (
+    BoundRepairAuthority,
     RepairAuthority,
     RepairDecisionLeaf,
     RepairDecisionNode,
+    bind_repair_authority,
     solve_repair_aware_semantic_diagnosis,
     verify_repair_aware_semantic_diagnosis,
 )
@@ -359,3 +361,78 @@ def test_single_authority_class_has_zero_diagnostic_value_requirement():
     assert isinstance(repair.policy, RepairDecisionLeaf)
     assert set(repair.policy.hypotheses) == set(hypotheses)
     assert repair.policy.authority_id == "same"
+
+
+def _bound(bundle, impl, evidence="evidence:v1", deps="deps:v1"):
+    return BoundRepairAuthority(
+        repair_bundle_id=bundle,
+        implementation_ids=(impl,),
+        evidence_digest=evidence,
+        dependency_digest=deps,
+    )
+
+
+def test_same_symbolic_repair_with_different_implementation_is_not_one_class():
+    hypotheses = ("impl-a", "impl-b")
+    left = _bound("swap-x-y", "binary:A")
+    right = _bound("swap-x-y", "binary:B")
+    assert left.repair_bundle_id == right.repair_bundle_id
+    assert left.authority_id != right.authority_id
+
+    authorities = (
+        bind_repair_authority("impl-a", left),
+        bind_repair_authority("impl-b", right),
+    )
+    external_only = (
+        _experiment(
+            "same-external-behavior",
+            {"impl-a": (0.0,), "impl-b": (0.0,)},
+        ),
+    )
+
+    result = solve_repair_aware_semantic_diagnosis(
+        hypotheses,
+        external_only,
+        authorities,
+    )
+
+    assert result.status == "unsafe_unidentifiable"
+    assert result.policy is None
+
+
+def test_dependency_or_evidence_drift_splits_repair_authority_class():
+    base = _bound("permute-joints", "impl:v7")
+    dependency_drift = _bound(
+        "permute-joints",
+        "impl:v7",
+        deps="deps:v2",
+    )
+    evidence_drift = _bound(
+        "permute-joints",
+        "impl:v7",
+        evidence="evidence:v2",
+    )
+
+    assert base.authority_id != dependency_drift.authority_id
+    assert base.authority_id != evidence_drift.authority_id
+    assert dependency_drift.authority_id != evidence_drift.authority_id
+
+
+def test_identical_concrete_binding_can_share_zero_cost_authority_class():
+    hypotheses = ("semantic-cause-a", "semantic-cause-b")
+    binding = _bound("scale-mm-to-m", "impl:scale-v3")
+    authorities = (
+        bind_repair_authority("semantic-cause-a", binding),
+        bind_repair_authority("semantic-cause-b", binding),
+    )
+
+    result = solve_repair_aware_semantic_diagnosis(
+        hypotheses,
+        (),
+        authorities,
+    )
+
+    assert result.complete
+    assert result.optimal_cost == 0.0
+    assert isinstance(result.policy, RepairDecisionLeaf)
+    assert result.policy.authority_id == binding.authority_id
