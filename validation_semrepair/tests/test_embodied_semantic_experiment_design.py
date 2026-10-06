@@ -263,3 +263,41 @@ def test_greedy_information_gain_can_be_suboptimal_for_total_diagnosis_cost():
     # Following that greedy root yields expected total cost 5.4, so the
     # locally most informative probe is not globally cost-optimal.
     assert result.optimal_cost < 5.4
+
+
+def test_bounded_observation_error_merges_overlapping_hypotheses():
+    hypotheses = ("a", "b", "c")
+    experiments = (
+        SemanticExperiment(
+            "noisy",
+            outcomes=(
+                ("a", (0.0,)),
+                ("b", (0.15,)),
+                ("c", (1.0,)),
+            ),
+            observation_atol=0.1,
+        ),
+    )
+
+    result = solve_optimal_semantic_diagnosis(hypotheses, experiments)
+
+    assert result.status == "unidentifiable"
+    assert result.unresolved_groups == (("a", "b"),)
+    assert verify_optimal_semantic_diagnosis(result, experiments).valid
+
+
+def test_bounded_error_allows_robustly_separated_numeric_outcomes():
+    hypotheses = ("a", "b")
+    experiments = (
+        SemanticExperiment(
+            "separated",
+            outcomes=(("a", (0.0,)), ("b", (1.0,))),
+            observation_atol=0.1,
+        ),
+    )
+
+    result = solve_optimal_semantic_diagnosis(hypotheses, experiments)
+
+    assert result.complete
+    assert result.optimal_cost == pytest.approx(1.0)
+    assert verify_optimal_semantic_diagnosis(result, experiments).valid
