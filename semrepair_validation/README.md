@@ -130,7 +130,9 @@ entire Python compiler or general robot safety.
 
 ## Public evidence
 
-Current release-candidate validation:
+The rc1 predecessor is already published as `semrepair-v0.3.0rc1` and passed clean-install validation. The rc2 branch must obtain its own green validation before publication.
+
+Historical rc1 validation:
 
 - head: `304f19661b21bf2a510f736b63f78d3bbe6d3aa9`;
 - workflow run: **37316616190**;
@@ -158,9 +160,9 @@ This branch is a public release-candidate staging surface derived from the
 private research repository:
 
 - source repository: `lindicaphxag-tech/lindicaphxag-tech`
-- source branch: `research/invariantbench-l8`
-- current source lineage head used for this release work:
-  `fdc527015491cfb2c790371bb953202a8dfc1c94`
+- rc1 source lineage: published immutable snapshot `8cd7e7ad01e50aa18f42d333765f4fd242228d66`;
+- rc2 method source: `lindicaphxag-tech/lindicaphxag-tech@research/semrepair-rc1`;
+- rc2 public staging branch: `lindicaphxag-tech/Isaac-GR00T@semrepair-0.3.0rc2`
 
 It is deliberately isolated from the NVIDIA upstream-facing fix branches and
 does not modify NVIDIA production code.
