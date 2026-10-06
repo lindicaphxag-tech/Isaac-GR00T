@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import inspect
 import json
+from pathlib import Path
+import textwrap
 from typing import Sequence
 
 from .embodied_repair_synthesis import RepairExample, RepairProgram, program_fits
@@ -14,34 +17,71 @@ class RepairVerificationFailed(RuntimeError):
     pass
 
 
-def repair_program_fingerprint(program: RepairProgram) -> str:
-    """Fingerprint the certified executable repair DSL program.
-
-    A certificate must bind not only a semantic primitive name/family but also
-    the implementation identity of the callable that will run at deployment.
-    Anonymous/unversioned primitives remain usable for exploratory synthesis but
-    cannot receive an installable verification certificate.
-    """
-    missing = tuple(
-        operation.name
-        for operation in program.operations
-        if not operation.implementation_id
-    )
-    if missing:
+def _callable_implementation_digest(program_operation) -> str:
+    """Bind a certified primitive to the Python source that will execute."""
+    fn = program_operation.apply_fn
+    if not program_operation.implementation_id:
         raise RepairVerificationFailed(
-            "repair program contains primitives without implementation identity: "
-            f"{missing!r}"
+            f"repair primitive {program_operation.name!r} has no stable implementation identity"
         )
 
-    payload = [
-        {
-            "name": operation.name,
-            "family": operation.family,
-            "cost": operation.cost,
-            "implementation_id": operation.implementation_id,
-        }
-        for operation in program.operations
-    ]
+    try:
+        source = textwrap.dedent(inspect.getsource(fn)).strip()
+        source_file = inspect.getsourcefile(fn)
+    except (OSError, TypeError) as exc:
+        raise RepairVerificationFailed(
+            f"repair primitive {program_operation.name!r} has no inspectable implementation source"
+        ) from exc
+
+    if not source or not source_file:
+        raise RepairVerificationFailed(
+            f"repair primitive {program_operation.name!r} has no inspectable implementation source"
+        )
+
+    source_path = Path(source_file)
+    if not source_path.is_file():
+        raise RepairVerificationFailed(
+            f"repair primitive {program_operation.name!r} source file is unavailable"
+        )
+
+    closure_values = []
+    for cell in fn.__closure__ or ():
+        try:
+            closure_values.append(repr(cell.cell_contents))
+        except ValueError:
+            closure_values.append("<empty>")
+
+    payload = {
+        "implementation_id": program_operation.implementation_id,
+        "module": getattr(fn, "__module__", None),
+        "qualname": getattr(fn, "__qualname__", None),
+        "callable_source_sha256": sha256(source.encode("utf-8")).hexdigest(),
+        "source_file_sha256": sha256(source_path.read_bytes()).hexdigest(),
+        "defaults": repr(getattr(fn, "__defaults__", None)),
+        "kwdefaults": repr(getattr(fn, "__kwdefaults__", None)),
+        "closure": closure_values,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return sha256(encoded).hexdigest()
+
+
+def repair_program_fingerprint(program: RepairProgram) -> str:
+    """Fingerprint semantic identity and the exact executable implementation."""
+    payload = []
+    for operation in program.operations:
+        if not operation.implementation_id:
+            raise RepairVerificationFailed(
+                f"repair primitive {operation.name!r} has no stable implementation identity"
+            )
+        payload.append(
+            {
+                "name": operation.name,
+                "family": operation.family,
+                "cost": operation.cost,
+                "implementation_id": operation.implementation_id,
+                "implementation_digest": _callable_implementation_digest(operation),
+            }
+        )
     encoded = json.dumps(
         payload,
         sort_keys=True,
