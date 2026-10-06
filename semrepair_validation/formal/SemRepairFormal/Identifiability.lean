@@ -95,4 +95,107 @@ theorem internal_consistency_cannot_replace_external_anchor
   rw [hNoAnchor] at hAnchor
   cases hAnchor
 
+/--
+Qualification of one evidence channel before its result is allowed to
+participate in repair authorization.
+-/
+structure EvidenceQualification where
+  sourceIdentity : Bool
+  identifiable : Bool
+  repeatable : Bool
+deriving Repr, DecidableEq
+
+def MeasurementQualified (q : EvidenceQualification) : Prop :=
+  q.sourceIdentity = true ∧
+  q.identifiable = true ∧
+  q.repeatable = true
+
+structure QualifiedGateEvidence where
+  qualification : EvidenceQualification
+  evaluatorPass : Bool
+deriving Repr, DecidableEq
+
+def GateAdmissible (g : QualifiedGateEvidence) : Prop :=
+  MeasurementQualified g.qualification ∧
+  g.evaluatorPass = true
+
+theorem gate_admissibility_requires_source_identity
+    (g : QualifiedGateEvidence)
+    (h : GateAdmissible g) :
+    g.qualification.sourceIdentity = true :=
+  h.1.1
+
+theorem gate_admissibility_requires_identifiability
+    (g : QualifiedGateEvidence)
+    (h : GateAdmissible g) :
+    g.qualification.identifiable = true :=
+  h.1.2.1
+
+theorem gate_admissibility_requires_repeatability
+    (g : QualifiedGateEvidence)
+    (h : GateAdmissible g) :
+    g.qualification.repeatable = true :=
+  h.1.2.2
+
+/--
+A PASS from the gate evaluator cannot compensate for invalid source identity.
+-/
+theorem evaluator_pass_cannot_replace_source_identity
+    (g : QualifiedGateEvidence)
+    (_hPass : g.evaluatorPass = true)
+    (hBadIdentity : g.qualification.sourceIdentity = false) :
+    ¬ GateAdmissible g := by
+  intro hAdmissible
+  have hIdentity : g.qualification.sourceIdentity = true :=
+    gate_admissibility_requires_source_identity g hAdmissible
+  rw [hBadIdentity] at hIdentity
+  cases hIdentity
+
+/--
+A repeatable but non-identifying measurement cannot authorize a gate.
+This matches the external-anchor failure mode of a self-consistent wrong
+forward/inverse pair.
+-/
+theorem repeatability_cannot_replace_identifiability
+    (g : QualifiedGateEvidence)
+    (_hPass : g.evaluatorPass = true)
+    (_hRepeatable : g.qualification.repeatable = true)
+    (hNonIdentifying : g.qualification.identifiable = false) :
+    ¬ GateAdmissible g := by
+  intro hAdmissible
+  have hIdentifiable : g.qualification.identifiable = true :=
+    gate_admissibility_requires_identifiability g hAdmissible
+  rw [hNonIdentifying] at hIdentifiable
+  cases hIdentifiable
+
+/--
+A single-run gate cannot become admissible while repeatability remains absent.
+-/
+theorem evaluator_pass_cannot_replace_repeatability
+    (g : QualifiedGateEvidence)
+    (_hPass : g.evaluatorPass = true)
+    (hNotRepeatable : g.qualification.repeatable = false) :
+    ¬ GateAdmissible g := by
+  intro hAdmissible
+  have hRepeatable : g.qualification.repeatable = true :=
+    gate_admissibility_requires_repeatability g hAdmissible
+  rw [hNotRepeatable] at hRepeatable
+  cases hRepeatable
+
+/--
+Authorization with a qualified execution measurement requires both the repair
+authority obligations and an admissible measurement channel.
+-/
+def EvidenceQualifiedAuthorized
+    (activation : ActivationEvidence)
+    (executionEvidence : QualifiedGateEvidence) : Prop :=
+  Authorized activation ∧ GateAdmissible executionEvidence
+
+theorem evidence_qualified_authorization_requires_qualified_measurement
+    (activation : ActivationEvidence)
+    (executionEvidence : QualifiedGateEvidence)
+    (h : EvidenceQualifiedAuthorized activation executionEvidence) :
+    MeasurementQualified executionEvidence.qualification :=
+  h.2.1
+
 end SemRepair
