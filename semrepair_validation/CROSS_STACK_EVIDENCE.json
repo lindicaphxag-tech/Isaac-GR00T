@@ -45,31 +45,36 @@
       "source_commit": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
       "semantic_layer": "converter/controller interaction",
       "method_surface": "factorial repair lattice -> interaction certificate -> repair-set atomicity",
-      "public_workflow_run_id": 37388740482,
-      "public_artifact_id": 11380266279,
-      "measured_cells": {
-        "main": {
-          "saved_episodes": 8,
-          "saved_steps": 1238
-        },
-        "converter_only": {
-          "saved_episodes": 1,
-          "saved_steps": 574
-        },
-        "controller_only": {
-          "saved_episodes": 0,
-          "saved_steps": 0
-        },
-        "composed": {
-          "saved_episodes": 8,
-          "saved_steps": 1238
-        }
-      },
-      "classification": "strict_compensating_bundle_complete_masking",
+      "classification": "robust_singleton_regression__composed_task_success_ambiguous",
       "behavioral_validation": true,
       "external_adoption": false,
-      "prospective": false
+      "prospective": false,
+      "public_workflow_run_ids": [
+        37388740482,
+        37394500249
+      ],
+      "public_artifact_ids": [
+        11380266279,
+        11382447004
+      ],
+      "measured_replicates": [
+        {
+          "worker_mode": "parallel",
+          "main": "8/10",
+          "converter_only": "1/10",
+          "controller_only": "0/10",
+          "composed": "8/10"
+        },
+        {
+          "worker_mode": "serial_exact_head",
+          "main": "9/10",
+          "converter_only": "1/10",
+          "controller_only": "0/10",
+          "composed": "8/10"
+        }
+      ],
+      "robust_authorization": "fail_closed"
     }
   ],
-  "claim_boundary": "Public executable evidence includes a self-authored ManiSkill factorial replay showing a strict compensating repair bundle. It is real-stack behavioral evidence, but it is not maintainer-retained adoption, policy-training evidence, real-robot safety evidence, or a prospective I2 match."
+  "claim_boundary": "Replicated public ManiSkill evidence robustly shows both singleton repairs regress and the composed pair substantially recovers, but current-main task success varies across execution modes. rc2 therefore fails closed on task-success authorization and requires direct semantic-fidelity evidence. No maintainer-retained adoption, learned-policy improvement, real-robot safety, or prospective I2 is claimed."
 }
