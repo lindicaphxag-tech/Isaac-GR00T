@@ -1,0 +1,39 @@
+name: SemRepair interaction formal core
+
+on:
+  push:
+    branches:
+      - validation/semrepair-interaction-formal
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Lean toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Reject incomplete proofs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E '(^|[^[:alnum:]_])(sorry|admit)([^[:alnum:]_]|$)'               semrepair_validation/formal/SemRepairFormal               semrepair_validation/formal/SemRepairFormal.lean; then
+            echo "Incomplete proof token found."
+            exit 1
+          fi
+
+      - name: Compile formal core and interaction theorem
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd semrepair_validation/formal
+          lake build
