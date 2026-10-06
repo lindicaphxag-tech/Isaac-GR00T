@@ -1,3 +1,5 @@
+"""Regression tests: PI-CASJ path probes must stay on the certified finite path."""
+
 import numpy as np
 
 from casj.pusht_assay import estimate_pathwise_directional_derivative_via_query
