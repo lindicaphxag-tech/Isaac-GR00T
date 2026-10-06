@@ -251,3 +251,119 @@ def test_drifted_local_program_cannot_enter_composed_authority():
             forward_model_id="identity-forward@v1",
             distance=_euclidean,
         )
+
+
+def test_exhaustive_predispatch_bypass_matrix_matches_policy():
+    """Every combination must agree with the explicit authority formula.
+
+    The matrix is intentionally small and exhaustive over the trust-boundary
+    booleans that matter here:
+      local certificate valid,
+      compensating interaction present,
+      complete atomic bundle requested,
+      raw action inside execution domain,
+      valid projection supplied when outside.
+    """
+
+    base_a = _proof("repair-a", _identity_a)
+    base_b = _proof("repair-b", _identity_b)
+    interaction = _interaction()
+    atomic = _atomic(interaction, base_a, base_b)
+    domain = L2BallExecutionDomain("action-ball@v1", 1, 1.0)
+
+    cases = 0
+    for local_valid in (False, True):
+        for interaction_required in (False, True):
+            for full_bundle in (False, True):
+                for in_domain in (False, True):
+                    for projection_valid in (False, True):
+                        cases += 1
+
+                        a = base_a
+                        if not local_valid:
+                            drifted = RepairProgram(
+                                (
+                                    RepairPrimitive(
+                                        name="repair-a",
+                                        family="test",
+                                        cost=1,
+                                        apply_fn=_reverse,
+                                        implementation_id="repair-a@v1",
+                                    ),
+                                )
+                            )
+                            a = LocalRepairProof(
+                                repair_name=base_a.repair_name,
+                                contract_id=base_a.contract_id,
+                                program=drifted,
+                                certificate=base_a.certificate,
+                            )
+
+                        if interaction_required and full_bundle:
+                            repairs = (a, base_b)
+                            active_interaction = interaction
+                            active_atomic = atomic
+                        elif interaction_required:
+                            repairs = (a,)
+                            active_interaction = interaction
+                            active_atomic = None
+                        else:
+                            repairs = (a,)
+                            active_interaction = None
+                            active_atomic = None
+
+                        raw = (0.25,) if in_domain else (1.2,)
+                        target = raw
+                        projection = None
+                        if (not in_domain) and projection_valid:
+                            projection = issue_projection_certificate(
+                                contract_id="+".join(
+                                    sorted(proof.contract_id for proof in repairs)
+                                ),
+                                domain=domain,
+                                target=target,
+                                action=(1.0,),
+                                forward=lambda x: x,
+                                forward_model_id="identity-forward@v1",
+                                distance=_euclidean,
+                                max_residual=0.25,
+                            )
+
+                        expected = bool(
+                            local_valid
+                            and (
+                                (not interaction_required)
+                                or full_bundle
+                            )
+                            and (
+                                in_domain
+                                or projection_valid
+                            )
+                        )
+
+                        accepted = True
+                        try:
+                            authorize_pre_dispatch(
+                                repairs=repairs,
+                                raw_action=raw,
+                                semantic_target=target,
+                                domain=domain,
+                                forward=lambda x: x,
+                                forward_model_id="identity-forward@v1",
+                                distance=_euclidean,
+                                interaction=active_interaction,
+                                atomic_certificate=active_atomic,
+                                projection_certificate=projection,
+                            )
+                        except RuntimeError:
+                            accepted = False
+
+                        assert accepted is expected, {
+                            "local_valid": local_valid,
+                            "interaction_required": interaction_required,
+                            "full_bundle": full_bundle,
+                            "in_domain": in_domain,
+                            "projection_valid": projection_valid,
+                        }
+
+    assert cases == 32
