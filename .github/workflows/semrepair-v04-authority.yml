@@ -11,6 +11,10 @@ on:
       - "semrepair_validation/research/semantic_invariants/embodied_repair_verification.py"
       - "semrepair_validation/semrepair/__init__.py"
       - "semrepair_validation/pyproject.toml"
+      - "semrepair_validation/formal/SemRepairFormal.lean"
+      - "semrepair_validation/formal/SemRepairFormal/**"
+      - "semrepair_validation/formal/lakefile.toml"
+      - "semrepair_validation/formal/lean-toolchain"
       - ".github/workflows/semrepair-v04-authority.yml"
   workflow_dispatch:
 
@@ -41,3 +45,11 @@ jobs:
           python -m pytest -q \
             tests/test_repair_activation_authority.py \
             tests/test_embodied_repair_runtime.py
+
+      - name: Build Lean authority core
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          export PATH="$HOME/.elan/bin:$PATH"
+          cd semrepair_validation/formal
+          lake build
+          ! grep -R -nE '\\b(sorry|admit)\\b' SemRepairFormal.lean SemRepairFormal
