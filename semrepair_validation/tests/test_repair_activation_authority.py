@@ -20,7 +20,6 @@ from research.semantic_invariants.repair_activation_authority import (
 
 
 CONTRACT_ID = "embodied/repair-activation-test@0.4"
-_GATE_PROGRAM = None
 
 
 def _program():
@@ -49,8 +48,7 @@ def _local(program):
     )
 
 
-def _gate(name, *, status="pass", independent=False):
-    assert _GATE_PROGRAM is not None
+def _gate(program, name, *, status="pass", independent=False):
     kinds = {
         "anchor": "external-semantic-anchor",
         "value": "paired-semantic-fidelity",
@@ -61,7 +59,7 @@ def _gate(name, *, status="pass", independent=False):
     return issue_activation_gate_evidence(
         gate=name,
         contract_id=CONTRACT_ID,
-        program=_GATE_PROGRAM,
+        program=program,
         status=status,
         evidence_digest=(name[0] * 64),
         evidence_scope_digest=(name[-1] * 64),
@@ -72,14 +70,12 @@ def _gate(name, *, status="pass", independent=False):
 
 
 def _passing_gates(program):
-    global _GATE_PROGRAM
-    _GATE_PROGRAM = program
     return (
-        _gate("anchor", independent=True),
-        _gate("value"),
-        _gate("protocol"),
-        _gate("interaction"),
-        _gate("execution", independent=True),
+        _gate(program, "anchor", independent=True),
+        _gate(program, "value"),
+        _gate(program, "protocol"),
+        _gate(program, "interaction"),
+        _gate(program, "execution", independent=True),
     )
 
 
@@ -122,7 +118,7 @@ def test_unknown_or_failed_gate_fails_closed():
     program = _program()
     local = _local(program)
     gates = list(_passing_gates(program))
-    gates[3] = _gate("interaction", status="unknown")
+    gates[3] = _gate(program, "interaction", status="unknown")
 
     try:
         issue_repair_activation_certificate(
@@ -141,7 +137,7 @@ def test_circular_anchor_evidence_cannot_authorize():
     program = _program()
     local = _local(program)
     gates = list(_passing_gates(program))
-    gates[0] = _gate("anchor", independent=False)
+    gates[0] = _gate(program, "anchor", independent=False)
 
     try:
         issue_repair_activation_certificate(
@@ -160,7 +156,7 @@ def test_execution_gate_must_be_independent_of_local_semantic_path():
     program = _program()
     local = _local(program)
     gates = list(_passing_gates(program))
-    gates[-1] = _gate("execution", independent=False)
+    gates[-1] = _gate(program, "execution", independent=False)
 
     try:
         issue_repair_activation_certificate(
