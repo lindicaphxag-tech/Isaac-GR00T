@@ -8,6 +8,9 @@ from research.semantic_invariants.embodied_repair_synthesis import (
 from research.semantic_invariants.embodied_repair_verification import (
     verify_repair_against_heldout,
 )
+from research.semantic_invariants.evidence_qualification import (
+    issue_evidence_qualification_certificate,
+)
 from research.semantic_invariants.repair_activation_authority import (
     ActivationGateEvidence,
     ActivationGatedSemanticRepairMediator,
@@ -48,7 +51,38 @@ def _local(program):
     )
 
 
-def _gate(program, name, *, status="pass", independent=False):
+def _qualification(
+    program,
+    name,
+    *,
+    source_identity_status="pass",
+    identifiability_status="pass",
+    repeatability_status="pass",
+    evidence_digest=None,
+    evidence_scope_digest=None,
+):
+    evidence_digest = evidence_digest or (name[0] * 64)
+    evidence_scope_digest = evidence_scope_digest or (name[-1] * 64)
+    return issue_evidence_qualification_certificate(
+        contract_id=CONTRACT_ID,
+        program=program,
+        evidence_digest=evidence_digest,
+        evidence_scope_digest=evidence_scope_digest,
+        source_identity_status=source_identity_status,
+        identifiability_status=identifiability_status,
+        repeatability_status=repeatability_status,
+        qualifier_id=f"{name}-measurement-qualifier-v1",
+    )
+
+
+def _gate(
+    program,
+    name,
+    *,
+    status="pass",
+    independent=False,
+    qualification=None,
+):
     kinds = {
         "anchor": "external-semantic-anchor",
         "value": "paired-semantic-fidelity",
@@ -56,16 +90,20 @@ def _gate(program, name, *, status="pass", independent=False):
         "interaction": "factorial-repair-interaction",
         "execution": "paired-execution-replay",
     }
+    evidence_digest = name[0] * 64
+    evidence_scope_digest = name[-1] * 64
+    qualification = qualification or _qualification(program, name)
     return issue_activation_gate_evidence(
         gate=name,
         contract_id=CONTRACT_ID,
         program=program,
         status=status,
-        evidence_digest=(name[0] * 64),
-        evidence_scope_digest=(name[-1] * 64),
+        evidence_digest=evidence_digest,
+        evidence_scope_digest=evidence_scope_digest,
         evaluator_id=f"{name}-evaluator-v1",
         evidence_kind=kinds[name],
         independent_of_repair_path=independent,
+        qualification=qualification,
     )
 
 
@@ -294,3 +332,92 @@ def test_activation_gated_mediator_carries_authority_digest():
         "interaction": "pass",
         "execution": "pass",
     }
+
+
+
+def test_unbound_source_identity_cannot_issue_gate_evidence():
+    program = _program()
+    qualification = _qualification(
+        program,
+        "execution",
+        source_identity_status="fail",
+    )
+
+    try:
+        _gate(
+            program,
+            "execution",
+            independent=True,
+            qualification=qualification,
+        )
+    except RepairActivationRejected:
+        pass
+    else:
+        raise AssertionError(
+            "renumbered or otherwise unbound measurement identity must not authorize"
+        )
+
+
+def test_nonidentifying_measurement_cannot_issue_gate_evidence():
+    program = _program()
+    qualification = _qualification(
+        program,
+        "value",
+        identifiability_status="fail",
+    )
+
+    try:
+        _gate(program, "value", qualification=qualification)
+    except RepairActivationRejected:
+        pass
+    else:
+        raise AssertionError(
+            "internally consistent but non-identifying evidence must not authorize"
+        )
+
+
+def test_nonrepeatable_measurement_cannot_issue_gate_evidence():
+    program = _program()
+    qualification = _qualification(
+        program,
+        "execution",
+        repeatability_status="unknown",
+    )
+
+    try:
+        _gate(
+            program,
+            "execution",
+            independent=True,
+            qualification=qualification,
+        )
+    except RepairActivationRejected:
+        pass
+    else:
+        raise AssertionError(
+            "single-run execution evidence must remain blocked until qualified"
+        )
+
+
+def test_qualification_cannot_be_rebound_to_different_evidence():
+    program = _program()
+    qualification = _qualification(
+        program,
+        "execution",
+        evidence_digest="q" * 64,
+        evidence_scope_digest="z" * 64,
+    )
+
+    try:
+        _gate(
+            program,
+            "execution",
+            independent=True,
+            qualification=qualification,
+        )
+    except RepairActivationRejected:
+        pass
+    else:
+        raise AssertionError(
+            "qualification for different evidence must not be reusable"
+        )
