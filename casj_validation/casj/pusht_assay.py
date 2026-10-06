@@ -72,8 +72,9 @@ def estimate_pathwise_directional_derivative_via_query(
 
     Only the support pose is changed. The policy, observation history outside
     that support intervention, and stochastic replay token remain fixed.
-    Central differences may evaluate slightly outside [0, 1] at path endpoints;
-    those are counterfactual probe states, not executed physical states.
+    Probes are restricted to the certified finite path [0, 1]. Central
+    differences are used in the interior and one-sided differences at path
+    boundaries, so no out-of-path support state is introduced by the assay.
     """
     support_delta = np.asarray(support_delta, dtype=np.float64)
     if support_delta.shape != (3,):
@@ -91,6 +92,8 @@ def estimate_pathwise_directional_derivative_via_query(
         return PathDerivativeSample(fine=zeros, coarse=zeros.copy())
 
     def query_at(fraction: float) -> np.ndarray:
+        if not 0.0 <= fraction <= 1.0:
+            raise ValueError("path probe fraction must remain in [0, 1]")
         shifted = [
             state.shifted_block(
                 fraction * support_delta[:2],
@@ -100,11 +103,26 @@ def estimate_pathwise_directional_derivative_via_query(
         ]
         return policy_query.query(shifted, randomness=randomness)
 
-    fine_plus = query_at(path_fraction + fine_step_fraction)
-    fine_minus = query_at(path_fraction - fine_step_fraction)
-    coarse_plus = query_at(path_fraction + coarse_step_fraction)
-    coarse_minus = query_at(path_fraction - coarse_step_fraction)
+    def bounded_derivative(step: float) -> np.ndarray:
+        # Central differences are preferred in the path interior.  At tau=0
+        # and tau=1 (or within one probe step of an endpoint), use a one-sided
+        # stencil so the assay never invents support states outside the finite
+        # runtime displacement being certified.
+        lower = path_fraction - step
+        upper = path_fraction + step
+        if lower >= 0.0 and upper <= 1.0:
+            plus = query_at(upper)
+            minus = query_at(lower)
+            return (plus - minus) / (2.0 * step)
+        center = query_at(path_fraction)
+        if upper <= 1.0:
+            plus = query_at(upper)
+            return (plus - center) / step
+        if lower >= 0.0:
+            minus = query_at(lower)
+            return (center - minus) / step
+        raise ValueError("path derivative probe step is too large for [0, 1]")
 
-    fine = (fine_plus - fine_minus) / (2.0 * fine_step_fraction)
-    coarse = (coarse_plus - coarse_minus) / (2.0 * coarse_step_fraction)
+    fine = bounded_derivative(fine_step_fraction)
+    coarse = bounded_derivative(coarse_step_fraction)
     return PathDerivativeSample(fine=fine, coarse=coarse)
