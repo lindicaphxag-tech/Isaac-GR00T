@@ -3,8 +3,10 @@
 from research.semantic_invariants.embodied_repair_runtime import SemanticRepairMediator
 from research.semantic_invariants.embodied_repair_interactions import (
     RepairInteractionCertificate,
+    ReplicatedRepairAuthorization,
     analyze_repair_lattice,
     authorize_repair_subset,
+    authorize_repair_subset_across_replicates,
 )
 from research.semantic_invariants.embodied_repair_verification import (
     RepairVerificationCertificate,
@@ -37,6 +39,7 @@ __all__ = [
     "CompilationResult",
     "FieldInferenceSpec",
     "RepairInteractionCertificate",
+    "ReplicatedRepairAuthorization",
     "RepairVerificationCertificate",
     "SemanticAdapter",
     "SemanticEventTransition",
@@ -47,6 +50,7 @@ __all__ = [
     "active_semantic_inference",
     "analyze_repair_lattice",
     "authorize_repair_subset",
+    "authorize_repair_subset_across_replicates",
     "compile_semantic_boundary",
     "compile_source_boundary",
     "infer_type_from_source",
