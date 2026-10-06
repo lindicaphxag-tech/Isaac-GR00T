@@ -28,8 +28,8 @@ def _sign_repair():
     return result.program
 
 
-def _certified_mediator(program=None, *, guard=None):
-    program = program or _sign_repair()
+def _verified_mediator(*, guard=None):
+    program = _sign_repair()
     contract_id = "embodied/representation/controller-roundtrip@0.2"
     certificate = verify_repair_against_heldout(
         contract_id=contract_id,
@@ -38,7 +38,7 @@ def _certified_mediator(program=None, *, guard=None):
             RepairExample((-0.25, 0.5, -0.75), (0.25, 0.5, 0.75)),
             RepairExample((-0.8, -0.2, -0.1), (0.8, -0.2, 0.1)),
         ],
-        verifier_id="independent-heldout-v1",
+        verifier_id="runtime-install-bank-v1",
     )
     return SemanticRepairMediator.from_certificate(
         contract_id=contract_id,
@@ -49,7 +49,7 @@ def _certified_mediator(program=None, *, guard=None):
 
 
 def test_verified_repair_mediates_and_records_requested_vs_executed_semantics():
-    mediator = _certified_mediator()
+    mediator = _verified_mediator()
 
     receipt = mediator.mediate(
         (-2.0, 1.0, -0.5),
@@ -69,7 +69,7 @@ def test_runtime_installation_fails_closed_for_unverified_candidate():
         SemanticRepairMediator(
             contract_id="embodied/test@0.1",
             program=_sign_repair(),
-            certificate=None,  # type: ignore[arg-type]
+            verification_status="verified",
         )
     except RepairNotVerifiedError:
         pass
@@ -84,14 +84,14 @@ def test_existing_safety_guard_observes_repaired_action():
         seen.append(executed)
         return max(abs(item) for item in executed) <= 1.0
 
-    mediator = _certified_mediator(guard=guard)
+    mediator = _verified_mediator(guard=guard)
 
     receipt = mediator.mediate((-0.4, 0.2, -0.1))
     assert seen == [receipt.executed]
 
 
 def test_guard_rejection_prevents_execution_receipt():
-    mediator = _certified_mediator(guard=lambda executed, context: False)
+    mediator = _verified_mediator(guard=lambda executed, context: False)
 
     try:
         mediator.mediate((-0.4, 0.2, -0.1))
@@ -102,7 +102,7 @@ def test_guard_rejection_prevents_execution_receipt():
 
 
 def test_provenance_digest_changes_when_semantic_execution_changes():
-    mediator = _certified_mediator()
+    mediator = _verified_mediator()
 
     first = mediator.mediate((-0.4, 0.2, -0.1))
     second = mediator.mediate((-0.5, 0.2, -0.1))
@@ -152,3 +152,18 @@ def test_runtime_rejects_certificate_reuse_for_other_contract():
         pass
     else:
         raise AssertionError("certificate must be bound to its contract")
+
+
+def test_self_declared_verified_status_never_grants_runtime_authority():
+    try:
+        SemanticRepairMediator(
+            contract_id="embodied/self-declared@0.1",
+            program=_sign_repair(),
+            verification_status="verified",
+        )
+    except RepairNotVerifiedError:
+        pass
+    else:
+        raise AssertionError(
+            "self-declared verification status must never grant runtime authority"
+        )
