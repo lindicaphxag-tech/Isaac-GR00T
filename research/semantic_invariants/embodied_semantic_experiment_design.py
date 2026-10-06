@@ -447,16 +447,16 @@ def synthesize_optimal_experiment_plan(
                 expected_remaining_cost=0.0,
                 worst_case_remaining_cost=0.0,
             )
-        if not complete or experiment_name is None:
+        if experiment_name is None:
             unresolved.add(state)
             return ExperimentDecisionNode(
                 hypotheses=state,
                 experiment=None,
                 observation_classes=(),
                 children=(),
-                complete=False,
-                expected_remaining_cost=float("inf"),
-                worst_case_remaining_cost=float("inf"),
+                complete=complete,
+                expected_remaining_cost=expected,
+                worst_case_remaining_cost=worst,
             )
 
         experiment = experiment_by_name[experiment_name]
