@@ -24,7 +24,7 @@ robot was compromised**.
 ## Exact fixed surfaces
 
 - `research/semantic_invariants/embodied_repair_interactions.py`
-  source blob `5ee45dd4501cf054780fa6b2d99eca76513e8cf0`
+  source blob `bc628c9a3093e4fd0502b18e140144d38c3dd28c`
 - `research/semantic_invariants/tests/test_embodied_repair_interactions.py`
   test blob `d0e2039d3db8eac39a8c9155863c509f55fdd731`
 
@@ -36,9 +36,11 @@ point of this mirror.
 1. Analysis and authorization reject negative, NaN and infinite tolerance.
 2. Analysis tolerance participates in the canonical evidence digest.
 3. Before an interaction certificate can be used by the subset authorizer,
-   the independent verifier recomputes its digest, edge regressions,
-   compensating bundles and Möbius interactions from the included primary
-   observations and analysis tolerance.
+   a consumption-side consistency check recomputes its digest, edge
+   regressions, compensating bundles and Möbius interactions from the
+   included primary observations and analysis tolerance. It currently
+   reuses the analyzer implementation; this is **not independent proof
+   verification** or cryptographic attestation.
 4. Mutated digest, omitted compensation bundle, altered analysis tolerance,
    and altered interaction terms must fail closed.
 5. The authorization policy *still* rejects a measured singleton regression
