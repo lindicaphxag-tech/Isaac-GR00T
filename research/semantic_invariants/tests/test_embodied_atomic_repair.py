@@ -195,3 +195,84 @@ def test_extra_uncertified_repair_is_rejected():
                 "unreviewed-extra-change": "deadbeef",
             },
         )
+
+
+def test_forged_interaction_lattice_cannot_bypass_atomic_closure_or_issue_authority():
+    from dataclasses import replace
+
+    clean = _maniskill_interaction()
+    trusted_bundle = _certificate(clean)
+    # Attack: retain the measurements and public digest but erase the derived
+    # compensating bundle so a singleton hotfix appears permissible.
+    forged = replace(clean, compensating_bundles=())
+
+    with pytest.raises(ValueError, match="integrity verification failed"):
+        required_atomic_closure(
+            interaction=forged,
+            requested_repairs=("pr1495-xyz-euler",),
+        )
+    with pytest.raises(ValueError, match="integrity verification failed"):
+        certify_atomic_repair_bundle(
+            interaction=forged,
+            repairs=("pr1472-controller-sign", "pr1495-xyz-euler"),
+            implementations={
+                "pr1472-controller-sign": PR1472,
+                "pr1495-xyz-euler": PR1495,
+            },
+        )
+    with pytest.raises(ValueError, match="integrity verification failed"):
+        authorize_repair_deployment(
+            interaction=forged,
+            certificate=trusted_bundle,
+            requested_implementations={
+                "pr1472-controller-sign": PR1472,
+                "pr1495-xyz-euler": PR1495,
+            },
+        )
+
+
+def test_atomic_bundle_rejects_resealed_subject_or_noncanonical_implementation_map():
+    from dataclasses import replace
+    from research.semantic_invariants.embodied_atomic_repair import _certificate_digest
+
+    interaction = _maniskill_interaction()
+    clean = _certificate(interaction)
+    requested = {
+        "pr1472-controller-sign": PR1472,
+        "pr1495-xyz-euler": PR1495,
+    }
+
+    # Unkeyed SHA can be recomputed by a caller. Subject must nevertheless be
+    # explicitly compared to the interaction it purports to authorize.
+    malicious_subject = "unrelated-robot-context"
+    subject_splice = replace(
+        clean,
+        subject=malicious_subject,
+        digest=_certificate_digest(
+            subject=malicious_subject,
+            interaction_digest=clean.interaction_digest,
+            required_repairs=clean.required_repairs,
+            implementations=clean.implementations,
+            masking_mode=clean.masking_mode,
+        ),
+    )
+    with pytest.raises(AtomicRepairEvidenceMismatch, match="subject"):
+        authorize_repair_deployment(
+            interaction=interaction,
+            certificate=subject_splice,
+            requested_implementations=requested,
+        )
+
+    repeated_binding = replace(
+        clean,
+        implementations=(
+            ("pr1472-controller-sign", PR1472),
+            ("pr1472-controller-sign", PR1472),
+        ),
+    )
+    with pytest.raises(AtomicRepairEvidenceMismatch, match="non-canonical"):
+        authorize_repair_deployment(
+            interaction=interaction,
+            certificate=repeated_binding,
+            requested_implementations=requested,
+        )
