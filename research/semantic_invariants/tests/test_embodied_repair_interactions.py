@@ -471,3 +471,81 @@ def test_qualified_planes_preserve_execution_nonregression_gate():
         reason.startswith("execution-domain:") and "regresses" in reason
         for reason in result.reasons
     )
+
+
+@pytest.mark.parametrize("invalid_tolerance", [float("nan"), float("inf"), float("-inf"), -1.0])
+def test_reject_nonfinite_tolerance_at_measurement_and_authorization_boundaries(
+    invalid_tolerance,
+):
+    # NaN suppresses both regression comparisons (x > y + NaN is False).
+    # +inf can suppress all finite regressions as well. Neither may acquire
+    # authority through an interaction certificate.
+    case = dict(
+        subject="nonfinite-authority-boundary",
+        metric="end_to_end_loss",
+        objective="minimize",
+        repairs=("a",),
+        outcomes=(
+            _out((), 1.0, "baseline"),
+            _out(("a",), 2.0, "regressed"),
+        ),
+    )
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        analyze_repair_lattice(**case, tolerance=invalid_tolerance)
+
+    valid_cert = analyze_repair_lattice(**case)
+    denied = authorize_repair_subset(valid_cert, ("a",))
+    assert not denied.authorized
+    assert any("regresses" in reason for reason in denied.reasons)
+
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        authorize_repair_subset(
+            valid_cert, ("a",), tolerance=invalid_tolerance
+        )
+
+
+def test_repair_certificate_integrity_includes_analysis_tolerance_and_derived_claims():
+    from dataclasses import replace
+
+    from research.semantic_invariants.embodied_repair_interactions import (
+        verify_repair_interaction_certificate,
+    )
+
+    case = dict(
+        subject="repair-authority-digest",
+        metric="endpoint_error",
+        objective="minimize",
+        repairs=("a", "b"),
+        outcomes=(
+            _out((), 1.0, "base"),
+            _out(("a",), 5.0, "a-only"),
+            _out(("b",), 5.0, "b-only"),
+            _out(("a", "b"), 0.0, "a-plus-b"),
+        ),
+    )
+    strict = analyze_repair_lattice(**case, tolerance=0.0)
+    relaxed = analyze_repair_lattice(**case, tolerance=10.0)
+
+    assert strict.has_repair_paradox
+    assert not relaxed.has_repair_paradox
+    # Both certificates have identical raw measurements, but different
+    # authority-relevant tolerance/classification. Their digests MUST differ.
+    assert strict.digest != relaxed.digest
+    verify_repair_interaction_certificate(strict)
+    verify_repair_interaction_certificate(relaxed)
+
+    for forged in (
+        replace(strict, digest="0" * 64),
+        replace(strict, compensating_bundles=()),
+        replace(strict, analysis_tolerance=10.0),
+        replace(strict, mobius_terms=()),
+    ):
+        with pytest.raises(ValueError, match="integrity verification failed"):
+            verify_repair_interaction_certificate(forged)
+        with pytest.raises(ValueError, match="integrity verification failed"):
+            authorize_repair_subset(forged, ("a",))
+
+    assert not authorize_repair_subset(strict, ("a",)).authorized
+    # A broadly relaxed analysis does not justify a safety conclusion; the
+    # current authorization threshold still detects the singleton regression.
+    assert not authorize_repair_subset(relaxed, ("a",)).authorized
