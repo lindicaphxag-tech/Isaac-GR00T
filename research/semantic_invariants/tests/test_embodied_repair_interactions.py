@@ -549,3 +549,31 @@ def test_repair_certificate_integrity_includes_analysis_tolerance_and_derived_cl
     # A broadly relaxed analysis does not justify a safety conclusion; the
     # current authorization threshold still detects the singleton regression.
     assert not authorize_repair_subset(relaxed, ("a",)).authorized
+
+
+def test_qualified_planes_reject_cross_subject_evidence_splicing():
+    outcomes = (
+        _out((), 2.0, "baseline"),
+        _out(("repair-a",), 1.0, "repaired"),
+    )
+    def cert(subject, metric):
+        return analyze_repair_lattice(
+            subject=subject, metric=metric, objective="minimize",
+            repairs=("repair-a",), outcomes=outcomes,
+        )
+
+    measured = qualify_measurement(
+        measurement_id="metric/range@v1",
+        semantic_anchor_id="fixed-target@v1",
+        repeat_outcome_digests=("same-evidence",) * 3,
+    )
+    legitimate = QualifiedRepairAuthorizationPlane(
+        "semantic-fidelity", cert("robot-A", "orientation_loss"), measured
+    )
+    spliced = QualifiedRepairAuthorizationPlane(
+        "execution-effect", cert("robot-B", "task_loss"), measured
+    )
+    with pytest.raises(ValueError, match="subject/context"):
+        authorize_repair_subset_across_qualified_planes(
+            (legitimate, spliced), ("repair-a",)
+        )
