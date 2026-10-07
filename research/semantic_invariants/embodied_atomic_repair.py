@@ -24,7 +24,10 @@ from hashlib import sha256
 import json
 from typing import Mapping, Sequence
 
-from .embodied_repair_interactions import RepairInteractionCertificate
+from .embodied_repair_interactions import (
+    RepairInteractionCertificate,
+    verify_repair_interaction_certificate,
+)
 
 
 class AtomicRepairRequired(RuntimeError):
@@ -97,6 +100,10 @@ def required_atomic_closure(
     local hotfix can expose transitive deployment dependencies.
     """
 
+    # A forged or stale set of compensating bundles must never bypass
+    # transitive repair dependency closure.
+    verify_repair_interaction_certificate(interaction)
+
     closure = set(requested_repairs)
     known = set(interaction.repairs)
     unknown = closure - known
@@ -121,6 +128,8 @@ def certify_atomic_repair_bundle(
     implementations: Mapping[str, str],
 ) -> AtomicRepairBundleCertificate:
     """Bind one detected compensating bundle to concrete repair identities."""
+
+    verify_repair_interaction_certificate(interaction)
 
     required = tuple(sorted(dict.fromkeys(repairs)))
     if len(required) < 2:
@@ -177,9 +186,31 @@ def authorize_repair_deployment(
     be present.  "Fix one now, fix the other later" is rejected.
     """
 
+    # Validate the claimed lattice before consulting its potentially forged
+    # derived compensating-bundle list.
+    verify_repair_interaction_certificate(interaction)
+
+    if certificate.subject != interaction.subject:
+        raise AtomicRepairEvidenceMismatch(
+            "atomic bundle subject does not match interaction evidence"
+        )
     if certificate.interaction_digest != interaction.digest:
         raise AtomicRepairEvidenceMismatch(
             "repair-interaction evidence digest changed after certification"
+        )
+
+    if (
+        tuple(sorted(set(certificate.required_repairs)))
+        != certificate.required_repairs
+        or len(certificate.required_repairs) < 2
+        or tuple(sorted(name for name, _ in certificate.implementations))
+        != certificate.required_repairs
+        or len(set(name for name, _ in certificate.implementations))
+        != len(certificate.implementations)
+        or any(not identity for _, identity in certificate.implementations)
+    ):
+        raise AtomicRepairEvidenceMismatch(
+            "atomic bundle has non-canonical repair/implementation bindings"
         )
 
     required = set(certificate.required_repairs)
