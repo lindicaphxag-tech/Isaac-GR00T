@@ -551,14 +551,14 @@ def authorize_repair_subset_across_planes(
             raise ValueError(f"duplicate authorization plane: {plane.plane_id!r}")
         seen_plane_ids.add(plane.plane_id)
 
-        if plane.certificate.subject != planes[0].certificate.subject:
-            raise ValueError(
-                "all authorization planes must describe the same subject/context"
-            )
-
         if plane.certificate.repairs != repair_signature:
             raise ValueError(
                 "all authorization planes must describe the same repair set"
+            )
+
+        if plane.certificate.subject != planes[0].certificate.subject:
+            raise ValueError(
+                "all authorization planes must describe the same subject/context"
             )
 
         decision = authorize_repair_subset(
@@ -633,14 +633,14 @@ def authorize_repair_subset_across_qualified_planes(
             raise ValueError(f"duplicate authorization plane: {plane.plane_id!r}")
         seen.add(plane.plane_id)
 
-        if plane.certificate.subject != planes[0].certificate.subject:
-            raise ValueError(
-                "all authorization planes must describe the same subject/context"
-            )
-
         if plane.certificate.repairs != repair_signature:
             raise ValueError(
                 "all qualified authorization planes must describe the same repair set"
+            )
+
+        if plane.certificate.subject != planes[0].certificate.subject:
+            raise ValueError(
+                "all authorization planes must describe the same subject/context"
             )
 
         try:
