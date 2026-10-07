@@ -147,8 +147,30 @@ def qualify_measurement(
 def require_qualified_measurement(
     certificate: MeasurementQualificationCertificate,
 ) -> None:
-    if not certificate.qualified:
-        detail = "; ".join(certificate.reasons) or certificate.decision
+    """Recompute qualification from primary observations, never trust flags.
+
+    This validates *internal measurement-certificate consistency*. An issuer
+    can still fabricate inputs and external-anchor names; independence and
+    sensor provenance must be checked at a separate authority boundary.
+    """
+    try:
+        expected = qualify_measurement(
+            measurement_id=certificate.measurement_id,
+            semantic_anchor_id=certificate.semantic_anchor_id,
+            repeat_outcome_digests=certificate.repeat_outcome_digests,
+            worlds=certificate.worlds,
+            minimum_repeats=certificate.minimum_repeats,
+        )
+    except (ValueError, TypeError, AttributeError) as exc:
         raise MeasurementNotQualified(
-            f"measurement {certificate.measurement_id!r} is not qualified: {detail}"
+            "measurement certificate contains invalid qualification inputs"
+        ) from exc
+    if expected != certificate:
+        raise MeasurementNotQualified(
+            "measurement certificate integrity verification failed"
+        )
+    if not expected.qualified:
+        detail = "; ".join(expected.reasons) or expected.decision
+        raise MeasurementNotQualified(
+            f"measurement {expected.measurement_id!r} is not qualified: {detail}"
         )
