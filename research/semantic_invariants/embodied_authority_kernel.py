@@ -189,6 +189,13 @@ def authorize_pre_dispatch(
 
     qualified_plane_digests: tuple[tuple[str, str, str], ...] = ()
     if qualified_planes:
+        if interaction is not None and any(
+            plane.certificate.subject != interaction.subject
+            for plane in qualified_planes
+        ):
+            raise PreDispatchAuthorityRejected(
+                "qualified-plane subject/context does not match interaction evidence"
+            )
         plane_result = authorize_repair_subset_across_qualified_planes(
             qualified_planes,
             names,
