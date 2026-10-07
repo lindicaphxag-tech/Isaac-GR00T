@@ -336,13 +336,14 @@ class RepairInteractionAuthorization:
 def verify_repair_interaction_certificate(
     certificate: RepairInteractionCertificate,
 ) -> None:
-    """Independently re-derive all claims before using an interaction certificate.
+    """Recompute derived claims before consuming an interaction certificate.
 
-    A caller must not obtain execution authority by supplying arbitrary
-    "compensating_bundles", evidence IDs, or a self-asserted digest. Analysis
-    tolerance changes the classification and must be part of the digest.
-    This verifies internal integrity, NOT source/protocol identity or external
-    evidence independence; those require separate runtime trust checks.
+    This checks internal consistency using the same analyzer implementation,
+    NOT a separately implemented or independently audited proof checker.
+    It prevents field-tampering that leaves the recorded observations unchanged.
+    Analysis tolerance changes the classification and is bound into the digest.
+    It cannot authenticate source/protocol identity or the observations'
+    external provenance; separate trust-boundary checks remain required.
     """
     if not isfinite(certificate.analysis_tolerance) or certificate.analysis_tolerance < 0:
         raise ValueError("interaction certificate has invalid analysis tolerance")
