@@ -83,3 +83,36 @@ def test_collision_blocks_identifiability_even_with_named_anchor():
 
     assert not cert.identifiable
     assert any("non-identifying" in reason for reason in cert.reasons)
+
+
+def test_self_attested_measurement_qualification_is_not_authority():
+    """A caller may not change the bool, digest, or anchor after issuance."""
+    from dataclasses import replace
+
+    nonidentifying = qualify_measurement(
+        measurement_id="untrusted-roundtrip",
+        semantic_anchor_id=None,
+        repeat_outcome_digests=("same", "same", "same"),
+    )
+    assert not nonidentifying.qualified
+    for forged in (
+        replace(nonidentifying, qualified=True),
+        replace(nonidentifying, qualified=True, decision="measurement_qualified"),
+        replace(nonidentifying, semantic_anchor_id="invented/oracle"),
+    ):
+        with pytest.raises(MeasurementNotQualified, match="integrity"):
+            require_qualified_measurement(forged)
+
+    valid = qualify_measurement(
+        measurement_id="qualified-source",
+        semantic_anchor_id="oracle/origin",
+        repeat_outcome_digests=("source-digest",) * 3,
+    )
+    require_qualified_measurement(valid)
+    for forged in (
+        replace(valid, repeat_outcome_digests=("fake",) * 3),
+        replace(valid, digest="0" * 64),
+        replace(valid, minimum_repeats=10),
+    ):
+        with pytest.raises(MeasurementNotQualified, match="integrity"):
+            require_qualified_measurement(forged)
