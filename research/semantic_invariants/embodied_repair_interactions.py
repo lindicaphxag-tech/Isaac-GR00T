@@ -87,6 +87,9 @@ class RepairInteractionCertificate:
     compensating_bundles: tuple[CompensatingRepairBundle, ...]
     mobius_terms: tuple[tuple[tuple[str, ...], float], ...]
     digest: str
+    # Historical digest-only certificates are non-authoritative until they
+    # have been reissued with a tolerance-bound certificate digest.
+    analysis_tolerance: float = 0.0
 
     @property
     def has_repair_paradox(self) -> bool:
@@ -123,12 +126,14 @@ def _canonical_payload(
     objective: Objective,
     repairs: tuple[str, ...],
     outcomes: tuple[RepairOutcome, ...],
+    tolerance: float,
 ) -> bytes:
     payload = {
         "subject": subject,
         "metric": metric,
         "objective": objective,
         "repairs": list(repairs),
+        "analysis_tolerance": tolerance,
         "outcomes": [
             {
                 "repairs": sorted(item.repairs),
@@ -182,8 +187,8 @@ def analyze_repair_lattice(
         raise ValueError("subject must be non-empty")
     if not metric:
         raise ValueError("metric must be non-empty")
-    if tolerance < 0:
-        raise ValueError("tolerance must be non-negative")
+    if not isfinite(tolerance) or tolerance < 0:
+        raise ValueError("tolerance must be finite and non-negative")
 
     repair_names = tuple(sorted(dict.fromkeys(repairs)))
     if not repair_names:
@@ -295,6 +300,7 @@ def analyze_repair_lattice(
             objective=objective,
             repairs=repair_names,
             outcomes=ordered_outcomes,
+            tolerance=tolerance,
         )
     ).hexdigest()
 
@@ -315,6 +321,7 @@ def analyze_repair_lattice(
         ),
         mobius_terms=tuple(mobius),
         digest=digest,
+        analysis_tolerance=tolerance,
     )
 
 
@@ -324,6 +331,31 @@ class RepairInteractionAuthorization:
     requested_repairs: tuple[str, ...]
     reasons: tuple[str, ...]
     certificate_digest: str
+
+
+def verify_repair_interaction_certificate(
+    certificate: RepairInteractionCertificate,
+) -> None:
+    """Independently re-derive all claims before using an interaction certificate.
+
+    A caller must not obtain execution authority by supplying arbitrary
+    "compensating_bundles", evidence IDs, or a self-asserted digest. Analysis
+    tolerance changes the classification and must be part of the digest.
+    This verifies internal integrity, NOT source/protocol identity or external
+    evidence independence; those require separate runtime trust checks.
+    """
+    if not isfinite(certificate.analysis_tolerance) or certificate.analysis_tolerance < 0:
+        raise ValueError("interaction certificate has invalid analysis tolerance")
+    expected = analyze_repair_lattice(
+        subject=certificate.subject,
+        metric=certificate.metric,
+        objective=certificate.objective,
+        repairs=certificate.repairs,
+        outcomes=certificate.outcomes,
+        tolerance=certificate.analysis_tolerance,
+    )
+    if certificate != expected:
+        raise ValueError("interaction certificate integrity verification failed")
 
 
 def authorize_repair_subset(
@@ -344,8 +376,9 @@ def authorize_repair_subset(
     worse than the all-fault baseline.
     """
 
-    if tolerance < 0:
-        raise ValueError("tolerance must be non-negative")
+    if not isfinite(tolerance) or tolerance < 0:
+        raise ValueError("tolerance must be finite and non-negative")
+    verify_repair_interaction_certificate(certificate)
 
     requested = frozenset(requested_repairs)
     known = set(certificate.repairs)
