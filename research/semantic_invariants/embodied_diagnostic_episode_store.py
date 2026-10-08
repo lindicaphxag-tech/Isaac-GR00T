@@ -82,6 +82,7 @@ def _next_decision(
                 identified=len(decision.consistent_hypotheses) == 1,
                 risk_consumed=decision.spent_risk,
                 observations_used=len(trace),
+                authority_id=decision.authority_id,
             )
         return DiagnosticProbeAuthority(
             experiment=decision.experiment,
@@ -142,6 +143,20 @@ class DiagnosticEpisodeSnapshot:
     step_index: int
     risk_charged: float
     pending_experiment: str | None
+    # Introspection ONLY; NEVER authorize repair from an unverified snapshot.
+    resolved_authority_id: str | None = None
+
+
+@dataclass(frozen=True)
+class VerifiedRepairAuthority:
+    """Recomputed source-pinned terminal authority, not a physical actuation."""
+
+    episode_id: str
+    authority_id: str
+    plan_digest: str
+    risk_charged: float
+    observations_used: int
+    surviving_hypotheses: tuple[str, ...]
 
 
 class DiagnosticEpisodeStore:
@@ -172,9 +187,22 @@ class DiagnosticEpisodeStore:
                     pending_experiment TEXT,
                     pending_token TEXT,
                     risk_charged REAL NOT NULL,
-                    next_index INTEGER NOT NULL
+                    next_index INTEGER NOT NULL,
+                    resolved_authority_id TEXT
                 )"""
             )
+            # Legacy completed episodes lack an identity. Do not backfill or
+            # silently confer repair authority to them during schema upgrade.
+            existing = {
+                row["name"] for row in conn.execute(
+                    "PRAGMA table_info(diagnostic_episode)"
+                )
+            }
+            if "resolved_authority_id" not in existing:
+                conn.execute(
+                    "ALTER TABLE diagnostic_episode "
+                    "ADD COLUMN resolved_authority_id TEXT"
+                )
             conn.commit()
 
     @contextmanager
@@ -255,8 +283,11 @@ class DiagnosticEpisodeStore:
             conn.execute("BEGIN IMMEDIATE")
             try:
                 conn.execute(
-                    """INSERT INTO diagnostic_episode VALUES
-                    (?, ?, ?, ?, 'READY', '[]', NULL, NULL, 0.0, 0)""",
+                    """INSERT INTO diagnostic_episode (
+                        episode_id, problem_digest, tree_commitment,
+                        key_commitment, status, trace_json, pending_experiment,
+                        pending_token, risk_charged, next_index
+                    ) VALUES (?, ?, ?, ?, 'READY', '[]', NULL, NULL, 0.0, 0)""",
                     (
                         episode_id, plan.digest, trusted_tree_commitment,
                         self._key_commitment,
@@ -371,18 +402,28 @@ class DiagnosticEpisodeStore:
                     trace=full_trace,
                 )
                 next_status = "DONE" if isinstance(decision, DiagnosticResolution) else "READY"
+                resolved_id = (
+                    decision.authority_id
+                    if isinstance(decision, DiagnosticResolution) else None
+                )
+                if isinstance(plan, RobustDiagnosisPlan) and next_status == "DONE":
+                    if not isinstance(resolved_id, str) or not resolved_id.strip():
+                        raise DiagnosticExecutionRejected(
+                            "robust terminal state lost concrete repair identity"
+                        )
                 if len(full_trace) != row["next_index"]:
                     raise DiagnosticExecutionRejected("observation cursor drift")
                 conn.execute(
                     """UPDATE diagnostic_episode SET status=?, trace_json=?,
-                    pending_experiment=NULL, pending_token=NULL
+                    pending_experiment=NULL, pending_token=NULL,
+                    resolved_authority_id=?
                     WHERE episode_id=? AND status='RESERVED'""",
-                    (next_status, self._encode_trace(full_trace), episode_id),
+                    (next_status, self._encode_trace(full_trace), resolved_id, episode_id),
                 )
                 conn.commit()
                 return DiagnosticEpisodeSnapshot(
                     episode_id, next_status, row["next_index"],
-                    row["risk_charged"], None,
+                    row["risk_charged"], None, resolved_id,
                 )
             except Exception:
                 conn.rollback()
@@ -411,4 +452,59 @@ class DiagnosticEpisodeStore:
             return DiagnosticEpisodeSnapshot(
                 episode_id, row["status"], row["next_index"],
                 row["risk_charged"], row["pending_experiment"],
+                row["resolved_authority_id"],
+            )
+
+
+    def verified_authority(
+        self, *, episode_id: str, plan: SupportedDiagnosticPlan,
+    ) -> VerifiedRepairAuthority:
+        """Independently recompute a finished, concrete authorized identity.
+
+        Unlike snapshot(), this method verifies the installed trusted key
+        identity, frozen source/plan identity and *the entire persisted*
+        observation trace, then checks the terminal consensus matches the
+        atomically stored repair identity and declared risk. It is not
+        an actuator command, a safety certificate for robot physics or
+        evidence that a candidate repair implementation is itself correct.
+        """
+        if not isinstance(plan, RobustDiagnosisPlan):
+            raise DiagnosticExecutionRejected(
+                "legacy fault-only diagnosis has no concrete repair authority"
+            )
+        with self._connect() as conn:
+            row = self._row(conn, episode_id)
+            self._check_plan(row, plan)
+            if row["status"] != "DONE" or row["pending_token"] is not None:
+                raise DiagnosticExecutionRejected(
+                    "no terminal repair authorization exists for episode"
+                )
+            stored_authority = row["resolved_authority_id"]
+            if not isinstance(stored_authority, str) or not stored_authority.strip():
+                raise DiagnosticExecutionRejected(
+                    "legacy or unauthenticated terminal repair identity missing"
+                )
+            trace = self._trace(row)
+            decision = _next_decision(
+                plan=plan,
+                trusted_problem_digest=row["problem_digest"],
+                trusted_tree_commitment=row["tree_commitment"],
+                trace=trace,
+            )
+            if (
+                not isinstance(decision, DiagnosticResolution)
+                or decision.authority_id != stored_authority
+                or decision.observations_used != row["next_index"]
+                or abs(decision.risk_consumed - row["risk_charged"]) > 1e-9
+            ):
+                raise DiagnosticExecutionRejected(
+                    "persisted repair identity/risk differs from frozen trace"
+                )
+            return VerifiedRepairAuthority(
+                episode_id=episode_id,
+                authority_id=stored_authority,
+                plan_digest=plan.digest,
+                risk_charged=row["risk_charged"],
+                observations_used=row["next_index"],
+                surviving_hypotheses=decision.hypotheses,
             )
