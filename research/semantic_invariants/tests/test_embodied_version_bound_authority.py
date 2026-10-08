@@ -159,3 +159,111 @@ def test_missing_trust_root_and_invalid_input_bytes_are_denied():
             live_configuration=config,
             live_protocol=protocol,
         )
+
+
+def test_version_bound_context_is_enforced_by_full_predispatch_runtime_gate():
+    from research.semantic_invariants.embodied_authority_kernel import LocalRepairProof
+    from research.semantic_invariants.embodied_execution_domain import L2BallExecutionDomain
+    from research.semantic_invariants.embodied_measurement_qualification import (
+        qualify_measurement,
+    )
+    from research.semantic_invariants.embodied_repair_interactions import (
+        QualifiedRepairAuthorizationPlane,
+    )
+    from research.semantic_invariants.embodied_repair_synthesis import (
+        RepairExample,
+        RepairPrimitive,
+        RepairProgram,
+    )
+    from research.semantic_invariants.embodied_repair_verification import (
+        verify_repair_against_heldout,
+    )
+    from research.semantic_invariants.embodied_version_bound_authority import (
+        authorize_version_bound_pre_dispatch,
+    )
+
+    def identity(value, context):
+        return tuple(value)
+
+    program = RepairProgram(
+        (RepairPrimitive(
+            name="repair",
+            family="example",
+            cost=1,
+            apply_fn=identity,
+            implementation_id="identity@v1",
+        ),)
+    )
+    certificate = verify_repair_against_heldout(
+        contract_id="contract/example-v1",
+        program=program,
+        heldout=(RepairExample((0.25,), (0.25,)),),
+        verifier_id="heldout-bank@v1",
+    )
+    measurement = qualify_measurement(
+        measurement_id="source/task-signal",
+        semantic_anchor_id="external/task-oracle",
+        repeat_outcome_digests=("identical",) * 3,
+    )
+    proof = LocalRepairProof(
+        repair_name="repair",
+        contract_id="contract/example-v1",
+        program=program,
+        certificate=certificate,
+        measurement=measurement,
+    )
+    semantic = analyze_repair_lattice(
+        subject="robot-A@pinned",
+        metric="semantic_error",
+        objective="minimize",
+        repairs=("repair",),
+        outcomes=(
+            RepairOutcome(frozenset(), 2.0, "sem-before"),
+            RepairOutcome(frozenset(("repair",)), 1.0, "sem-after"),
+        ),
+    )
+    execution = analyze_repair_lattice(
+        subject="robot-A@pinned",
+        metric="task_success",
+        objective="maximize",
+        repairs=("repair",),
+        outcomes=(
+            RepairOutcome(frozenset(), 0.8, "task-before"),
+            RepairOutcome(frozenset(("repair",)), 0.9, "task-after"),
+        ),
+    )
+    planes = (
+        QualifiedRepairAuthorizationPlane("semantic-fidelity", semantic, measurement),
+        QualifiedRepairAuthorizationPlane("execution-effect", execution, measurement),
+    )
+    sources = {"controller.py": b"unchanged-source"}
+    frozen = freeze_version_bound_context(
+        interaction=semantic,
+        source_files=sources,
+        configuration=b"controller-config@v1",
+        protocol=b"fixed-protocol@v1",
+    )
+    kwargs = dict(
+        frozen=frozen,
+        trusted_seal_digest=frozen.seal_digest,
+        live_source_files=sources,
+        live_configuration=b"controller-config@v1",
+        live_protocol=b"fixed-protocol@v1",
+        interaction=semantic,
+        repairs=(proof,),
+        raw_action=(0.25,),
+        semantic_target=(0.25,),
+        domain=L2BallExecutionDomain("action-ball@v1", 1, 1.0),
+        forward=lambda x: x,
+        forward_model_id="forward@v1",
+        distance=lambda a, b: abs(a[0] - b[0]),
+        qualified_planes=planes,
+    )
+    receipt = authorize_version_bound_pre_dispatch(**kwargs)
+    assert receipt.authorized_action == (0.25,)
+    assert receipt.qualified_plane_digests
+
+    with pytest.raises(ExecutionContextMismatch, match="drift"):
+        authorize_version_bound_pre_dispatch(
+            **{**kwargs, "live_source_files": {"controller.py": b"new-code"}},
+        )
