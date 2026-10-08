@@ -12,10 +12,12 @@ boundary. Sensor observations are NOT authenticated by this module.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import sqlite3
+from secrets import token_hex
+from typing import Callable
 
 from .embodied_diagnostic_execution import (
     DiagnosticExecutionRejected,
@@ -55,6 +57,7 @@ class DiagnosticEpisodeStore:
                     ),
                     trace_json TEXT NOT NULL,
                     pending_experiment TEXT,
+                    pending_token TEXT,
                     risk_charged REAL NOT NULL,
                     next_index INTEGER NOT NULL
                 )"""
@@ -130,7 +133,7 @@ class DiagnosticEpisodeStore:
             try:
                 conn.execute(
                     """INSERT INTO diagnostic_episode VALUES
-                    (?, ?, ?, 'READY', '[]', NULL, 0.0, 0)""",
+                    (?, ?, ?, 'READY', '[]', NULL, NULL, 0.0, 0)""",
                     (episode_id, plan.digest, trusted_tree_commitment),
                 )
                 conn.commit()
@@ -166,20 +169,22 @@ class DiagnosticEpisodeStore:
                     raise DiagnosticExecutionRejected("diagnostic cursor has drifted")
                 if abs(decision.risk_consumed - row["risk_charged"]) > 1e-9:
                     raise DiagnosticExecutionRejected("persistent risk charge drift")
+                reservation_token = token_hex(32)
                 conn.execute(
                     """UPDATE diagnostic_episode SET
-                    status='RESERVED', pending_experiment=?,
+                    status='RESERVED', pending_experiment=?, pending_token=?,
                     risk_charged=?, next_index=?
                     WHERE episode_id=? AND status='READY'""",
                     (
                         decision.experiment.name,
+                        reservation_token,
                         decision.risk_after_probe,
                         decision.step_index + 1,
                         episode_id,
                     ),
                 )
                 conn.commit()
-                return decision
+                return replace(decision, reservation_token=reservation_token)
             except Exception:
                 conn.rollback()
                 raise
@@ -187,11 +192,15 @@ class DiagnosticEpisodeStore:
     def commit_observation(
         self, *, episode_id: str, plan: SemanticExperimentPlan,
         observation: DiagnosticObservedStep,
+        reservation_token: str,
+        evidence_verifier: Callable[[str, int, str, DiagnosticObservedStep], bool],
     ) -> DiagnosticEpisodeSnapshot:
-        """Complete a reserved probe only after receiving verified evidence.
+        """Require trusted evidence bound to the episode, step and nonce.
 
-        The caller's host must authenticate evidence and match it to this
-        reservation before passing it to this method.
+        The caller-supplied verifier must be a trusted independently configured
+        sensor/effect authority, not a self-attestation function from the model
+        proposing a repair. It runs under a write transaction to keep the
+        claimed observation coupled to this exact reservation.
         """
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -202,6 +211,32 @@ class DiagnosticEpisodeStore:
                     raise DiagnosticExecutionRejected("no outstanding probe reservation")
                 if observation.experiment_name != row["pending_experiment"]:
                     raise DiagnosticExecutionRejected("observation does not match reservation")
+                if (
+                    not reservation_token
+                    or reservation_token != row["pending_token"]
+                ):
+                    raise DiagnosticExecutionRejected(
+                        "missing or stale physical dispatch reservation token"
+                    )
+                if not callable(evidence_verifier):
+                    raise DiagnosticExecutionRejected(
+                        "trusted evidence verification is mandatory"
+                    )
+                try:
+                    is_trusted = evidence_verifier(
+                        episode_id,
+                        row["next_index"] - 1,
+                        reservation_token,
+                        observation,
+                    )
+                except Exception as exc:
+                    raise DiagnosticExecutionRejected(
+                        "trusted evidence verifier failed"
+                    ) from exc
+                if is_trusted is not True:
+                    raise DiagnosticExecutionRejected(
+                        "physical observation was not authenticated by the trusted verifier"
+                    )
                 trace = self._trace(row)
                 full_trace = trace + (observation,)
                 decision = authorize_next_diagnostic_probe(
@@ -215,7 +250,7 @@ class DiagnosticEpisodeStore:
                     raise DiagnosticExecutionRejected("observation cursor drift")
                 conn.execute(
                     """UPDATE diagnostic_episode SET status=?, trace_json=?,
-                    pending_experiment=NULL
+                    pending_experiment=NULL, pending_token=NULL
                     WHERE episode_id=? AND status='RESERVED'""",
                     (next_status, self._encode_trace(full_trace), episode_id),
                 )
