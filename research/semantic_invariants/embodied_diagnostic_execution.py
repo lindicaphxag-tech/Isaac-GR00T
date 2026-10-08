@@ -43,6 +43,9 @@ class DiagnosticProbeAuthority:
     risk_after_probe: float
     remaining_risk_after_probe: float
     hypotheses: tuple[str, ...]
+    # Assigned only by the trusted durable reservation store; never by the
+    # offline planner. The physical adapter must use this as its idempotency key.
+    reservation_token: str | None = None
 
 
 @dataclass(frozen=True)
