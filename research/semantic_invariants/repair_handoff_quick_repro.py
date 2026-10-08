@@ -34,10 +34,11 @@ def run() -> dict:
     )
     assert plan.complete
     demo_key = b"PUBLIC-TEST-HMAC-SIGNER-NOT-A-REAL-SENSOR-SECRET!!!!"
+    separate_dispatch_key = b"PUBLIC-TEST-REPAIR-CLAIMER-KEY-DIFFERENT-FROM-SENSOR!!"
     episode_id = "fixture/one-use/episode1"
     with TemporaryDirectory(prefix="repair_handoff_demo_") as root:
         db = Path(root) / "episode.sqlite3"
-        store = RepairDispatchStore(db, trusted_evidence_key=demo_key)
+        store = RepairDispatchStore(db, trusted_evidence_key=demo_key, trusted_dispatch_key=separate_dispatch_key)
         store.create_episode(
             episode_id=episode_id, plan=plan,
             trusted_problem_digest=plan.digest,
@@ -67,7 +68,7 @@ def run() -> dict:
         first = store.reserve_repair_once(
             episode_id=episode_id, plan=plan, payload=correct_payload
         )
-        restarted = RepairDispatchStore(db, trusted_evidence_key=demo_key)
+        restarted = RepairDispatchStore(db, trusted_evidence_key=demo_key, trusted_dispatch_key=separate_dispatch_key)
         duplicate_refused = False
         try:
             restarted.reserve_repair_once(
