@@ -23,6 +23,8 @@ from .embodied_repair_interactions import (
     authorize_repair_subset,
     verify_repair_interaction_certificate,
 )
+from .embodied_measurement_qualification import require_qualified_measurement
+from .embodied_repair_interactions import QualifiedRepairAuthorizationPlane
 
 
 class ExecutionContextMismatch(RuntimeError):
@@ -37,6 +39,8 @@ class VersionBoundRepairContext:
     configuration_digest: str
     protocol_digest: str
     seal_digest: str
+    # v2 binds the exact qualified evidence planes used at pre-dispatch.
+    qualified_plane_commitments: tuple[tuple[str, str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -60,20 +64,45 @@ def _sources(source_files: Mapping[str, bytes]) -> tuple[tuple[str, str], ...]:
     return tuple(sorted((name, _sha(blob)) for name, blob in source_files.items()))
 
 
+def _qualified_plane_commitments(
+    *, interaction: RepairInteractionCertificate,
+    qualified_planes: Sequence[QualifiedRepairAuthorizationPlane],
+) -> tuple[tuple[str, str, str], ...]:
+    seen: set[str] = set()
+    result: list[tuple[str, str, str]] = []
+    for plane in qualified_planes:
+        if not plane.plane_id or plane.plane_id in seen:
+            raise ValueError("qualified evidence plane IDs must be nonempty and unique")
+        seen.add(plane.plane_id)
+        verify_repair_interaction_certificate(plane.certificate)
+        require_qualified_measurement(plane.measurement)
+        if (
+            plane.certificate.subject != interaction.subject
+            or plane.certificate.repairs != interaction.repairs
+        ):
+            raise ValueError("qualified evidence plane subject or repairs mismatch")
+        result.append(
+            (plane.plane_id, plane.certificate.digest, plane.measurement.digest)
+        )
+    return tuple(sorted(result))
+
+
 def _seal(
     subject: str,
     interaction_digest: str,
     sources: tuple[tuple[str, str], ...],
     configuration_digest: str,
     protocol_digest: str,
+    qualified_plane_commitments: tuple[tuple[str, str, str], ...],
 ) -> str:
     payload = {
-        "schema": "semrepair-version-bound-repair-v1",
+        "schema": "semrepair-version-bound-repair-v2",
         "subject": subject,
         "interaction_digest": interaction_digest,
         "source_digests": [list(item) for item in sources],
         "configuration_digest": configuration_digest,
         "protocol_digest": protocol_digest,
+        "qualified_plane_commitments": [list(item) for item in qualified_plane_commitments],
     }
     return sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -86,6 +115,7 @@ def freeze_version_bound_context(
     source_files: Mapping[str, bytes],
     configuration: bytes,
     protocol: bytes,
+    qualified_planes: Sequence[QualifiedRepairAuthorizationPlane] = (),
 ) -> VersionBoundRepairContext:
     """Snapshot the exact code+configuration+protocol used for a result.
 
@@ -95,7 +125,13 @@ def freeze_version_bound_context(
     sources = _sources(source_files)
     config = _sha(configuration)
     protocol_hash = _sha(protocol)
-    seal = _seal(interaction.subject, interaction.digest, sources, config, protocol_hash)
+    commitments = _qualified_plane_commitments(
+        interaction=interaction, qualified_planes=qualified_planes
+    )
+    seal = _seal(
+        interaction.subject, interaction.digest, sources, config, protocol_hash,
+        commitments,
+    )
     return VersionBoundRepairContext(
         subject=interaction.subject,
         interaction_digest=interaction.digest,
@@ -103,6 +139,7 @@ def freeze_version_bound_context(
         configuration_digest=config,
         protocol_digest=protocol_hash,
         seal_digest=seal,
+        qualified_plane_commitments=commitments,
     )
 
 
@@ -114,6 +151,7 @@ def verify_live_version_bound_context(
     live_source_files: Mapping[str, bytes],
     live_configuration: bytes,
     live_protocol: bytes,
+    live_qualified_planes: Sequence[QualifiedRepairAuthorizationPlane] = (),
 ) -> None:
     """Fail closed unless every live byte and the independently pinned root match."""
     verify_repair_interaction_certificate(interaction)
@@ -128,6 +166,7 @@ def verify_live_version_bound_context(
             source_files=live_source_files,
             configuration=live_configuration,
             protocol=live_protocol,
+            qualified_planes=live_qualified_planes,
         )
     except (ValueError, TypeError, AttributeError) as exc:
         raise ExecutionContextMismatch("invalid live execution-context inputs") from exc
@@ -147,6 +186,7 @@ def authorize_version_bound_repair_subset(
     live_configuration: bytes,
     live_protocol: bytes,
     requested_repairs: Sequence[str],
+    live_qualified_planes: Sequence[QualifiedRepairAuthorizationPlane] = (),
 ) -> VersionBoundRepairAuthorization:
     """Version-bind the primary interaction decision; call again before dispatch.
 
@@ -161,6 +201,7 @@ def authorize_version_bound_repair_subset(
         live_source_files=live_source_files,
         live_configuration=live_configuration,
         live_protocol=live_protocol,
+        live_qualified_planes=live_qualified_planes,
     )
     decision = authorize_repair_subset(interaction, requested_repairs)
     return VersionBoundRepairAuthorization(
@@ -198,6 +239,10 @@ def authorize_version_bound_pre_dispatch(
     """
     from .embodied_authority_kernel import authorize_evidence_qualified_pre_dispatch
 
+    if not frozen.qualified_plane_commitments:
+        raise ExecutionContextMismatch(
+            "full pre-dispatch requires evidence-plane commitments frozen under the trusted seal"
+        )
     verify_live_version_bound_context(
         frozen=frozen,
         interaction=interaction,
@@ -205,6 +250,7 @@ def authorize_version_bound_pre_dispatch(
         live_source_files=live_source_files,
         live_configuration=live_configuration,
         live_protocol=live_protocol,
+        live_qualified_planes=qualified_planes,
     )
     return authorize_evidence_qualified_pre_dispatch(
         repairs=repairs,
