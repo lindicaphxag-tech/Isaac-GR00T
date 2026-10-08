@@ -20,7 +20,7 @@ from hashlib import sha256
 from itertools import product
 import json
 from math import isfinite
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from .embodied_semantic_experiment_design import SemanticExperiment
 from .embodied_semantic_observability import SemanticDiagnosisHypothesis
@@ -55,6 +55,8 @@ class RobustDiagnosisNode:
 @dataclass(frozen=True)
 class RobustDiagnosisPlan:
     hypothesis_names: tuple[str, ...]
+    # Exact execution-authority equivalence classes, not only hidden ABI labels.
+    authority_by_hypothesis: tuple[tuple[str, str], ...]
     experiments: tuple[SemanticExperiment, ...]
     # Semantic transport identities and evidence IDs are part of the
     # trusted diagnosis context, not just modeled observed values.
@@ -82,8 +84,16 @@ class RobustProbe:
 
 @dataclass(frozen=True)
 class RobustResolution:
-    identified_hypothesis: str
+    authority_id: str
+    consistent_hypotheses: tuple[str, ...]
     spent_risk: float
+
+    @property
+    def identified_hypothesis(self) -> str | None:
+        return (
+            self.consistent_hypotheses[0]
+            if len(self.consistent_hypotheses) == 1 else None
+        )
 
 
 def _prediction(
@@ -185,6 +195,7 @@ def _digest(plan: RobustDiagnosisPlan) -> str:
     payload = {
         "schema": "semrepair-robust-diagnosis-v1",
         "hypothesis_names": plan.hypothesis_names,
+        "authority_by_hypothesis": plan.authority_by_hypothesis,
         "hypothesis_sources": plan.hypothesis_sources,
         "experiments": [
             (x.name, x.probe, x.tap_after_factor, x.cost, x.risk)
@@ -214,6 +225,7 @@ def synthesize_robust_experiment_plan(
     epsilon: float,
     risk_budget: float,
     max_probe_risk: float,
+    authorities: Mapping[str, str] | None = None,
     risk_weight: float = 0.0,
     cell_limit: int = 100_000,
 ) -> RobustDiagnosisPlan:
@@ -233,6 +245,16 @@ def synthesize_robust_experiment_plan(
     names = tuple(h.name for h in hs)
     if len(set(names)) != len(names) or any(not x for x in names):
         raise ValueError("unique nonempty hypothesis names are required")
+    if authorities is None:
+        # Default preserves the existing *full-identification* objective.
+        authority = {name: name for name in names}
+    else:
+        if set(authorities) != set(names) or any(
+            not isinstance(value, str) or not value.strip()
+            for value in authorities.values()
+        ):
+            raise ValueError("authorities must exactly bind all hypotheses")
+        authority = dict(authorities)
     if len(set(x.name for x in es)) != len(es):
         raise ValueError("experiment names must be unique")
     factor_names = tuple(x.name for x in hs[0].factors)
@@ -268,7 +290,9 @@ def synthesize_robust_experiment_plan(
 
     @lru_cache(maxsize=None)
     def solve(state: tuple[str, ...], remaining: float):
-        if len(state) == 1:
+        # Same exact implementation/evidence-bound authority can be accepted
+        # even if its hidden semantic ABI remains unidentifiable.
+        if len({authority[name] for name in state}) == 1:
             return RobustDiagnosisNode(state, None, (), 0.0, 0.0)
         best: RobustDiagnosisNode | None = None
         for exp in admissible:
@@ -330,7 +354,11 @@ def synthesize_robust_experiment_plan(
         for name in all_names
     )
     plan = RobustDiagnosisPlan(
-        hypothesis_names=all_names, experiments=admissible,
+        hypothesis_names=all_names,
+        authority_by_hypothesis=tuple(
+            (name, authority[name]) for name in all_names
+        ),
+        experiments=admissible,
         hypothesis_sources=sources, predictions=predicted,
         epsilon=float(epsilon),
         risk_budget=float(risk_budget), max_probe_risk=float(max_probe_risk),
@@ -390,9 +418,13 @@ def advance_robust_diagnosis(
         node = matches[0]
 
     if node.experiment is None:
-        if len(node.hypotheses) != 1 or spent > plan.risk_budget:
-            raise RobustDiagnosisRejected("uncertified diagnosis completion")
-        return RobustResolution(node.hypotheses[0], spent)
+        authority_by_name = dict(plan.authority_by_hypothesis)
+        terminal = {authority_by_name[name] for name in node.hypotheses}
+        if len(terminal) != 1 or spent > plan.risk_budget:
+            raise RobustDiagnosisRejected("uncertified or conflicting repair authority")
+        return RobustResolution(
+            next(iter(terminal)), node.hypotheses, spent,
+        )
     if spent + node.experiment.risk > plan.risk_budget:
         raise RobustDiagnosisRejected("probe would exceed cumulative risk")
     return RobustProbe(
