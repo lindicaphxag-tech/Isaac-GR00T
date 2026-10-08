@@ -189,9 +189,50 @@ passed across Python 3.10/3.12/3.13. This is self-authored CI;
 it does not demonstrate actual ManiSkill diffusion-policy improvement
 or independent academic/maintainer adoption.
 
-**Integration gap:** this robust policy currently returns a *proposed* probe
-and a proof-of-contract decision. The separately validated SQLite/HMAC
-physical-reservation gate still accepts the deterministic policy structure;
-a trusted adapter binding the robust decision, source version and actual
-sensor evidence to the same persistent episode remains to be implemented
-before claiming end-to-end robust physical authority.
+**Software integration now tested:** the same SQLite/HMAC durable
+reservation gate accepts both deterministic plans and robust set-valued plans.
+The robust integration preserves raw measured coordinates, maps the in-bound
+observation to its exact consistency set, refuses observations outside the
+frozen error bound even when HMAC-authenticated, and charges physical-probe
+risk before dispatch. A common repair-authority equivalence class may finish
+an episode without disambiguating all hidden ABI hypotheses. Public regression
+tests include 20 competing reservation workers, changed source/evidence
+identities, and restart/rollback-safe refusal within the declared database
+threat model.
+
+**Remaining physical integration gap:** the CPU integration emulates a
+separately authenticated sensor receipt and does *not* actuate ManiSkill,
+LeRobot, or any physical robot. A real adapter still must derive probe-risk
+bounds from independently qualified sensors, protect the HMAC signing key,
+honor its one-use idempotency token and report actual post-effect semantics.
+The additive risk number is not a real-world event probability.
+
+
+### Two-minute reproducibility entry point
+
+```bash
+git clone https://github.com/lindicaphxag-tech/Isaac-GR00T.git
+cd Isaac-GR00T
+git checkout research/semrepair-risk-budget-diagnosis
+python -m research.semantic_invariants.robust_diagnosis_quick_repro
+```
+
+Runs with only the Python standard library for the capsule. Prints a
+deterministic JSON object and raises an exception if any expected mechanism
+witness fails: bucket-boundary false separation, bounded-noise refusal,
+same-authority early stopping, conflicting-authority refusal, risk charge
+and duplicate physical-probe reservation prevention. It uses a **test-only**
+sensor HMAC secret: do not reuse it for a real machine.
+
+For all branches and adversarial cases:
+
+```bash
+python -m pip install pytest
+python -m pytest -q \
+  research/semantic_invariants/tests/test_embodied_robust_diagnosis.py \
+  research/semantic_invariants/tests/test_embodied_robust_runtime.py
+```
+
+[Latest author-controlled multi-Python CI run 37712075787](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37712075787)
+passed (Python 3.10/3.12/3.13); no independent researcher has yet
+validated the physical noise-bound assumptions or a real simulator rollout.
