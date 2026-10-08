@@ -247,3 +247,58 @@ def test_sensor_key_must_be_provisioned_by_trusted_bootstrap(tmp_path):
         _store(tmp_path / "short-key.sqlite3", key=b"weak")
     with pytest.raises(TypeError):
         DiagnosticEpisodeStore(tmp_path / "missing-key.sqlite3")
+
+
+def test_tampered_first_sensor_receipt_blocks_second_real_probe(tmp_path):
+    """The same sensor chain must be verified *before* dispatching effect 2."""
+    import json
+    import sqlite3
+    plan = _plan()
+    path = tmp_path / "two-probe.sqlite3"
+    store = _store(path)
+    _start(store, plan)
+    first = store.reserve_next(episode_id="robotA/trial42", plan=plan)
+    obs = _identity_obs(plan.root, "sensor-authenticated/e1")
+    outcome = store.commit_observation(
+        episode_id="robotA/trial42", plan=plan,
+        observation=obs,
+        reservation_token=first.reservation_token,
+        evidence_mac=_sensor_mac(0, first.reservation_token, obs),
+    )
+    assert outcome.status == "READY"
+    with sqlite3.connect(path) as conn:
+        trace = json.loads(conn.execute(
+            "SELECT trace_json FROM diagnostic_episode WHERE episode_id=?",
+            ("robotA/trial42",)
+        ).fetchone()[0])
+        trace[0]["evidence_id"] = "tampered-source/e1"
+        conn.execute(
+            "UPDATE diagnostic_episode SET trace_json=? WHERE episode_id=?",
+            (json.dumps(trace), "robotA/trial42"),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="sensor HMAC receipt"):
+        store.reserve_next(episode_id="robotA/trial42", plan=plan)
+    assert store.snapshot(episode_id="robotA/trial42").step_index == 1
+
+
+def test_legacy_partial_trace_without_saved_mac_fails_closed(tmp_path):
+    """Database migration cannot fabricate cryptographic proof of older probes."""
+    import sqlite3
+    plan = _plan()
+    path = tmp_path / "legacy-partial.sqlite3"
+    store = _store(path)
+    _start(store, plan)
+    first = store.reserve_next(episode_id="robotA/trial42", plan=plan)
+    obs = _identity_obs(plan.root, "sensor-authenticated/e1")
+    assert store.commit_observation(
+        episode_id="robotA/trial42", plan=plan, observation=obs,
+        reservation_token=first.reservation_token,
+        evidence_mac=_sensor_mac(0, first.reservation_token, obs),
+    ).status == "READY"
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            "UPDATE diagnostic_episode SET sensor_receipts_json='[]' "
+            "WHERE episode_id='robotA/trial42'"
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="missing persisted signed"):
+        store.reserve_next(episode_id="robotA/trial42", plan=plan)
