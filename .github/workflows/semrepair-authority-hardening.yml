@@ -40,7 +40,8 @@ jobs:
             research/semantic_invariants/embodied_repair_interactions.py \
             research/semantic_invariants/embodied_atomic_repair.py \
             research/semantic_invariants/embodied_execution_domain.py \
-            research/semantic_invariants/embodied_authority_kernel.py
+            research/semantic_invariants/embodied_authority_kernel.py \
+            research/semantic_invariants/embodied_version_bound_authority.py
 
       - name: Run authority-boundary regressions
         run: |
@@ -52,4 +53,5 @@ jobs:
             research/semantic_invariants/tests/test_embodied_repair_interactions.py \
             research/semantic_invariants/tests/test_embodied_atomic_repair.py \
             research/semantic_invariants/tests/test_embodied_execution_domain.py \
-            research/semantic_invariants/tests/test_embodied_authority_kernel.py
+            research/semantic_invariants/tests/test_embodied_authority_kernel.py \
+            research/semantic_invariants/tests/test_embodied_version_bound_authority.py
