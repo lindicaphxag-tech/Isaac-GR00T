@@ -54,6 +54,10 @@ class DiagnosticResolution:
     identified: bool
     risk_consumed: float
     observations_used: int
+    # Only the robust planner with independent implementation/evidence
+    # identity can supply a concrete candidate repair authority. Legacy
+    # diagnostic classification has no physical repair authority.
+    authority_id: str | None = None
 
 
 def _canonical_node(node: ExperimentDecisionNode) -> dict[str, object]:
