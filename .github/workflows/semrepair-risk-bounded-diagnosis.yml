@@ -1,0 +1,41 @@
+name: SemRepair cumulative-risk diagnostic planner
+
+on:
+  push:
+    branches:
+      - "research/semrepair-risk-budget-diagnosis"
+    paths:
+      - "research/semantic_invariants/embodied_semantic_transport.py"
+      - "research/semantic_invariants/embodied_semantic_observability.py"
+      - "research/semantic_invariants/embodied_semantic_experiment_design.py"
+      - "research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py"
+      - ".github/workflows/semrepair-risk-bounded-diagnosis.yml"
+  pull_request:
+    paths:
+      - "research/semantic_invariants/embodied_semantic_transport.py"
+      - "research/semantic_invariants/embodied_semantic_observability.py"
+      - "research/semantic_invariants/embodied_semantic_experiment_design.py"
+      - "research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py"
+
+jobs:
+  finite-diagnosis:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install pytest
+        run: python -m pip install pytest
+      - name: Compile code
+        run: |
+          python -m py_compile \
+            research/semantic_invariants/embodied_semantic_transport.py \
+            research/semantic_invariants/embodied_semantic_observability.py \
+            research/semantic_invariants/embodied_semantic_experiment_design.py
+      - name: Validate adaptive diagnosis and cumulative risk
+        run: python -m pytest -q research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py
