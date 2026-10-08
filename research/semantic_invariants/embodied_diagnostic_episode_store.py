@@ -188,7 +188,8 @@ class DiagnosticEpisodeStore:
                     pending_token TEXT,
                     risk_charged REAL NOT NULL,
                     next_index INTEGER NOT NULL,
-                    resolved_authority_id TEXT
+                    resolved_authority_id TEXT,
+                    sensor_receipts_json TEXT NOT NULL DEFAULT '[]'
                 )"""
             )
             # Legacy completed episodes lack an identity. Do not backfill or
@@ -202,6 +203,14 @@ class DiagnosticEpisodeStore:
                 conn.execute(
                     "ALTER TABLE diagnostic_episode "
                     "ADD COLUMN resolved_authority_id TEXT"
+                )
+            if "sensor_receipts_json" not in existing:
+                # Never backfill a fictitious MAC for legacy observations.
+                # Such in-progress/DONE rows must fail closed when replaying
+                # the sensor evidence path under the stronger contract.
+                conn.execute(
+                    "ALTER TABLE diagnostic_episode "
+                    "ADD COLUMN sensor_receipts_json TEXT NOT NULL DEFAULT '[]'"
                 )
             conn.commit()
 
@@ -243,6 +252,67 @@ class DiagnosticEpisodeStore:
             sort_keys=True,
             allow_nan=False,
         )
+
+    def _authenticated_trace(
+        self, *, row: sqlite3.Row, episode_id: str,
+    ) -> tuple[DiagnosticObservedStep, ...]:
+        """Verify *every* persisted sensor receipt against frozen episode IDs.
+
+        Earlier versions verified an HMAC only when first receiving a sensor
+        observation, then discarded the token and MAC. After restart, both
+        observation and selected repair could be rewritten consistently in
+        SQLite without any retained cryptographic sensor evidence.
+
+        The deployment key must be provisioned independently and unavailable
+        to anyone able to edit the database. SQLite must still be protected
+        against rollbacks, deletion of legitimate rows and key compromise.
+        """
+        try:
+            trace = self._trace(row)
+            receipts = json.loads(row["sensor_receipts_json"])
+            if (
+                not isinstance(receipts, list)
+                or len(receipts) != len(trace)
+                or len(trace) > row["next_index"]
+            ):
+                raise DiagnosticExecutionRejected(
+                    "missing persisted signed sensor receipt for observation trace"
+                )
+            seen_tokens: set[str] = set()
+            for index, (step, receipt) in enumerate(
+                zip(trace, receipts, strict=True)
+            ):
+                if not isinstance(receipt, dict) or receipt.get("step_index") != index:
+                    raise DiagnosticExecutionRejected(
+                        "sensor receipt sequence has changed"
+                    )
+                token = receipt.get("reservation_token")
+                mac = receipt.get("evidence_mac")
+                if (
+                    not isinstance(token, str) or len(token) != 64
+                    or not isinstance(mac, str) or len(mac) != 64
+                    or token in seen_tokens
+                ):
+                    raise DiagnosticExecutionRejected(
+                        "sensor receipt token or MAC is missing or replayed"
+                    )
+                seen_tokens.add(token)
+                expected_mac = diagnostic_observation_mac(
+                    self._trusted_evidence_key,
+                    episode_id=episode_id,
+                    step_index=index,
+                    reservation_token=token,
+                    observation=step,
+                )
+                if not hmac.compare_digest(expected_mac, mac):
+                    raise DiagnosticExecutionRejected(
+                        "persisted sensor HMAC receipt was tampered with"
+                    )
+            return trace
+        except (TypeError, ValueError, OverflowError, KeyError) as exc:
+            raise DiagnosticExecutionRejected(
+                "invalid or unauthenticated persisted sensor receipts"
+            ) from exc
 
     def _check_plan(self, row: sqlite3.Row, plan: SupportedDiagnosticPlan) -> None:
         if row["key_commitment"] != self._key_commitment:
@@ -313,7 +383,9 @@ class DiagnosticEpisodeStore:
                     raise DiagnosticExecutionRejected(
                         "episode has no unconsumed probe authorization"
                     )
-                trace = self._trace(row)
+                trace = self._authenticated_trace(
+                    row=row, episode_id=episode_id
+                )
                 decision = _next_decision(
                     plan=plan,
                     trusted_problem_digest=row["problem_digest"],
@@ -393,7 +465,9 @@ class DiagnosticEpisodeStore:
                     raise DiagnosticExecutionRejected(
                         "physical observation HMAC authentication failed"
                     )
-                trace = self._trace(row)
+                trace = self._authenticated_trace(
+                    row=row, episode_id=episode_id
+                )
                 full_trace = trace + (observation,)
                 decision = _next_decision(
                     plan=plan,
@@ -413,12 +487,24 @@ class DiagnosticEpisodeStore:
                         )
                 if len(full_trace) != row["next_index"]:
                     raise DiagnosticExecutionRejected("observation cursor drift")
+                existing_receipts = json.loads(row["sensor_receipts_json"])
+                updated_receipts = existing_receipts + [{
+                    "step_index": row["next_index"] - 1,
+                    "reservation_token": reservation_token,
+                    "evidence_mac": evidence_mac,
+                }]
                 conn.execute(
                     """UPDATE diagnostic_episode SET status=?, trace_json=?,
                     pending_experiment=NULL, pending_token=NULL,
-                    resolved_authority_id=?
+                    resolved_authority_id=?, sensor_receipts_json=?
                     WHERE episode_id=? AND status='RESERVED'""",
-                    (next_status, self._encode_trace(full_trace), resolved_id, episode_id),
+                    (
+                        next_status, self._encode_trace(full_trace), resolved_id,
+                        json.dumps(
+                            updated_receipts, sort_keys=True, separators=(",", ":")
+                        ),
+                        episode_id,
+                    ),
                 )
                 conn.commit()
                 return DiagnosticEpisodeSnapshot(
@@ -484,7 +570,9 @@ class DiagnosticEpisodeStore:
                 raise DiagnosticExecutionRejected(
                     "legacy or unauthenticated terminal repair identity missing"
                 )
-            trace = self._trace(row)
+            trace = self._authenticated_trace(
+                row=row, episode_id=episode_id
+            )
             decision = _next_decision(
                 plan=plan,
                 trusted_problem_digest=row["problem_digest"],
