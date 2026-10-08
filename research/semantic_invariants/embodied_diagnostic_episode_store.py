@@ -33,6 +33,74 @@ from .embodied_diagnostic_execution import (
     diagnostic_tree_commitment,
 )
 from .embodied_semantic_experiment_design import SemanticExperimentPlan
+from .embodied_robust_diagnosis import (
+    RobustDiagnosisPlan,
+    RobustDiagnosisRejected,
+    RobustObservation,
+    RobustProbe,
+    RobustResolution,
+    advance_robust_diagnosis,
+)
+
+
+SupportedDiagnosticPlan = SemanticExperimentPlan | RobustDiagnosisPlan
+
+
+def _plan_commitment(plan: SupportedDiagnosticPlan) -> str:
+    if isinstance(plan, RobustDiagnosisPlan):
+        # Robust v2 hashes the complete source-bound prediction table and
+        # all outcome branches as one frozen plan identity.
+        return plan.digest
+    return diagnostic_tree_commitment(plan)
+
+
+def _next_decision(
+    *, plan: SupportedDiagnosticPlan,
+    trusted_problem_digest: str,
+    trusted_tree_commitment: str,
+    trace: tuple[DiagnosticObservedStep, ...] = (),
+) -> DiagnosticProbeAuthority | DiagnosticResolution:
+    if isinstance(plan, RobustDiagnosisPlan):
+        if trusted_problem_digest != plan.digest or trusted_tree_commitment != plan.digest:
+            raise DiagnosticExecutionRejected("robust plan does not match trusted frozen identity")
+        try:
+            decision = advance_robust_diagnosis(
+                plan=plan,
+                trusted_plan_digest=trusted_tree_commitment,
+                observations=tuple(
+                    RobustObservation(item.experiment_name, item.observation_signature)
+                    for item in trace
+                ),
+            )
+        except RobustDiagnosisRejected as exc:
+            raise DiagnosticExecutionRejected(
+                f"robust sensor-evidence/authority rejection: {exc}"
+            ) from exc
+        if isinstance(decision, RobustResolution):
+            return DiagnosticResolution(
+                hypotheses=decision.consistent_hypotheses,
+                identified=len(decision.consistent_hypotheses) == 1,
+                risk_consumed=decision.spent_risk,
+                observations_used=len(trace),
+            )
+        return DiagnosticProbeAuthority(
+            experiment=decision.experiment,
+            plan_digest=plan.digest,
+            tree_commitment=plan.digest,
+            step_index=len(trace),
+            risk_consumed=decision.spent_risk,
+            risk_after_probe=decision.spent_risk + decision.experiment.risk,
+            remaining_risk_after_probe=max(
+                0.0, plan.risk_budget-decision.spent_risk-decision.experiment.risk
+            ),
+            hypotheses=decision.remaining_hypotheses,
+        )
+    return authorize_next_diagnostic_probe(
+        plan=plan,
+        trusted_problem_digest=trusted_problem_digest,
+        trusted_tree_commitment=trusted_tree_commitment,
+        trace=trace,
+    )
 
 
 def diagnostic_observation_mac(
@@ -148,14 +216,14 @@ class DiagnosticEpisodeStore:
             allow_nan=False,
         )
 
-    def _check_plan(self, row: sqlite3.Row, plan: SemanticExperimentPlan) -> None:
+    def _check_plan(self, row: sqlite3.Row, plan: SupportedDiagnosticPlan) -> None:
         if row["key_commitment"] != self._key_commitment:
             raise DiagnosticExecutionRejected(
                 "sensor verification key changed since episode creation"
             )
         if (
             row["problem_digest"] != plan.digest
-            or row["tree_commitment"] != diagnostic_tree_commitment(plan)
+            or row["tree_commitment"] != _plan_commitment(plan)
         ):
             raise DiagnosticExecutionRejected("trusted episode plan identity changed")
 
@@ -171,12 +239,12 @@ class DiagnosticEpisodeStore:
 
     def create_episode(
         self,
-        *, episode_id: str, plan: SemanticExperimentPlan,
+        *, episode_id: str, plan: SupportedDiagnosticPlan,
         trusted_problem_digest: str, trusted_tree_commitment: str,
     ) -> None:
         if not episode_id:
             raise ValueError("episode_id must be nonempty")
-        decision = authorize_next_diagnostic_probe(
+        decision = _next_decision(
             plan=plan,
             trusted_problem_digest=trusted_problem_digest,
             trusted_tree_commitment=trusted_tree_commitment,
@@ -202,7 +270,7 @@ class DiagnosticEpisodeStore:
                 ) from exc
 
     def reserve_next(
-        self, *, episode_id: str, plan: SemanticExperimentPlan,
+        self, *, episode_id: str, plan: SupportedDiagnosticPlan,
     ) -> DiagnosticProbeAuthority:
         """Commit exclusive probe reservation before the physical side effect."""
         with self._connect() as conn:
@@ -215,7 +283,7 @@ class DiagnosticEpisodeStore:
                         "episode has no unconsumed probe authorization"
                     )
                 trace = self._trace(row)
-                decision = authorize_next_diagnostic_probe(
+                decision = _next_decision(
                     plan=plan,
                     trusted_problem_digest=row["problem_digest"],
                     trusted_tree_commitment=row["tree_commitment"],
@@ -248,7 +316,7 @@ class DiagnosticEpisodeStore:
                 raise
 
     def commit_observation(
-        self, *, episode_id: str, plan: SemanticExperimentPlan,
+        self, *, episode_id: str, plan: SupportedDiagnosticPlan,
         observation: DiagnosticObservedStep,
         reservation_token: str,
         evidence_mac: str,
@@ -296,7 +364,7 @@ class DiagnosticEpisodeStore:
                     )
                 trace = self._trace(row)
                 full_trace = trace + (observation,)
-                decision = authorize_next_diagnostic_probe(
+                decision = _next_decision(
                     plan=plan,
                     trusted_problem_digest=row["problem_digest"],
                     trusted_tree_commitment=row["tree_commitment"],
