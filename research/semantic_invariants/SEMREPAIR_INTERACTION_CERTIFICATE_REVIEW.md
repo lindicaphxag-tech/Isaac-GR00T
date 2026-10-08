@@ -66,3 +66,40 @@ measurements, actual executable source identity, nor robot physical safety.
 Executable/contract/protocol identity and post-effect closure require other
 SemRepair trust-boundary checks. No maintainer adoption, external-authored reuse,
 or prospective discovery credit is implied.
+
+
+## Current additional gate: version-bound deployment authority (v1)
+
+The public branch now also includes:
+
+- `embodied_version_bound_authority.py` — version-sealed context and a
+  high-level pre-dispatch entry point integrated with the evidence-qualified
+  SemRepair authority gate;
+- `tests/test_embodied_version_bound_authority.py` — regression cases for
+  converter/controller source drift, controller configuration drift, protocol
+  drift, missing trust root, switched source labels, reissued certificates,
+  and full pre-dispatch denial after source changes.
+
+Run the **focused expanded** capsule:
+
+```bash
+python -m pip install pytest
+python -m pytest -q \
+  research/semantic_invariants/tests/test_embodied_repair_interactions.py \
+  research/semantic_invariants/tests/test_embodied_atomic_repair.py \
+  research/semantic_invariants/tests/test_embodied_measurement_qualification.py \
+  research/semantic_invariants/tests/test_embodied_version_bound_authority.py
+```
+
+**Trust boundary:** the trusted context seal MUST come from a release or
+deployment authority outside the candidate repair generator; copying the
+candidate's own newly computed digest into the trusted-root input is
+self-attestation, not evidence. Hashes bind observed bytes, not a physical
+environment or external author's identity. Recheck the live bytes at
+dispatch; this API grants only pre-dispatch authority and does not substitute
+for post-effect evidence or physical safety validation.
+
+The sample byte-string sources in the version-bound regression are designed
+to test authority semantics, not claimed to be upstream ManiSkill executable
+source. Real upstream converter evidence is maintained separately, tied to
+actual pinned Git blobs.
