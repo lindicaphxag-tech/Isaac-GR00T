@@ -12,12 +12,13 @@ boundary. Sensor observations are NOT authenticated by this module.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import sqlite3
 from secrets import token_hex
-from typing import Callable
+from typing import Callable, Iterator
 
 from .embodied_diagnostic_execution import (
     DiagnosticExecutionRejected,
@@ -64,10 +65,17 @@ class DiagnosticEpisodeStore:
             )
             conn.commit()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        # sqlite.Connection's native context manager commits/rolls back but
+        # does not close the underlying descriptor. The robot host can keep
+        # episodes for hours, so every operation must close deterministically.
         conn = sqlite3.connect(self.path, timeout=15, isolation_level=None)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     @staticmethod
     def _trace(row: sqlite3.Row) -> tuple[DiagnosticObservedStep, ...]:
