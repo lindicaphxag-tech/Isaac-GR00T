@@ -168,3 +168,54 @@ def authorize_version_bound_repair_subset(
         interaction_digest=interaction.digest,
         decision=decision,
     )
+
+
+def authorize_version_bound_pre_dispatch(
+    *,
+    frozen: VersionBoundRepairContext,
+    trusted_seal_digest: str,
+    live_source_files: Mapping[str, bytes],
+    live_configuration: bytes,
+    live_protocol: bytes,
+    interaction: RepairInteractionCertificate,
+    repairs,
+    raw_action,
+    semantic_target,
+    domain,
+    forward,
+    forward_model_id: str,
+    distance,
+    qualified_planes,
+    atomic_certificate=None,
+    projection_certificate=None,
+):
+    """Mandatory context check wrapped around SemRepair's *full* dispatch gate.
+
+    This intentionally has no fallback to an unqualified/local-only decision.
+    The external dispatch adapter must call `verify_live_version_bound_context`
+    again immediately before each physical/simulator effect, since a context
+    can drift between prepare and dispatch (TOCTOU).
+    """
+    from .embodied_authority_kernel import authorize_evidence_qualified_pre_dispatch
+
+    verify_live_version_bound_context(
+        frozen=frozen,
+        interaction=interaction,
+        trusted_seal_digest=trusted_seal_digest,
+        live_source_files=live_source_files,
+        live_configuration=live_configuration,
+        live_protocol=live_protocol,
+    )
+    return authorize_evidence_qualified_pre_dispatch(
+        repairs=repairs,
+        raw_action=raw_action,
+        semantic_target=semantic_target,
+        domain=domain,
+        forward=forward,
+        forward_model_id=forward_model_id,
+        distance=distance,
+        qualified_planes=qualified_planes,
+        interaction=interaction,
+        atomic_certificate=atomic_certificate,
+        projection_certificate=projection_certificate,
+    )
