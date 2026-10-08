@@ -236,3 +236,27 @@ python -m pytest -q \
 [Latest author-controlled multi-Python CI run 37712075787](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37712075787)
 passed (Python 3.10/3.12/3.13); no independent researcher has yet
 validated the physical noise-bound assumptions or a real simulator rollout.
+
+
+### Independent arithmetic oracle: finite bounded-noise minimax
+
+The [192-case reference test](tests/test_robust_diagnosis_independent_oracle.py)
+does **not import the implementation's interval-partition, minimax recursion
+or tree validator**. It enumerates 1-D closed rational intervals from exact
+endpoints and cell midpoints; independently solves every reachable
+hypothesis subset and residual *integer* budget with a brute-force Bellman
+oracle, then traverses every returned planning branch to check:
+
+- the exact set of legal posterior consistency sets;
+- whether complete repair-authority resolution is feasible at all;
+- exact worst-case optimum cost and maximum declared path risk;
+- refusal if an adversarial but in-bound observation retains incompatible
+  repair authorities.
+
+The 192 fixed-seed small problems vary noise widths, experiments, semantic
+transport scaling, implementation-authority partitions and risk budgets.
+The author-controlled [public job 37713604409](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37713604409)
+passed on Python 3.10 / 3.12 / 3.13. The 192-case result strengthens a
+**bounded 1-D finite-model numerical correctness claim**; it is neither a
+formal proof for all real parameters, physical risk calibration, nor an
+independently executed replication by another researcher.
