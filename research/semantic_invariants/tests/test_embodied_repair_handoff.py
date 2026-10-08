@@ -31,6 +31,7 @@ from research.semantic_invariants.embodied_semantic_transport import (
 
 
 KEY = b"fixture-test-sensor-HMAC-secret-not-deployment-credential"
+DISPATCH_KEY = b"independent-repair-consumer-signing-key-not-sensor-secret!"
 EP = "robot/fault/episode-42"
 BUNDLE_A = b"actual-byte-content-of-adapter-a-v1"
 BUNDLE_B = b"actual-byte-content-of-adapter-b-v1"
@@ -68,7 +69,7 @@ def plan(*, source="frozen-v1", pseudo=False):
 def finished_store(tmp_path, *, episode_id=EP, test_plan=None, observed=1.0):
     p = test_plan or plan()
     db = tmp_path / "handoff.sqlite3"
-    store = RepairDispatchStore(db, trusted_evidence_key=KEY)
+    store = RepairDispatchStore(db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY)
     store.create_episode(
         episode_id=episode_id, plan=p,
         trusted_problem_digest=p.digest,
@@ -101,7 +102,7 @@ def test_one_source_bound_payload_handoff_never_reissued_after_restart(tmp_path)
         issued.one_time_token.encode("ascii")
     ).hexdigest()
     assert issued.one_time_token != snapshot.token_sha256
-    restarted = RepairDispatchStore(db, trusted_evidence_key=KEY)
+    restarted = RepairDispatchStore(db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY)
     assert restarted.handoff_snapshot(episode_id=EP) == snapshot
     with pytest.raises(DiagnosticExecutionRejected, match="already reserved"):
         restarted.reserve_repair_once(
@@ -133,7 +134,7 @@ def test_no_dispatch_from_pseudo_hash_authority_identifier(tmp_path):
 
 def test_no_dispatch_before_authenticated_diagnosis_is_done(tmp_path):
     p = plan()
-    store = RepairDispatchStore(tmp_path / "unresolved.sqlite3", trusted_evidence_key=KEY)
+    store = RepairDispatchStore(tmp_path / "unresolved.sqlite3", trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY)
     store.create_episode(
         episode_id=EP, plan=p,
         trusted_problem_digest=p.digest,
@@ -190,7 +191,7 @@ def test_repair_reservation_is_atomic_against_24_competing_workers(tmp_path):
     db, _, p = finished_store(tmp_path)
 
     def attempt(_):
-        store = RepairDispatchStore(db, trusted_evidence_key=KEY)
+        store = RepairDispatchStore(db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY)
         try:
             return store.reserve_repair_once(
                 episode_id=EP, plan=p, payload=BUNDLE_A
@@ -204,7 +205,7 @@ def test_repair_reservation_is_atomic_against_24_competing_workers(tmp_path):
     assert len(reservations) == 1
     assert reservations[0].status == "RESERVED_UNCONFIRMED"
     assert RepairDispatchStore(
-        db, trusted_evidence_key=KEY
+        db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY
     ).handoff_snapshot(episode_id=EP).token_sha256 == sha256(
         reservations[0].one_time_token.encode("ascii")
     ).hexdigest()
@@ -232,7 +233,7 @@ def test_no_actuation_completion_or_replay_token_retrieval_api(tmp_path):
     token = store.reserve_repair_once(
         episode_id=EP, plan=p, payload=BUNDLE_A
     ).one_time_token
-    restarted = RepairDispatchStore(db, trusted_evidence_key=KEY)
+    restarted = RepairDispatchStore(db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY)
     view = restarted.handoff_snapshot(episode_id=EP)
     assert view.status == "RESERVED_UNCONFIRMED"
     assert token not in repr(view)
@@ -251,7 +252,7 @@ def test_token_consumer_claims_exact_bundle_once_and_cannot_repeat(tmp_path):
     )
     assert first_claim.status == "CLAIMED_UNCONFIRMED"
     assert first_claim.concrete_authority_id == authority(BUNDLE_A)
-    restart = RepairDispatchStore(db, trusted_evidence_key=KEY)
+    restart = RepairDispatchStore(db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY)
     assert restart.handoff_snapshot(episode_id=EP).status == "CLAIMED_UNCONFIRMED"
     with pytest.raises(DiagnosticExecutionRejected, match="previously claimed"):
         restart.consume_repair_token_once(
@@ -318,7 +319,7 @@ def test_24_competing_consumers_only_one_claims_once(tmp_path):
     ).one_time_token
 
     def attempt(_):
-        local = RepairDispatchStore(db, trusted_evidence_key=KEY)
+        local = RepairDispatchStore(db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY)
         try:
             return local.consume_repair_token_once(
                 episode_id=EP, plan=p, payload=BUNDLE_A,
@@ -333,7 +334,7 @@ def test_24_competing_consumers_only_one_claims_once(tmp_path):
     assert len(claims) == 1
     assert claims[0].status == "CLAIMED_UNCONFIRMED"
     assert RepairDispatchStore(
-        db, trusted_evidence_key=KEY
+        db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY
     ).handoff_snapshot(episode_id=EP).status == "CLAIMED_UNCONFIRMED"
 
 
@@ -408,4 +409,51 @@ def test_sqlite_writer_cannot_reset_claimed_handoff_status_to_unclaimed(tmp_path
         store.consume_repair_token_once(
             episode_id=EP, plan=p, payload=BUNDLE_A,
             one_time_token=token,
+        )
+
+
+def test_repair_consumer_key_separate_from_sensor_signer_required(tmp_path):
+    with pytest.raises((TypeError, ValueError)):
+        RepairDispatchStore(
+            tmp_path / "keys.sqlite3", trusted_evidence_key=KEY,
+            trusted_dispatch_key=KEY,
+        )
+    with pytest.raises((TypeError, ValueError)):
+        RepairDispatchStore(
+            tmp_path / "keys.sqlite3", trusted_evidence_key=KEY,
+        )
+
+
+def test_dispatch_key_rotation_does_not_authorize_old_handoff(tmp_path):
+    db, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A
+    ).one_time_token
+    other_key = b"another-separate-32-plus-byte-repair-consumer-key"
+    changed = RepairDispatchStore(
+        db, trusted_evidence_key=KEY, trusted_dispatch_key=other_key,
+    )
+    with pytest.raises(DiagnosticExecutionRejected, match="integrity MAC"):
+        changed.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A, one_time_token=token,
+        )
+
+
+def test_legacy_unsigned_handoff_row_stays_denied_after_schema_migration(tmp_path):
+    db, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A
+    ).one_time_token
+    # Models a legacy record with no independently authenticated row MAC.
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "UPDATE repair_handoff SET handoff_receipt_mac=NULL WHERE episode_id=?",
+            (EP,),
+        )
+    new_store = RepairDispatchStore(
+        db, trusted_evidence_key=KEY, trusted_dispatch_key=DISPATCH_KEY,
+    )
+    with pytest.raises(DiagnosticExecutionRejected, match="missing dispatch integrity MAC"):
+        new_store.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A, one_time_token=token,
         )
