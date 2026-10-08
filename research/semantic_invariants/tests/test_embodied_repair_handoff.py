@@ -364,3 +364,48 @@ def test_snapshot_does_not_provide_physical_completion_receipt(tmp_path):
     assert not hasattr(row, "physical_effect_succeeded")
     assert not hasattr(row, "actual_robot_execution")
     assert not hasattr(store, "retry_physical_dispatch")
+
+
+def test_sqlite_writer_cannot_swap_handoff_token_hash_without_dispatch_secret(tmp_path):
+    """Red-team: a database writer does NOT possess the independent dispatch key.
+
+    If only sha256(token) is in mutable SQLite, attacker can replace it
+    with sha256(attacker_token), then claim a legitimate repair as if that
+    token had been issued. The repaired implementation must reject this.
+    """
+    db, store, p = finished_store(tmp_path)
+    store.reserve_repair_once(episode_id=EP, plan=p, payload=BUNDLE_A)
+    forged_token = "d" * 64
+    with sqlite3.connect(db) as con:
+        con.execute(
+            "UPDATE repair_handoff SET token_sha256=? WHERE episode_id=?",
+            (sha256(forged_token.encode("ascii")).hexdigest(), EP),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="MAC|tamper|integrity"):
+        store.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A,
+            one_time_token=forged_token,
+        )
+
+
+def test_sqlite_writer_cannot_reset_claimed_handoff_status_to_unclaimed(tmp_path):
+    """Red-team: replacing the status text is not legitimate new authorization."""
+    db, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A
+    ).one_time_token
+    store.consume_repair_token_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A,
+        one_time_token=token,
+    )
+    with sqlite3.connect(db) as con:
+        con.execute(
+            "UPDATE repair_handoff SET status='RESERVED_UNCONFIRMED' "
+            "WHERE episode_id=?",
+            (EP,),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="MAC|tamper|integrity"):
+        store.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A,
+            one_time_token=token,
+        )
