@@ -15,6 +15,7 @@ on:
       - "research/semantic_invariants/embodied_robust_diagnosis.py"
       - "research/semantic_invariants/robust_diagnosis_quick_repro.py"
       - "research/semantic_invariants/signed_repair_receipt_quick_repro.py"
+      - "research/semantic_invariants/repair_handoff_quick_repro.py"
       - "research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py"
       - "research/semantic_invariants/tests/test_embodied_diagnostic_execution.py"
       - "research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py"
@@ -35,6 +36,7 @@ on:
       - "research/semantic_invariants/embodied_robust_diagnosis.py"
       - "research/semantic_invariants/robust_diagnosis_quick_repro.py"
       - "research/semantic_invariants/signed_repair_receipt_quick_repro.py"
+      - "research/semantic_invariants/repair_handoff_quick_repro.py"
       - "research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py"
       - "research/semantic_invariants/tests/test_embodied_diagnostic_execution.py"
       - "research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py"
@@ -73,3 +75,5 @@ jobs:
         run: python -m research.semantic_invariants.robust_diagnosis_quick_repro
       - name: Falsify persistent signed sensor trace rewrite (one-command proof)
         run: python -m research.semantic_invariants.signed_repair_receipt_quick_repro
+      - name: Validate one-use source-bound repair handoff restart refusal
+        run: python -m research.semantic_invariants.repair_handoff_quick_repro
