@@ -7,7 +7,9 @@ automatically eligible for re-dispatch. A trusted controller may mark an
 ambiguous episode ABORTED but must never reset its cursor to retry the effect.
 
 The database and episode initializer are inside the trusted deployment
-boundary. Sensor observations are NOT authenticated by this module.
+boundary. Sensor receipts are HMAC-authenticated under a trust-root secret
+provisioned separately from the candidate repair generator. HMAC does not
+prove physical ground truth, only possession of that sensor-side secret.
 """
 
 from __future__ import annotations
@@ -15,10 +17,12 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 import json
+import hmac
+from hashlib import sha256
 from pathlib import Path
 import sqlite3
 from secrets import token_hex
-from typing import Callable, Iterator
+from typing import Iterator
 
 from .embodied_diagnostic_execution import (
     DiagnosticExecutionRejected,
@@ -29,6 +33,38 @@ from .embodied_diagnostic_execution import (
     diagnostic_tree_commitment,
 )
 from .embodied_semantic_experiment_design import SemanticExperimentPlan
+
+
+def diagnostic_observation_mac(
+    secret_key: bytes,
+    *,
+    episode_id: str,
+    step_index: int,
+    reservation_token: str,
+    observation: DiagnosticObservedStep,
+) -> str:
+    """Authenticate a sensor receipt under a separately managed secret key.
+
+    The key must be provisioned by the trusted execution/sensor control plane;
+    the candidate repair generator must never obtain it.
+    """
+    if not isinstance(secret_key, bytes) or len(secret_key) < 32:
+        raise ValueError("trusted diagnostic evidence key must be >=32 bytes")
+    if not episode_id or step_index < 0 or not reservation_token:
+        raise ValueError("diagnostic evidence identity is invalid")
+    encoded = json.dumps(
+        {
+            "schema": "semrepair-diagnostic-observation-hmac-v1",
+            "episode_id": episode_id,
+            "step_index": step_index,
+            "reservation_token": reservation_token,
+            "experiment_name": observation.experiment_name,
+            "signature": list(observation.observation_signature),
+            "evidence_id": observation.evidence_id,
+        },
+        sort_keys=True, separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")
+    return hmac.new(secret_key, encoded, sha256).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -43,16 +79,24 @@ class DiagnosticEpisodeSnapshot:
 class DiagnosticEpisodeStore:
     """An atomic, persistent dispatch cursor, never an actuator interface."""
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, *, trusted_evidence_key: bytes):
         self.path = str(path)
         if self.path == ":memory:":
             raise ValueError("a persistent SQLite path is required")
+        if (
+            not isinstance(trusted_evidence_key, bytes)
+            or len(trusted_evidence_key) < 32
+        ):
+            raise ValueError("trusted evidence key must contain at least 32 bytes")
+        self._trusted_evidence_key = trusted_evidence_key
+        self._key_commitment = sha256(trusted_evidence_key).hexdigest()
         with self._connect() as conn:
             conn.execute(
                 """CREATE TABLE IF NOT EXISTS diagnostic_episode (
                     episode_id TEXT PRIMARY KEY,
                     problem_digest TEXT NOT NULL,
                     tree_commitment TEXT NOT NULL,
+                    key_commitment TEXT NOT NULL,
                     status TEXT NOT NULL CHECK (
                         status IN ('READY', 'RESERVED', 'DONE', 'ABORTED')
                     ),
@@ -104,8 +148,11 @@ class DiagnosticEpisodeStore:
             allow_nan=False,
         )
 
-    @staticmethod
-    def _check_plan(row: sqlite3.Row, plan: SemanticExperimentPlan) -> None:
+    def _check_plan(self, row: sqlite3.Row, plan: SemanticExperimentPlan) -> None:
+        if row["key_commitment"] != self._key_commitment:
+            raise DiagnosticExecutionRejected(
+                "sensor verification key changed since episode creation"
+            )
         if (
             row["problem_digest"] != plan.digest
             or row["tree_commitment"] != diagnostic_tree_commitment(plan)
@@ -141,8 +188,11 @@ class DiagnosticEpisodeStore:
             try:
                 conn.execute(
                     """INSERT INTO diagnostic_episode VALUES
-                    (?, ?, ?, 'READY', '[]', NULL, NULL, 0.0, 0)""",
-                    (episode_id, plan.digest, trusted_tree_commitment),
+                    (?, ?, ?, ?, 'READY', '[]', NULL, NULL, 0.0, 0)""",
+                    (
+                        episode_id, plan.digest, trusted_tree_commitment,
+                        self._key_commitment,
+                    ),
                 )
                 conn.commit()
             except sqlite3.IntegrityError as exc:
@@ -201,14 +251,13 @@ class DiagnosticEpisodeStore:
         self, *, episode_id: str, plan: SemanticExperimentPlan,
         observation: DiagnosticObservedStep,
         reservation_token: str,
-        evidence_verifier: Callable[[str, int, str, DiagnosticObservedStep], bool],
+        evidence_mac: str,
     ) -> DiagnosticEpisodeSnapshot:
-        """Require trusted evidence bound to the episode, step and nonce.
+        """Require an authenticated sensor receipt with frozen verification key.
 
-        The caller-supplied verifier must be a trusted independently configured
-        sensor/effect authority, not a self-attestation function from the model
-        proposing a repair. It runs under a write transaction to keep the
-        claimed observation coupled to this exact reservation.
+        The caller cannot swap in a permissive verifier on a per-call basis.
+        Trusted hardware/telemetry software must supply the HMAC separately.
+        This proves origin under that key, not ground-truth physical effect.
         """
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -226,24 +275,24 @@ class DiagnosticEpisodeStore:
                     raise DiagnosticExecutionRejected(
                         "missing or stale physical dispatch reservation token"
                     )
-                if not callable(evidence_verifier):
-                    raise DiagnosticExecutionRejected(
-                        "trusted evidence verification is mandatory"
-                    )
                 try:
-                    is_trusted = evidence_verifier(
-                        episode_id,
-                        row["next_index"] - 1,
-                        reservation_token,
-                        observation,
+                    expected_mac = diagnostic_observation_mac(
+                        self._trusted_evidence_key,
+                        episode_id=episode_id,
+                        step_index=row["next_index"] - 1,
+                        reservation_token=reservation_token,
+                        observation=observation,
                     )
-                except Exception as exc:
+                except (TypeError, ValueError, OverflowError) as exc:
                     raise DiagnosticExecutionRejected(
-                        "trusted evidence verifier failed"
+                        "malformed physical observation receipt"
                     ) from exc
-                if is_trusted is not True:
+                if (
+                    not isinstance(evidence_mac, str)
+                    or not hmac.compare_digest(expected_mac, evidence_mac)
+                ):
                     raise DiagnosticExecutionRejected(
-                        "physical observation was not authenticated by the trusted verifier"
+                        "physical observation HMAC authentication failed"
                     )
                 trace = self._trace(row)
                 full_trace = trace + (observation,)
