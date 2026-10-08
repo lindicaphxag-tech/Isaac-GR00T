@@ -8,9 +8,13 @@ Security boundary:
     diagnosis's already frozen concrete repair authority.
   - Every observation in the durable diagnosis is independently reverified
     against its original sensor HMAC before a handoff is recorded.
-  - Guarantees require a trusted non-rollback SQLite database, trusted plan
-    installation, uncompromised sensor HMAC key and exclusive trusted dispatch
-    process. A receiver that duplicates a token is outside this model.
+  - SQLite-only writers cannot mint tokens or reset claimed status: the
+    handoff row (INCLUDING its state) is MAC-sealed under a SEPARATE
+    deployment-provisioned 32+ byte dispatch secret, not the sensor key.
+  - Guarantees still require a non-rollback SQLite database, trusted plan
+    bootstrap and secret provisioning. Replacing the ENTIRE database with
+    an older signed snapshot is outside this local verifier's ability.
+  - A receiver that duplicates an actual external effect is out of scope.
   - A byte hash says which bytes were approved, NOT that code is safe or
     that they were executed successfully. No execution-result claim exists.
 """
@@ -18,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import json
 import hmac
 import sqlite3
 from secrets import token_hex
@@ -73,7 +78,20 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
     is not an actuator-side exactly-once guarantee.
     """
 
-    def __init__(self, path, *, trusted_evidence_key: bytes):
+    def __init__(
+        self, path, *, trusted_evidence_key: bytes,
+        trusted_dispatch_key: bytes,
+    ):
+        if (
+            not isinstance(trusted_dispatch_key, bytes)
+            or len(trusted_dispatch_key) < 32
+            or trusted_dispatch_key == trusted_evidence_key
+        ):
+            raise ValueError(
+                "independently provisioned dispatch MAC key must be "
+                "32+ bytes and distinct from sensor verification key"
+            )
+        self._trusted_dispatch_key = trusted_dispatch_key
         super().__init__(path, trusted_evidence_key=trusted_evidence_key)
         with self._connect() as conn:
             conn.execute(
@@ -86,10 +104,62 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
                     status TEXT NOT NULL
                       CHECK(status IN (
                         'RESERVED_UNCONFIRMED', 'CLAIMED_UNCONFIRMED'
-                      ))
+                      )),
+                    handoff_receipt_mac TEXT
                 )"""
             )
+            # Migrate old unsigned handoff rows without granting them a
+            # retrospectively fabricated MAC. All old rows fail closed.
+            names = {
+                row["name"] for row in conn.execute(
+                    "PRAGMA table_info(repair_handoff)"
+                )
+            }
+            if "handoff_receipt_mac" not in names:
+                conn.execute(
+                    "ALTER TABLE repair_handoff ADD COLUMN handoff_receipt_mac TEXT"
+                )
             conn.commit()
+
+    def _handoff_mac(
+        self, *, episode_id: str, plan_digest: str,
+        authority_id: str, payload_sha256: str, token_sha256: str,
+        status: str,
+    ) -> str:
+        encoded = json.dumps(
+            {
+                "schema": "semrepair-source-pinned-repair-handoff-hmac-v1",
+                "episode_id": episode_id,
+                "plan_digest": plan_digest,
+                "authority_id": authority_id,
+                "payload_sha256": payload_sha256,
+                "token_sha256": token_sha256,
+                "status": status,
+            },
+            sort_keys=True, separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")
+        return hmac.new(
+            self._trusted_dispatch_key, encoded, sha256
+        ).hexdigest()
+
+    def _verify_handoff_row(self, row: sqlite3.Row) -> None:
+        signature = row["handoff_receipt_mac"]
+        if not isinstance(signature, str) or len(signature) != 64:
+            raise DiagnosticExecutionRejected(
+                "missing dispatch integrity MAC; legacy handoff is untrusted"
+            )
+        expected = self._handoff_mac(
+            episode_id=row["episode_id"],
+            plan_digest=row["plan_digest"],
+            authority_id=row["authority_id"],
+            payload_sha256=row["payload_sha256"],
+            token_sha256=row["token_sha256"],
+            status=row["status"],
+        )
+        if not hmac.compare_digest(signature, expected):
+            raise DiagnosticExecutionRejected(
+                "repair handoff integrity MAC mismatch: tampered database row"
+            )
 
     def reserve_repair_once(
         self, *, episode_id: str, plan: RobustDiagnosisPlan,
@@ -155,14 +225,26 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
                 # Store a non-recoverable commitment, not the capability
                 # itself; even a read-only database dump is not a dispatch
                 # token. Repeat reservations are rejected by PRIMARY KEY.
+                token_commitment = sha256(
+                    token.encode("ascii")
+                ).hexdigest()
+                status = "RESERVED_UNCONFIRMED"
+                signed_row = self._handoff_mac(
+                    episode_id=episode_id,
+                    plan_digest=plan.digest,
+                    authority_id=authority_digest,
+                    payload_sha256=payload_digest,
+                    token_sha256=token_commitment,
+                    status=status,
+                )
                 conn.execute(
                     """INSERT INTO repair_handoff (
                         episode_id, plan_digest, authority_id, payload_sha256,
-                        token_sha256, status
-                    ) VALUES (?, ?, ?, ?, ?, 'RESERVED_UNCONFIRMED')""",
+                        token_sha256, status, handoff_receipt_mac
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
                     (
                         episode_id, plan.digest, authority_digest,
-                        payload_digest, sha256(token.encode("ascii")).hexdigest(),
+                        payload_digest, token_commitment, status, signed_row,
                     ),
                 )
                 conn.commit()
@@ -218,10 +300,12 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
                     "SELECT * FROM repair_handoff WHERE episode_id=?",
                     (episode_id,),
                 ).fetchone()
-                if (
-                    handoff is None
-                    or handoff["status"] != "RESERVED_UNCONFIRMED"
-                ):
+                if handoff is None:
+                    raise DiagnosticExecutionRejected(
+                        "repair token is absent, previously claimed or revoked"
+                    )
+                self._verify_handoff_row(handoff)
+                if handoff["status"] != "RESERVED_UNCONFIRMED":
                     raise DiagnosticExecutionRejected(
                         "repair token is absent, previously claimed or revoked"
                     )
@@ -263,11 +347,18 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
                     raise DiagnosticExecutionRejected(
                         "repair token cannot authorize altered sensor evidence"
                     )
+                claimed_status = "CLAIMED_UNCONFIRMED"
+                next_mac = self._handoff_mac(
+                    episode_id=episode_id, plan_digest=plan.digest,
+                    authority_id=authority,
+                    payload_sha256=digest, token_sha256=token_digest,
+                    status=claimed_status,
+                )
                 updated = conn.execute(
                     """UPDATE repair_handoff
-                       SET status='CLAIMED_UNCONFIRMED'
+                       SET status=?, handoff_receipt_mac=?
                        WHERE episode_id=? AND status='RESERVED_UNCONFIRMED'""",
-                    (episode_id,),
+                    (claimed_status, next_mac, episode_id),
                 )
                 if updated.rowcount != 1:
                     raise DiagnosticExecutionRejected(
@@ -293,6 +384,7 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
                 raise DiagnosticExecutionRejected(
                     "no repair handoff reservation exists"
                 )
+            self._verify_handoff_row(row)
             return RepairHandoffSnapshot(
                 episode_id=row["episode_id"],
                 status=row["status"],
