@@ -242,6 +242,7 @@ def test_version_bound_context_is_enforced_by_full_predispatch_runtime_gate():
         source_files=sources,
         configuration=b"controller-config@v1",
         protocol=b"fixed-protocol@v1",
+        qualified_planes=planes,
     )
     kwargs = dict(
         frozen=frozen,
@@ -266,4 +267,62 @@ def test_version_bound_context_is_enforced_by_full_predispatch_runtime_gate():
     with pytest.raises(ExecutionContextMismatch, match="drift"):
         authorize_version_bound_pre_dispatch(
             **{**kwargs, "live_source_files": {"controller.py": b"new-code"}},
+        )
+
+    # Even with the same source, config, subject and primary interaction,
+    # evidence from another run/protocol must not be silently substituted.
+    changed_measurement = qualify_measurement(
+        measurement_id="source/task-signal",
+        semantic_anchor_id="external/task-oracle-v2",
+        repeat_outcome_digests=("identical",) * 3,
+    )
+    spliced_measurement = (
+        QualifiedRepairAuthorizationPlane("semantic-fidelity", semantic, changed_measurement),
+        planes[1],
+    )
+    with pytest.raises(ExecutionContextMismatch, match="drift"):
+        authorize_version_bound_pre_dispatch(
+            **{**kwargs, "qualified_planes": spliced_measurement},
+        )
+
+    changed_semantic = analyze_repair_lattice(
+        subject=semantic.subject,
+        metric=semantic.metric,
+        objective=semantic.objective,
+        repairs=semantic.repairs,
+        outcomes=(
+            RepairOutcome(frozenset(), 2.0, "sem-before"),
+            RepairOutcome(frozenset(("repair",)), 0.5, "sem-after-new-run"),
+        ),
+    )
+    spliced_outcomes = (
+        QualifiedRepairAuthorizationPlane("semantic-fidelity", changed_semantic, measurement),
+        planes[1],
+    )
+    with pytest.raises(ExecutionContextMismatch, match="drift"):
+        authorize_version_bound_pre_dispatch(
+            **{**kwargs, "qualified_planes": spliced_outcomes},
+        )
+
+    # Merely renaming or dropping a required plane cannot inherit authority.
+    with pytest.raises(ExecutionContextMismatch, match="drift"):
+        authorize_version_bound_pre_dispatch(
+            **{**kwargs, "qualified_planes": planes[:1]},
+        )
+
+    # Reorder alone does not alter evidence identity: commitments are sorted.
+    reversed_authority = authorize_version_bound_pre_dispatch(
+        **{**kwargs, "qualified_planes": planes[::-1]},
+    )
+    assert reversed_authority.authorized_action == (0.25,)
+
+    unsealed = freeze_version_bound_context(
+        interaction=semantic,
+        source_files=sources,
+        configuration=b"controller-config@v1",
+        protocol=b"fixed-protocol@v1",
+    )
+    with pytest.raises(ExecutionContextMismatch, match="evidence-plane commitments"):
+        authorize_version_bound_pre_dispatch(
+            **{**kwargs, "frozen": unsealed, "trusted_seal_digest": unsealed.seal_digest},
         )
