@@ -119,3 +119,79 @@ The [2026-10-08 author-run HMAC regression workflow](https://github.com/lindicap
 passed on Python 3.10, 3.12, 3.13; the subsequent one-line abort-key
 tightening must be treated as unverified until its own run completes. These results are public, not
 maintainer-authored or physically validated.
+
+
+## Bounded-noise semantic diagnosis and repair-authority stopping (v2)
+
+**Fatal counterexample to bucket-as-noise logic:** two modeled sensor
+predictions at 1.049 and 1.051 fall into *different* nearest-integer buckets
+when quantized at resolution 0.1, although their separation is only 0.002.
+A physical sensor known only to satisfy |observed - expected| <= 0.1 cannot
+reliably distinguish them. Using the bucket IDs as a guarantee of
+identifiability would authorize a diagnosis unsupported by its measurement.
+
+`embodied_robust_diagnosis.py` defines an admissible observation region
+`B_infinity(y_h(e), epsilon)` for each semantic-world hypothesis `h` and
+experiment `e`. After observing a measured vector `z`, its surviving
+worlds are exactly
+
+`H' = {h in H: max_i |z_i - y_h(e)_i| <= epsilon}`.
+
+The implementation enumerates *every distinct reachable* nonempty
+consistency set by partitioning each observed coordinate at all finite box
+endpoints and testing both endpoints and cell interiors. It does **not**
+mistake pairwise overlapping boxes for a disjoint partition. For small
+finite libraries and supported error bounds, it solves the minimax Bellman
+problem on `(surviving_worlds, remaining_episode_risk)` and requires every
+potential observation branch to complete within the available risk.
+If an admissible in-bound reading can leave the same ambiguous world set,
+the corresponding probe cannot support a guaranteed progress claim.
+
+**Repair-aware terminal rule.** Full identification of the hidden semantic
+ABI is not necessary when every remaining world maps to the same *exact*
+verified implementation-and-evidence-bound repair authority. Conversely, an
+observation-compatible set with conflicting authority IDs cannot be treated
+as a safe stop. The authority IDs are caller-supplied *identities*: they must
+be derived and trusted by SemRepair's separate implementation/evidence
+verification system; equality of arbitrary labels is not proof of correctness.
+
+This gives a falsifiable distinction:
+
+- same physical observations, two still-possible hidden ABI hypotheses, same
+  concrete repair authority -> a safe **decision-equivalence stop** in the
+  declared model, even though the individual ABI is unknown;
+- same observations, mutually incompatible repair-authority identities ->
+  more admissible evidence or **refusal**;
+- a noise bound relaxed enough to overlap all relevant worlds -> **refusal**,
+  regardless of how far apart nearest-integer quantization buckets appear.
+
+**Exactness and limitations.** The minimax result is exact only for the
+supplied *finite* hypothesis and experiment library, the stated uniform
+componentwise bounded-error model, and the additive risk scores. Complexity
+can grow exponentially in hypothesis count and observation dimension;
+`cell_limit` is an explicit fail-closed computational cap. No empirical
+sensor calibration, general nonlinear control, stochastic noise likelihood,
+formal Lean proof for this new DP, or learned-policy advantage is claimed.
+
+**Prior-art boundary.** Equivalence Class Determination / EC²
+(NeurIPS 2010, https://proceedings.neurips.cc/paper/2010/file/1e6e0a04d20f50967c64dac2d639a577-Paper.pdf)
+and noisy optimal decision trees (JMLR 2024,
+https://www.jmlr.org/beta/papers/v25/23-1484.html)
+establish that adaptive noisy class identification is not new. The possible
+research contribution is its *embodied semantic boundary contract* and
+interaction with independently verified repair identities, certified
+measurement assumptions and physically enforceable probe authority.
+
+Public focused regression suite:
+`python -m pytest -q research/semantic_invariants/tests/test_embodied_robust_diagnosis.py`.
+[Run 37711753224](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37711753224)
+passed across Python 3.10/3.12/3.13. This is self-authored CI;
+it does not demonstrate actual ManiSkill diffusion-policy improvement
+or independent academic/maintainer adoption.
+
+**Integration gap:** this robust policy currently returns a *proposed* probe
+and a proof-of-contract decision. The separately validated SQLite/HMAC
+physical-reservation gate still accepts the deterministic policy structure;
+a trusted adapter binding the robust decision, source version and actual
+sensor evidence to the same persistent episode remains to be implemented
+before claiming end-to-end robust physical authority.
