@@ -56,6 +56,9 @@ class RobustDiagnosisNode:
 class RobustDiagnosisPlan:
     hypothesis_names: tuple[str, ...]
     experiments: tuple[SemanticExperiment, ...]
+    # Semantic transport identities and evidence IDs are part of the
+    # trusted diagnosis context, not just modeled observed values.
+    hypothesis_sources: tuple[tuple[str, tuple[tuple[str, str, tuple[int, ...], tuple[float, ...]], ...]], ...]
     # Sorted (experiment_name, ((hypothesis_name, predicted_vector), ...))
     predictions: tuple[tuple[str, tuple[tuple[str, tuple[float, ...]], ...]], ...]
     epsilon: float
@@ -162,7 +165,13 @@ def _node_data(node: RobustDiagnosisNode | None) -> object:
         return None
     return {
         "hypotheses": node.hypotheses,
-        "experiment": node.experiment.name if node.experiment else None,
+        "experiment": (
+            None if node.experiment is None else (
+                node.experiment.name, node.experiment.probe,
+                node.experiment.tap_after_factor,
+                node.experiment.cost, node.experiment.risk,
+            )
+        ),
         "worst_remaining_cost": node.worst_remaining_cost,
         "worst_remaining_risk": node.worst_remaining_risk,
         "branches": [
@@ -176,6 +185,7 @@ def _digest(plan: RobustDiagnosisPlan) -> str:
     payload = {
         "schema": "semrepair-robust-diagnosis-v1",
         "hypothesis_names": plan.hypothesis_names,
+        "hypothesis_sources": plan.hypothesis_sources,
         "experiments": [
             (x.name, x.probe, x.tap_after_factor, x.cost, x.risk)
             for x in plan.experiments
@@ -226,8 +236,8 @@ def synthesize_robust_experiment_plan(
     if len(set(x.name for x in es)) != len(es):
         raise ValueError("experiment names must be unique")
     factor_names = tuple(x.name for x in hs[0].factors)
-    if not factor_names:
-        raise ValueError("hypotheses must have transport factors")
+    if not factor_names or len(set(factor_names)) != len(factor_names):
+        raise ValueError("hypotheses require unique named transport factors")
     dim = hs[0].factors[0].transport.dimension
     for h in hs:
         if tuple(x.name for x in h.factors) != factor_names:
@@ -305,9 +315,24 @@ def synthesize_robust_experiment_plan(
         (e.name, tuple((name, modeled[e.name][name]) for name in all_names))
         for e in admissible
     )
+    by_name = {h.name: h for h in hs}
+    sources = tuple(
+        (
+            name,
+            tuple(
+                (
+                    f.name, f.evidence_id,
+                    f.transport.source_for_output, f.transport.scale,
+                )
+                for f in by_name[name].factors
+            ),
+        )
+        for name in all_names
+    )
     plan = RobustDiagnosisPlan(
         hypothesis_names=all_names, experiments=admissible,
-        predictions=predicted, epsilon=float(epsilon),
+        hypothesis_sources=sources, predictions=predicted,
+        epsilon=float(epsilon),
         risk_budget=float(risk_budget), max_probe_risk=float(max_probe_risk),
         risk_weight=float(risk_weight), complete=root is not None,
         root=root, worst_cost=root.worst_remaining_cost if root else 0.0,
