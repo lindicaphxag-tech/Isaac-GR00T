@@ -82,12 +82,31 @@ def run() -> dict:
             inspect.token_sha256
         )
         assert not hasattr(inspect, "one_time_token")
+        consumed = restarted.consume_repair_token_once(
+            episode_id=episode_id, plan=plan,
+            payload=correct_payload, one_time_token=first.one_time_token,
+        )
+        assert consumed.status == "CLAIMED_UNCONFIRMED"
+        duplicate_consumer_refused = False
+        try:
+            restarted.consume_repair_token_once(
+                episode_id=episode_id, plan=plan,
+                payload=correct_payload, one_time_token=first.one_time_token,
+            )
+        except DiagnosticExecutionRejected:
+            duplicate_consumer_refused = True
+        assert duplicate_consumer_refused
+        assert restarted.handoff_snapshot(
+            episode_id=episode_id
+        ).status == "CLAIMED_UNCONFIRMED"
     return {
         "model": "inert bytes, bounded-noise 1D diagnostic and test HMAC key",
         "source_bound_real_sha256_payload": first.payload_sha256,
         "wrong_payload_refused": wrong_payload_refused,
         "single_repair_handoff_reserved": first.status == "RESERVED_UNCONFIRMED",
         "restart_duplicate_handoff_refused": duplicate_refused,
+        "one_trusted_consumer_claimed": consumed.status == "CLAIMED_UNCONFIRMED",
+        "second_claim_of_same_token_refused": duplicate_consumer_refused,
         "raw_one_use_token_persisted_or_recoverable": False,
         "actual_robot_repair_executed": False,
         "physical_effect_exactly_once_proven": False,
