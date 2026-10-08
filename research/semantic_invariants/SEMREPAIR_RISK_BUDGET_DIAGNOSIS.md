@@ -297,3 +297,52 @@ and [authorization gate](https://github.com/lindicaphxag-tech/Isaac-GR00T/action
 each passed Python 3.10 / 3.12 / 3.13. These are author-written CI tests;
 the threat model still requires the trusted host to secure its SQLite file,
 the HMAC secret and deployment plan bootstrap.
+
+
+### Source-to-repair evidence provenance: verified after restart
+
+**Adversarial counterexample against v0.2.2** (preserved in
+[public red CI run](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37745674556)):
+the server verified the original sensor HMAC on receipt, but persisted only
+the observation vector and evidence label. An attacker with SQLite write
+access, *without the independently held sensor-signing key*, could change
+a signed measurement `1.0` into `2.0` **and** replace the terminal
+`resolved_authority_id` with the alternative implementation's valid ID.
+The original `verified_authority()` replayed this tampered plan-consistent
+trace and accepted the wrong repair despite no sensor signature for that
+alternative observation. Likewise, changing only the evidence ID remained
+undetected because the signature had been discarded.
+
+**Corrective mechanism** (v0.2.3): the durable SQLite episode schema now
+includes `sensor_receipts_json`; the transaction that consumes each signed
+sensor reading atomically writes its `reservation_token`, `step_index`
+and exact `evidence_mac` alongside the observation trace. Both the
+pre-dispatch authority check for a *subsequent probe* and the restarted
+terminal `verified_authority()` authenticate every recorded observation
+against the separately provisioned HMAC secret, frozen episode identifier,
+step number, nonce, experiment and evidence ID. Missing old-schema MACs,
+intermediate forged observations, substituted terminal repair identities,
+MAC-only corruption and receipt transplantation across episode IDs are
+rejected. No missing old MAC can be synthesized during migration.
+
+One-command CPU-only public replay:
+```bash
+git clone https://github.com/lindicaphxag-tech/Isaac-GR00T.git
+cd Isaac-GR00T
+git checkout semantic-abi-noisy-v0.2.3
+python -m research.semantic_invariants.signed_repair_receipt_quick_repro
+```
+
+The code prints separate booleans for valid signed authority acceptance,
+forged alternative sensor-world+authority refusal, and legacy missing-MAC
+refusal. It contains a **public fixed test key and synthetic measurements
+only**; it cannot demonstrate real sensor authenticity or physical robot
+execution. Deployments must provision their secret from an actual trusted
+sensor plane; the store must not share its secret with candidate repair
+generation. HMAC authenticates message origin to whoever controls that
+secret, not physical measurement correctness. An attacker with the secret
+can forge signatures. Durable database *rollback/deletion* is still outside
+the proven threat model; it would need an independent monotonic anti-rollback
+witness or protected storage. Likewise, this API still **only identifies
+the authorized repair**, not a consumable robot-actuator command. Exactly-once
+probe reservation is not a proof of exactly-once physical repair.
