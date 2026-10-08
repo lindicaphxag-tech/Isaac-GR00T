@@ -55,6 +55,16 @@ def _identity_obs(node, evidence_id):
     return DiagnosticObservedStep(node.experiment.name, tuple(cl.signature), evidence_id)
 
 
+def _trusted_test_sensor(episode_id, step_index, token, observation):
+    """Fixture only: production must authenticate sensor origin independently."""
+    return (
+        episode_id == "robotA/trial42"
+        and step_index in (0, 1)
+        and bool(token)
+        and observation.evidence_id.startswith("evidence/live/")
+    )
+
+
 def test_one_physical_probe_reservation_survives_restart_and_replay(tmp_path):
     plan = _plan()
     db = tmp_path / "episodes.sqlite3"
@@ -63,6 +73,7 @@ def test_one_physical_probe_reservation_survives_restart_and_replay(tmp_path):
     grant = first_store.reserve_next(episode_id="robotA/trial42", plan=plan)
     assert grant.step_index == 0
     assert grant.risk_after_probe == pytest.approx(0.6)
+    assert isinstance(grant.reservation_token, str) and len(grant.reservation_token) == 64
 
     # A simulator crash cannot grant a second physical effect for this step.
     restarted = DiagnosticEpisodeStore(db)
@@ -76,23 +87,28 @@ def test_one_physical_probe_reservation_survives_restart_and_replay(tmp_path):
 
     first = _identity_obs(plan.root, "evidence/live/0001")
     s1 = restarted.commit_observation(
-        episode_id="robotA/trial42", plan=plan, observation=first
+        episode_id="robotA/trial42", plan=plan, observation=first,
+        reservation_token=grant.reservation_token, evidence_verifier=_trusted_test_sensor,
     )
     assert s1.status == "READY"
     assert s1.risk_charged == pytest.approx(0.6)
     with pytest.raises(DiagnosticExecutionRejected, match="no outstanding"):
         restarted.commit_observation(
-            episode_id="robotA/trial42", plan=plan, observation=first
+            episode_id="robotA/trial42", plan=plan, observation=first,
+            reservation_token=grant.reservation_token,
+            evidence_verifier=_trusted_test_sensor,
         )
 
     grant2 = restarted.reserve_next(episode_id="robotA/trial42", plan=plan)
     assert grant2.step_index == 1
     assert grant2.risk_after_probe == pytest.approx(1.2)
+    assert grant2.reservation_token != grant.reservation_token
     cl = next(c for c in plan.root.observation_classes if "identity" in c.hypotheses)
     child = plan.root.children[plan.root.observation_classes.index(cl)]
     second = _identity_obs(child, "evidence/live/0002")
     s2 = restarted.commit_observation(
-        episode_id="robotA/trial42", plan=plan, observation=second
+        episode_id="robotA/trial42", plan=plan, observation=second,
+        reservation_token=grant2.reservation_token, evidence_verifier=_trusted_test_sensor,
     )
     assert s2.status == "DONE"
     assert s2.risk_charged == pytest.approx(1.2)
@@ -124,7 +140,7 @@ def test_forged_observation_does_not_release_pending_reservation(tmp_path):
     plan = _plan()
     store = DiagnosticEpisodeStore(tmp_path / "cases.sqlite3")
     _start(store, plan)
-    store.reserve_next(episode_id="robotA/trial42", plan=plan)
+    reservation = store.reserve_next(episode_id="robotA/trial42", plan=plan)
     bad = (
         DiagnosticObservedStep("wrong-probe", (1., 0.), "sensor/A"),
         DiagnosticObservedStep(plan.root.experiment.name, (999.,), "sensor/B"),
@@ -133,7 +149,9 @@ def test_forged_observation_does_not_release_pending_reservation(tmp_path):
     for observation in bad:
         with pytest.raises(DiagnosticExecutionRejected):
             store.commit_observation(
-                episode_id="robotA/trial42", plan=plan, observation=observation
+                episode_id="robotA/trial42", plan=plan, observation=observation,
+                reservation_token=reservation.reservation_token,
+                evidence_verifier=_trusted_test_sensor,
             )
         assert store.snapshot(episode_id="robotA/trial42").status == "RESERVED"
     store.abort(episode_id="robotA/trial42")
@@ -165,3 +183,40 @@ def test_store_refuses_nonpersistent_db_and_untrusted_plan(tmp_path):
             trusted_problem_digest="0"*64,
             trusted_tree_commitment=diagnostic_tree_commitment(plan),
         )
+
+
+def test_wrong_token_or_untrusted_sensor_cannot_commit_physical_effect(tmp_path):
+    plan = _plan()
+    store = DiagnosticEpisodeStore(tmp_path / "nonce.sqlite3")
+    _start(store, plan)
+    grant = store.reserve_next(episode_id="robotA/trial42", plan=plan)
+    observation = _identity_obs(plan.root, "evidence/live/0001")
+
+    with pytest.raises(DiagnosticExecutionRejected, match="token"):
+        store.commit_observation(
+            episode_id="robotA/trial42", plan=plan, observation=observation,
+            reservation_token="previous-step-token",
+            evidence_verifier=_trusted_test_sensor,
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="not authenticated"):
+        store.commit_observation(
+            episode_id="robotA/trial42", plan=plan, observation=observation,
+            reservation_token=grant.reservation_token,
+            evidence_verifier=lambda *_: False,
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="verifier failed"):
+        def fail_verifier(*_):
+            raise OSError("offline sensor authority")
+        store.commit_observation(
+            episode_id="robotA/trial42", plan=plan, observation=observation,
+            reservation_token=grant.reservation_token,
+            evidence_verifier=fail_verifier,
+        )
+    assert store.snapshot(episode_id="robotA/trial42").status == "RESERVED"
+    # The original reservation is still valid when a trusted sensor recovers.
+    result = store.commit_observation(
+        episode_id="robotA/trial42", plan=plan, observation=observation,
+        reservation_token=grant.reservation_token,
+        evidence_verifier=_trusted_test_sensor,
+    )
+    assert result.status == "READY"
