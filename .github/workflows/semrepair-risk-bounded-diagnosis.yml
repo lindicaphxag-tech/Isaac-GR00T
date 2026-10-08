@@ -10,6 +10,8 @@ on:
       - "research/semantic_invariants/embodied_semantic_experiment_design.py"
       - "research/semantic_invariants/embodied_diagnostic_execution.py"
       - "research/semantic_invariants/embodied_diagnostic_episode_store.py"
+      - "research/semantic_invariants/embodied_repair_handoff.py"
+      - "research/semantic_invariants/tests/test_embodied_repair_handoff.py"
       - "research/semantic_invariants/embodied_robust_diagnosis.py"
       - "research/semantic_invariants/robust_diagnosis_quick_repro.py"
       - "research/semantic_invariants/signed_repair_receipt_quick_repro.py"
@@ -28,6 +30,8 @@ on:
       - "research/semantic_invariants/embodied_semantic_experiment_design.py"
       - "research/semantic_invariants/embodied_diagnostic_execution.py"
       - "research/semantic_invariants/embodied_diagnostic_episode_store.py"
+      - "research/semantic_invariants/embodied_repair_handoff.py"
+      - "research/semantic_invariants/tests/test_embodied_repair_handoff.py"
       - "research/semantic_invariants/embodied_robust_diagnosis.py"
       - "research/semantic_invariants/robust_diagnosis_quick_repro.py"
       - "research/semantic_invariants/signed_repair_receipt_quick_repro.py"
@@ -61,9 +65,10 @@ jobs:
             research/semantic_invariants/embodied_semantic_experiment_design.py \
             research/semantic_invariants/embodied_diagnostic_execution.py \
             research/semantic_invariants/embodied_diagnostic_episode_store.py \
+            research/semantic_invariants/embodied_repair_handoff.py \
             research/semantic_invariants/embodied_robust_diagnosis.py
       - name: Validate adaptive diagnosis and cumulative risk
-        run: python -m pytest -q research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py research/semantic_invariants/tests/test_embodied_diagnostic_execution.py research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py research/semantic_invariants/tests/test_embodied_robust_diagnosis.py research/semantic_invariants/tests/test_embodied_robust_runtime.py research/semantic_invariants/tests/test_robust_diagnosis_independent_oracle.py research/semantic_invariants/tests/test_mani_skill_compensating_action_contract.py
+        run: python -m pytest -q research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py research/semantic_invariants/tests/test_embodied_diagnostic_execution.py research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py research/semantic_invariants/tests/test_embodied_robust_diagnosis.py research/semantic_invariants/tests/test_embodied_robust_runtime.py research/semantic_invariants/tests/test_embodied_repair_handoff.py research/semantic_invariants/tests/test_robust_diagnosis_independent_oracle.py research/semantic_invariants/tests/test_mani_skill_compensating_action_contract.py
       - name: Falsify noisy-ABI aliasing and check durable HMAC capsule
         run: python -m research.semantic_invariants.robust_diagnosis_quick_repro
       - name: Falsify persistent signed sensor trace rewrite (one-command proof)
