@@ -167,3 +167,104 @@ def test_racing_workers_cannot_duplicate_noisy_physical_probe(tmp_path):
     with ThreadPoolExecutor(max_workers=8) as workers:
         accepted = list(workers.map(worker, range(20)))
     assert sum(item is not None for item in accepted) == 1
+
+
+def test_verified_authority_survives_restart_with_exact_repair_and_two_aliases(tmp_path):
+    """DONE alone is insufficient: the exact durable repair ID must match the trace."""
+    path = tmp_path / "verified.sqlite3"
+    plan = _robust_plan()
+    store = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    _start(store, plan)
+    grant = store.reserve_next(episode_id=EPISODE, plan=plan)
+    observation = DiagnosticObservedStep(
+        "calibrated-probe", (1.05,), "sensor-independent-fixture/e1"
+    )
+    completed = store.commit_observation(
+        episode_id=EPISODE, plan=plan,
+        observation=observation, reservation_token=grant.reservation_token,
+        evidence_mac=_mac(grant.reservation_token, observation),
+    )
+    assert completed.resolved_authority_id == "sha256:concrete-adapter-v1"
+    restarted = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    verified = restarted.verified_authority(episode_id=EPISODE, plan=plan)
+    assert verified.authority_id == "sha256:concrete-adapter-v1"
+    assert verified.surviving_hypotheses == ("alias-A", "alias-B")
+    assert verified.plan_digest == plan.digest
+    assert verified.observations_used == 1
+    assert verified.risk_charged == pytest.approx(0.3)
+
+
+def test_done_flag_or_mutable_snapshot_never_authorizes_wrong_repair(tmp_path):
+    """Even a DB snapshot that says DONE cannot select another repair."""
+    import sqlite3
+    path = tmp_path / "verified.sqlite3"
+    plan = _robust_plan()
+    store = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    _start(store, plan)
+    grant = store.reserve_next(episode_id=EPISODE, plan=plan)
+    observation = DiagnosticObservedStep(
+        "calibrated-probe", (1.0,), "sensor-independent-fixture/e1"
+    )
+    store.commit_observation(
+        episode_id=EPISODE, plan=plan,
+        observation=observation, reservation_token=grant.reservation_token,
+        evidence_mac=_mac(grant.reservation_token, observation),
+    )
+    with sqlite3.connect(path) as con:
+        con.execute(
+            "UPDATE diagnostic_episode SET resolved_authority_id=? WHERE episode_id=?",
+            ("sha256:other-adapter", EPISODE),
+        )
+    assert store.snapshot(episode_id=EPISODE).status == "DONE"
+    # The snapshot is introspection only. Verified authority rejects the
+    # modified DB result instead of trusting its DONE flag.
+    with pytest.raises(DiagnosticExecutionRejected, match="differs from frozen trace"):
+        store.verified_authority(episode_id=EPISODE, plan=plan)
+
+
+def test_legacy_done_identity_is_not_silently_backfilled(tmp_path):
+    import sqlite3
+    path = tmp_path / "verified.sqlite3"
+    plan = _robust_plan()
+    store = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    _start(store, plan)
+    grant = store.reserve_next(episode_id=EPISODE, plan=plan)
+    observation = DiagnosticObservedStep(
+        "calibrated-probe", (1.0,), "sensor-independent-fixture/e1"
+    )
+    store.commit_observation(
+        episode_id=EPISODE, plan=plan,
+        observation=observation, reservation_token=grant.reservation_token,
+        evidence_mac=_mac(grant.reservation_token, observation),
+    )
+    with sqlite3.connect(path) as con:
+        con.execute(
+            "UPDATE diagnostic_episode SET resolved_authority_id=NULL WHERE episode_id=?",
+            (EPISODE,),
+        )
+    restarted = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    with pytest.raises(DiagnosticExecutionRejected, match="identity missing"):
+        restarted.verified_authority(episode_id=EPISODE, plan=plan)
+
+
+def test_older_schema_can_migrate_but_does_not_grant_retroactive_authority(tmp_path):
+    import sqlite3
+    path = tmp_path / "legacy.sqlite3"
+    with sqlite3.connect(path) as con:
+        con.execute(
+            """CREATE TABLE diagnostic_episode (
+                episode_id TEXT PRIMARY KEY, problem_digest TEXT NOT NULL,
+                tree_commitment TEXT NOT NULL, key_commitment TEXT NOT NULL,
+                status TEXT NOT NULL, trace_json TEXT NOT NULL,
+                pending_experiment TEXT, pending_token TEXT,
+                risk_charged REAL NOT NULL, next_index INTEGER NOT NULL
+            )"""
+        )
+    store = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    with sqlite3.connect(path) as con:
+        names = {row[1] for row in con.execute("PRAGMA table_info(diagnostic_episode)")}
+    assert "resolved_authority_id" in names
+    plan = _robust_plan()
+    _start(store, plan)
+    with pytest.raises(DiagnosticExecutionRejected, match="no terminal"):
+        store.verified_authority(episode_id=EPISODE, plan=plan)
