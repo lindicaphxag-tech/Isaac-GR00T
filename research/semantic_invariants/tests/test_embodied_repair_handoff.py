@@ -239,3 +239,128 @@ def test_no_actuation_completion_or_replay_token_retrieval_api(tmp_path):
     assert not hasattr(restarted, "actuate")
     assert not hasattr(restarted, "execute_repair")
     assert not hasattr(restarted, "mark_success")
+
+
+def test_token_consumer_claims_exact_bundle_once_and_cannot_repeat(tmp_path):
+    db, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A
+    ).one_time_token
+    first_claim = store.consume_repair_token_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A, one_time_token=token,
+    )
+    assert first_claim.status == "CLAIMED_UNCONFIRMED"
+    assert first_claim.concrete_authority_id == authority(BUNDLE_A)
+    restart = RepairDispatchStore(db, trusted_evidence_key=KEY)
+    assert restart.handoff_snapshot(episode_id=EP).status == "CLAIMED_UNCONFIRMED"
+    with pytest.raises(DiagnosticExecutionRejected, match="previously claimed"):
+        restart.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A, one_time_token=token,
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="already reserved"):
+        restart.reserve_repair_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A,
+        )
+
+
+def test_invalid_or_cross_artifact_token_does_not_burn_valid_claim(tmp_path):
+    _, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A,
+    ).one_time_token
+    with pytest.raises(DiagnosticExecutionRejected, match="token / frozen"):
+        store.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A,
+            one_time_token="a" * 64,
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="token / frozen"):
+        store.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_B,
+            one_time_token=token,
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="invalid one-time"):
+        store.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A,
+            one_time_token="not-valid",
+        )
+    claim = store.consume_repair_token_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A, one_time_token=token,
+    )
+    assert claim.status == "CLAIMED_UNCONFIRMED"
+
+
+def test_token_consumption_revalidates_persisted_sensor_mac(tmp_path):
+    db, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A
+    ).one_time_token
+    with sqlite3.connect(db) as conn:
+        receipts = json.loads(conn.execute(
+            "SELECT sensor_receipts_json FROM diagnostic_episode WHERE episode_id=?",
+            (EP,),
+        ).fetchone()[0])
+        receipts[0]["evidence_mac"] = "0" * 64
+        conn.execute(
+            "UPDATE diagnostic_episode SET sensor_receipts_json=? WHERE episode_id=?",
+            (json.dumps(receipts), EP),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="sensor HMAC receipt"):
+        store.consume_repair_token_once(
+            episode_id=EP, plan=p, payload=BUNDLE_A, one_time_token=token
+        )
+    assert store.handoff_snapshot(episode_id=EP).status == "RESERVED_UNCONFIRMED"
+
+
+def test_24_competing_consumers_only_one_claims_once(tmp_path):
+    db, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A
+    ).one_time_token
+
+    def attempt(_):
+        local = RepairDispatchStore(db, trusted_evidence_key=KEY)
+        try:
+            return local.consume_repair_token_once(
+                episode_id=EP, plan=p, payload=BUNDLE_A,
+                one_time_token=token,
+            )
+        except DiagnosticExecutionRejected:
+            return None
+
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        results = list(executor.map(attempt, range(24)))
+    claims = [x for x in results if x is not None]
+    assert len(claims) == 1
+    assert claims[0].status == "CLAIMED_UNCONFIRMED"
+    assert RepairDispatchStore(
+        db, trusted_evidence_key=KEY
+    ).handoff_snapshot(episode_id=EP).status == "CLAIMED_UNCONFIRMED"
+
+
+def test_claim_frozen_source_change_is_rejected_without_consume(tmp_path):
+    _, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A,
+    ).one_time_token
+    wrong = plan(source="different-built-controller")
+    with pytest.raises(DiagnosticExecutionRejected, match="token / frozen"):
+        store.consume_repair_token_once(
+            episode_id=EP, plan=wrong, payload=BUNDLE_A,
+            one_time_token=token,
+        )
+    assert store.handoff_snapshot(episode_id=EP).status == "RESERVED_UNCONFIRMED"
+
+
+def test_snapshot_does_not_provide_physical_completion_receipt(tmp_path):
+    _, store, p = finished_store(tmp_path)
+    token = store.reserve_repair_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A,
+    ).one_time_token
+    store.consume_repair_token_once(
+        episode_id=EP, plan=p, payload=BUNDLE_A, one_time_token=token,
+    )
+    row = store.handoff_snapshot(episode_id=EP)
+    assert row.status == "CLAIMED_UNCONFIRMED"
+    assert not hasattr(row, "physical_effect_succeeded")
+    assert not hasattr(row, "actual_robot_execution")
+    assert not hasattr(store, "retry_physical_dispatch")
