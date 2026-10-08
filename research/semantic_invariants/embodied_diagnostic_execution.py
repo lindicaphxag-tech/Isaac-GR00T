@@ -87,9 +87,12 @@ def diagnostic_tree_commitment(plan: SemanticExperimentPlan) -> str:
         "hypothesis_names": list(plan.hypothesis_names),
         "admissible_experiments": list(plan.admissible_experiments),
         "objective": plan.objective,
-        "max_risk": plan.max_risk,
+        "max_risk": "unbounded" if plan.max_risk == float("inf") else plan.max_risk,
         "risk_weight": plan.risk_weight,
-        "total_risk_budget": plan.total_risk_budget,
+        "total_risk_budget": (
+            "unbounded" if plan.total_risk_budget == float("inf")
+            else plan.total_risk_budget
+        ),
         "complete": plan.complete,
         "root": _canonical_node(plan.root),
     }
