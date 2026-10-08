@@ -348,3 +348,84 @@ def test_forbidden_sqlite_evidence_id_change_invalidates_receipt(tmp_path):
         )
     with pytest.raises(DiagnosticExecutionRejected, match="receipt|HMAC|tamper"):
         store.verified_authority(episode_id=EPISODE, plan=plan)
+
+
+def test_sensor_receipt_cannot_be_transplanted_between_different_episodes(tmp_path):
+    """Same probe, same reading and source are not enough to reuse an HMAC."""
+    import sqlite3
+
+    path = tmp_path / "cross-episode.sqlite3"
+    store = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    plan = _robust_plan()
+    other_id = EPISODE + "/other"
+    for episode_id in (EPISODE, other_id):
+        store.create_episode(
+            episode_id=episode_id, plan=plan,
+            trusted_problem_digest=plan.digest,
+            trusted_tree_commitment=plan.digest,
+        )
+        grant = store.reserve_next(episode_id=episode_id, plan=plan)
+        observation = DiagnosticObservedStep(
+            "calibrated-probe", (1.0,), "signed-same-observation"
+        )
+        mac = diagnostic_observation_mac(
+            SENSOR_KEY,
+            episode_id=episode_id, step_index=0,
+            reservation_token=grant.reservation_token,
+            observation=observation,
+        )
+        result = store.commit_observation(
+            episode_id=episode_id, plan=plan,
+            observation=observation,
+            reservation_token=grant.reservation_token,
+            evidence_mac=mac,
+        )
+        assert result.status == "DONE"
+        assert store.verified_authority(
+            episode_id=episode_id, plan=plan
+        ).authority_id == "sha256:concrete-adapter-v1"
+    with sqlite3.connect(path) as con:
+        other_receipt = con.execute(
+            "SELECT sensor_receipts_json FROM diagnostic_episode WHERE episode_id=?",
+            (other_id,),
+        ).fetchone()[0]
+        con.execute(
+            "UPDATE diagnostic_episode SET sensor_receipts_json=? WHERE episode_id=?",
+            (other_receipt, EPISODE),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="sensor HMAC receipt"):
+        store.verified_authority(episode_id=EPISODE, plan=plan)
+    # A separate episode with its intact original sensor receipt still passes.
+    assert store.verified_authority(
+        episode_id=other_id, plan=plan
+    ).authority_id == "sha256:concrete-adapter-v1"
+
+
+def test_mutated_persisted_sensor_mac_fails_even_without_trace_edit(tmp_path):
+    """The database is not allowed to substitute an unsigned receipt."""
+    import json
+    import sqlite3
+
+    path = tmp_path / "mac-tamper.sqlite3"
+    store = DiagnosticEpisodeStore(path, trusted_evidence_key=SENSOR_KEY)
+    plan = _robust_plan()
+    _start(store, plan)
+    grant = store.reserve_next(episode_id=EPISODE, plan=plan)
+    obs = DiagnosticObservedStep("calibrated-probe", (1.0,), "signed-evidence")
+    store.commit_observation(
+        episode_id=EPISODE, plan=plan,
+        observation=obs, reservation_token=grant.reservation_token,
+        evidence_mac=_mac(grant.reservation_token, obs),
+    )
+    with sqlite3.connect(path) as con:
+        receipts = json.loads(con.execute(
+            "SELECT sensor_receipts_json FROM diagnostic_episode WHERE episode_id=?",
+            (EPISODE,),
+        ).fetchone()[0])
+        receipts[0]["evidence_mac"] = "0" * 64
+        con.execute(
+            "UPDATE diagnostic_episode SET sensor_receipts_json=? WHERE episode_id=?",
+            (json.dumps(receipts), EPISODE),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="sensor HMAC receipt"):
+        store.verified_authority(episode_id=EPISODE, plan=plan)
