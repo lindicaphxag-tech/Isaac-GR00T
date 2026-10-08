@@ -268,3 +268,83 @@ def test_older_schema_can_migrate_but_does_not_grant_retroactive_authority(tmp_p
     _start(store, plan)
     with pytest.raises(DiagnosticExecutionRejected, match="no terminal"):
         store.verified_authority(episode_id=EPISODE, plan=plan)
+
+
+def test_forbidden_sqlite_trace_and_authority_joint_rewrite_is_rejected(tmp_path):
+    """Someone rewriting *both* DONE trace and repair ID must not invent evidence.
+
+    This models an attacker who can modify persisted SQLite while the
+    independently provisioned sensor-signing secret remains unavailable.
+    Earlier code replayed the edited observations against the planner
+    and incorrectly accepted the matching forged authority identifier.
+    """
+    import json
+    import sqlite3
+
+    plan = _robust_plan()
+    db = tmp_path / "forge.sqlite3"
+    store = DiagnosticEpisodeStore(db, trusted_evidence_key=SENSOR_KEY)
+    _start(store, plan)
+    grant = store.reserve_next(episode_id=EPISODE, plan=plan)
+    observed = DiagnosticObservedStep(
+        "calibrated-probe", (1.0,), "trusted/evidence/source-001"
+    )
+    store.commit_observation(
+        episode_id=EPISODE,
+        plan=plan,
+        observation=observed,
+        reservation_token=grant.reservation_token,
+        evidence_mac=_mac(grant.reservation_token, observed),
+    )
+    assert store.verified_authority(episode_id=EPISODE, plan=plan).authority_id == (
+        "sha256:concrete-adapter-v1"
+    )
+
+    # Same source, same step/risk, but alternative measured world and a
+    # consistent alternative repair ID. This cannot be a valid sensor HMAC
+    # because the attacker only rewrites the database.
+    forged = DiagnosticObservedStep(
+        "calibrated-probe", (2.0,), "trusted/evidence/source-001"
+    )
+    tampered_trace = json.dumps([{
+        "experiment_name": forged.experiment_name,
+        "observation_signature": list(forged.observation_signature),
+        "evidence_id": forged.evidence_id,
+    }])
+    with sqlite3.connect(db) as con:
+        con.execute(
+            "UPDATE diagnostic_episode SET trace_json=?, "
+            "resolved_authority_id=? WHERE episode_id=?",
+            (tampered_trace, "sha256:second-adapter-v1", EPISODE),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="receipt|HMAC|tamper"):
+        store.verified_authority(episode_id=EPISODE, plan=plan)
+
+
+def test_forbidden_sqlite_evidence_id_change_invalidates_receipt(tmp_path):
+    import json
+    import sqlite3
+
+    plan = _robust_plan()
+    db = tmp_path / "evidence.sqlite3"
+    store = DiagnosticEpisodeStore(db, trusted_evidence_key=SENSOR_KEY)
+    _start(store, plan)
+    grant = store.reserve_next(episode_id=EPISODE, plan=plan)
+    obs = DiagnosticObservedStep("calibrated-probe", (1.0,), "signed-id")
+    store.commit_observation(
+        episode_id=EPISODE, plan=plan,
+        observation=obs, reservation_token=grant.reservation_token,
+        evidence_mac=_mac(grant.reservation_token, obs),
+    )
+    with sqlite3.connect(db) as con:
+        trace = json.loads(con.execute(
+            "SELECT trace_json FROM diagnostic_episode WHERE episode_id=?",
+            (EPISODE,)
+        ).fetchone()[0])
+        trace[0]["evidence_id"] = "forged-id"
+        con.execute(
+            "UPDATE diagnostic_episode SET trace_json=? WHERE episode_id=?",
+            (json.dumps(trace), EPISODE),
+        )
+    with pytest.raises(DiagnosticExecutionRejected, match="receipt|HMAC|tamper"):
+        store.verified_authority(episode_id=EPISODE, plan=plan)
