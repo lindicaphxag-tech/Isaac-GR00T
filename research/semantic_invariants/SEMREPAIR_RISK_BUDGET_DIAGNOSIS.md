@@ -94,21 +94,28 @@ the chosen observation branch, and the worst-case episode-level risk budget.
    reservation/idempotency token.
 3. The physical adapter must honor that token and must not retry the same
    effect after an ambiguous timeout.
-4. `commit_observation` requires a matching reservation token and a
-   separately trusted `evidence_verifier(episode_id, step_index, token,
-   observation)` that returns the literal boolean `True`. Invalid or stale
-   observations leave the episode reserved, never resetting charged risk.
+4. `commit_observation` requires the exact reservation token and an
+   HMAC-SHA256 sensor receipt covering episode ID, step index, token,
+   experiment, observation signature and evidence ID. The verifier key
+   is pinned at episode creation and injected by a trusted deployment
+   bootstrap; the caller cannot swap verification functions per call.
+   Invalid or stale observations leave the episode reserved, never
+   resetting charged risk.
 5. Crashes retain RESERVED; `abort` retains an ABORTED terminal record.
    No implicit retry or cost refund is available.
 
 The implementation is a **single-reservation gate**, not a general claim of
 physical exactly-once actuation. It assumes a protected non-rollback database,
-host-verified sensors and an idempotency-aware real robot adapter. It does
-not authenticate the sensor or provide a physical emergency stop.
+sensor-side custody of a private >=32-byte HMAC secret and an
+idempotency-aware real robot adapter. HMAC authenticates the telemetry message
+*under that secret*, not whether an observed physical event actually occurred.
+It does not provide a physical emergency stop or an independent sensor
+provenance registry.
 
 Relevant tests:
 `tests/test_embodied_diagnostic_execution.py` and
 `tests/test_embodied_diagnostic_episode_store.py`.
-The [2026-10-08 author-run regression workflow](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37709508447)
-is green on Python 3.10, 3.12, 3.13. These results are public, not
+The [2026-10-08 author-run HMAC regression workflow](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37709718536)
+passed on Python 3.10, 3.12, 3.13; the subsequent one-line abort-key
+tightening must be treated as unverified until its own run completes. These results are public, not
 maintainer-authored or physically validated.
