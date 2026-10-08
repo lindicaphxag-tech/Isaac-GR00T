@@ -230,6 +230,10 @@ def test_wrong_token_or_wrong_key_cannot_commit_physical_effect(tmp_path):
             evidence_mac=valid_mac,
         )
 
+    with pytest.raises(DiagnosticExecutionRejected, match="key changed"):
+        _store(
+            tmp_path / "nonce.sqlite3", key=b"second-fixture-sensor-key-32-bytes!!"
+        ).abort(episode_id="robotA/trial42")
     assert store.snapshot(episode_id="robotA/trial42").status == "RESERVED"
     result = store.commit_observation(
         episode_id="robotA/trial42", plan=plan, observation=observation,
