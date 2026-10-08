@@ -103,3 +103,39 @@ The sample byte-string sources in the version-bound regression are designed
 to test authority semantics, not claimed to be upstream ManiSkill executable
 source. Real upstream converter evidence is maintained separately, tied to
 actual pinned Git blobs.
+
+
+## Evidence-plane sealing v2 — reviewed change (2026-10-08)
+
+The version-bound pre-dispatch gate now includes each qualified plane's
+`(plane_id, interaction_certificate_digest, measurement_certificate_digest)`
+in the trusted context seal, alongside source bytes, configuration bytes and
+protocol bytes. This addresses a previously unbound dependency: a caller could
+present execution/semantic measurements from a different evaluation run while
+reusing an otherwise unchanged source/protocol seal.
+
+The version-bound implementation now:
+
+1. recomputes each plane's interaction certificate and measurement
+   qualification, rejecting forged fields before sealing;
+2. checks all planes refer to the same semantic subject and repair vocabulary
+   as the primary interaction;
+3. rejects duplicated or missing plane IDs;
+4. rejects cross-run outcome or measurement-anchor substitution even when
+   executable source bytes have not changed;
+5. requires non-empty, frozen evidence-plane commitments for full
+   pre-dispatch authority; reordering valid planes is allowed.
+
+Published code: `research/semantic_invariants/embodied_version_bound_authority.py`.
+Tests: `research/semantic_invariants/tests/test_embodied_version_bound_authority.py`.
+The public matrix [run 37705735409](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37705735409)
+passed on Python 3.10, 3.12 and 3.13. Source and test blobs are mirrored to
+the SemRepair research branch; release-root independence is still an explicit
+assumption, not an attested external adoption event.
+
+**Limits:** a digest authenticates neither sensor truth nor the party that
+recorded an experiment. The runtime must obtain the trusted seal from a
+separate release/deployment authority; a caller passing its own newly
+calculated seal provides no independent assurance. A real physical executor
+must repeat the live-version check immediately before dispatch and separately
+validate post-effect evidence.
