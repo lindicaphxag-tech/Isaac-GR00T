@@ -53,6 +53,17 @@ class RepairHandoffSnapshot:
     token_sha256: str
 
 
+@dataclass(frozen=True)
+class RepairExecutionClaim:
+    """One trusted consumer claimed the pending repair; NOT a robot result."""
+
+    episode_id: str
+    plan_digest: str
+    concrete_authority_id: str
+    payload_sha256: str
+    status: str = "CLAIMED_UNCONFIRMED"
+
+
 class RepairDispatchStore(DiagnosticEpisodeStore):
     """Atomically verify sensor-proven repair and reserve a single handoff.
 
@@ -73,7 +84,9 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
                     payload_sha256 TEXT NOT NULL,
                     token_sha256 TEXT NOT NULL,
                     status TEXT NOT NULL
-                      CHECK(status = 'RESERVED_UNCONFIRMED')
+                      CHECK(status IN (
+                        'RESERVED_UNCONFIRMED', 'CLAIMED_UNCONFIRMED'
+                      ))
                 )"""
             )
             conn.commit()
@@ -165,6 +178,106 @@ class RepairDispatchStore(DiagnosticEpisodeStore):
                 raise DiagnosticExecutionRejected(
                     "repair handoff already reserved: never redispatch"
                 ) from exc
+            except Exception:
+                conn.rollback()
+                raise
+
+    def consume_repair_token_once(
+        self, *, episode_id: str, plan: RobustDiagnosisPlan,
+        payload: bytes, one_time_token: str,
+    ) -> RepairExecutionClaim:
+        """Atomically consume the handoff token *before* an external effect.
+
+        Trusted executors must invoke this operation immediately before
+        attempting their own physical action. Once claimed, success and
+        failure are BOTH ambiguous here and never authorize retry.
+        Without actuator-side durable fencing, this is only one trusted
+        claim, NOT exactly-once physical effect.
+        """
+        if not isinstance(plan, RobustDiagnosisPlan):
+            raise DiagnosticExecutionRejected(
+                "only robust diagnosis authorizes a concrete repair claim"
+            )
+        if not isinstance(payload, bytes) or not 0 < len(payload) <= 16 * 1024 * 1024:
+            raise DiagnosticExecutionRejected(
+                "repair claim requires the exact nonempty payload bytes"
+            )
+        if (
+            not isinstance(one_time_token, str)
+            or len(one_time_token) != 64
+            or any(ch not in "0123456789abcdef" for ch in one_time_token)
+        ):
+            raise DiagnosticExecutionRejected("invalid one-time repair token")
+        digest = sha256(payload).hexdigest()
+        authority = f"sha256:{digest}"
+        token_digest = sha256(one_time_token.encode("ascii")).hexdigest()
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                handoff = conn.execute(
+                    "SELECT * FROM repair_handoff WHERE episode_id=?",
+                    (episode_id,),
+                ).fetchone()
+                if (
+                    handoff is None
+                    or handoff["status"] != "RESERVED_UNCONFIRMED"
+                ):
+                    raise DiagnosticExecutionRejected(
+                        "repair token is absent, previously claimed or revoked"
+                    )
+                if (
+                    not hmac.compare_digest(handoff["token_sha256"], token_digest)
+                    or handoff["plan_digest"] != plan.digest
+                    or handoff["payload_sha256"] != digest
+                    or handoff["authority_id"] != authority
+                ):
+                    raise DiagnosticExecutionRejected(
+                        "repair token / frozen source artifact mismatch"
+                    )
+                episode = self._row(conn, episode_id)
+                self._check_plan(episode, plan)
+                if (
+                    episode["status"] != "DONE"
+                    or episode["pending_token"] is not None
+                    or episode["pending_experiment"] is not None
+                ):
+                    raise DiagnosticExecutionRejected(
+                        "repair claim not supported by a completed diagnosis"
+                    )
+                trace = self._authenticated_trace(
+                    row=episode, episode_id=episode_id
+                )
+                decision = _next_decision(
+                    plan=plan,
+                    trusted_problem_digest=episode["problem_digest"],
+                    trusted_tree_commitment=episode["tree_commitment"],
+                    trace=trace,
+                )
+                if (
+                    not isinstance(decision, DiagnosticResolution)
+                    or decision.authority_id != authority
+                    or episode["resolved_authority_id"] != authority
+                    or decision.observations_used != episode["next_index"]
+                    or abs(decision.risk_consumed - episode["risk_charged"]) > 1e-9
+                ):
+                    raise DiagnosticExecutionRejected(
+                        "repair token cannot authorize altered sensor evidence"
+                    )
+                updated = conn.execute(
+                    """UPDATE repair_handoff
+                       SET status='CLAIMED_UNCONFIRMED'
+                       WHERE episode_id=? AND status='RESERVED_UNCONFIRMED'""",
+                    (episode_id,),
+                )
+                if updated.rowcount != 1:
+                    raise DiagnosticExecutionRejected(
+                        "concurrent repair token consumer already claimed"
+                    )
+                conn.commit()
+                return RepairExecutionClaim(
+                    episode_id=episode_id, plan_digest=plan.digest,
+                    concrete_authority_id=authority, payload_sha256=digest,
+                )
             except Exception:
                 conn.rollback()
                 raise
