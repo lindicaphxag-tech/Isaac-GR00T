@@ -325,6 +325,10 @@ class DiagnosticEpisodeStore:
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = self._row(conn, episode_id)
+            if row["key_commitment"] != self._key_commitment:
+                raise DiagnosticExecutionRejected(
+                    "sensor verification key changed since episode creation"
+                )
             if row["status"] not in ("READY", "RESERVED"):
                 raise DiagnosticExecutionRejected("episode cannot be re-opened")
             conn.execute(
