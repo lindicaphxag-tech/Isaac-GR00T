@@ -260,3 +260,40 @@ passed on Python 3.10 / 3.12 / 3.13. The 192-case result strengthens a
 **bounded 1-D finite-model numerical correctness claim**; it is neither a
 formal proof for all real parameters, physical risk calibration, nor an
 independently executed replication by another researcher.
+
+
+### Durable terminal repair-authority identity (security regression closure)
+
+Earlier v0.2.1 could classify a bounded-noise repair-equivalence class,
+commit a `DONE` episode in SQLite, and **lose the actual identity of the
+authorized repair at that database boundary**. Merely reading `DONE`
+would not prove which exact implementation/evidence-bound repair was allowed.
+The fix introduces:
+
+- optional `DiagnosticResolution.authority_id` populated *only* from the
+  robust planner's verified same-authority leaf; older fault-only policies
+  never silently acquire a concrete repair identity;
+- atomic `diagnostic_episode.resolved_authority_id` persistence on the
+  authenticated last sensor receipt, without ever marking an unresolved
+  robust terminal as `DONE`;
+- strict `verified_authority(episode_id, plan)` that replays the frozen
+  stored observations, matches the selected authority, observation count,
+  risk charge, trusted plan digest and configured verification-key identity;
+- non-authoritative `snapshot()`: a bare `DONE` or unchecked
+  `resolved_authority_id` is not sufficient for downstream repair execution;
+- additive migration of pre-existing SQLite schemas. Older completed
+  episodes without a recorded repair ID are **refused**, not retroactively
+  granted a new capability.
+
+The verified result is a read-only software authorization descriptor,
+**not** an actuator call, signed hardware execution certificate, proof of a
+genuine sensor reading, or verification that an authority *label* corresponds
+to an actual repair implementation. Concrete implementation digests and a
+deployment-controlled trust root are prerequisites for using it at a robot.
+
+Multi-version public evidence:
+[diagnostic regression](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37717464973)
+and [authorization gate](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37717464978)
+each passed Python 3.10 / 3.12 / 3.13. These are author-written CI tests;
+the threat model still requires the trusted host to secure its SQLite file,
+the HMAC secret and deployment plan bootstrap.
