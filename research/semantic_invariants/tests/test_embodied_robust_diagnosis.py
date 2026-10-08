@@ -180,3 +180,71 @@ def test_risk_validation_and_exhaustive_cell_limit_fail_closed():
     assert not synthesize_robust_experiment_plan(
         hs, e, epsilon=0.0, risk_budget=0.49, max_probe_risk=0.5,
     ).complete
+
+
+def test_noisy_authority_optimal_stopping_needs_less_than_full_abi_identification():
+    # Two distinct possible semantic worlds have the *same exact* authorized
+    # repair implementation/evidence identity, and cannot be distinguished
+    # by any available probe. Full hidden ABI identification is impossible.
+    hs = _hypotheses((
+        ("semantic-A", (1.0,)),
+        ("semantic-B", (1.0,)),
+        ("different-repair", (2.0,)),
+    ))
+    e = (SemanticExperiment("bounded-probe", (1.0,), risk=0.3),)
+    full_id = synthesize_robust_experiment_plan(
+        hs, e, epsilon=0.1, risk_budget=0.3, max_probe_risk=0.3,
+    )
+    assert not full_id.complete
+
+    same_signed_repair = "sha256:exact-adapter-implementation+evidence"
+    mapping = {
+        "semantic-A": same_signed_repair,
+        "semantic-B": same_signed_repair,
+        "different-repair": "sha256:other-concrete-repair",
+    }
+    authority_plan = synthesize_robust_experiment_plan(
+        hs, e, epsilon=0.1, risk_budget=0.3, max_probe_risk=0.3,
+        authorities=mapping,
+    )
+    assert authority_plan.complete
+    assert authority_plan.root.experiment is not None
+    result = advance_robust_diagnosis(
+        plan=authority_plan, trusted_plan_digest=authority_plan.digest,
+        observations=(RobustObservation("bounded-probe", (1.03,)),),
+    )
+    assert isinstance(result, RobustResolution)
+    assert result.authority_id == same_signed_repair
+    assert result.consistent_hypotheses == ("semantic-A", "semantic-B")
+    assert result.identified_hypothesis is None
+    assert result.spent_risk == pytest.approx(0.3)
+
+    # This changes only concrete authority identity, not sensor predictions.
+    # The old result/plan must not be reusable after an authority change.
+    other = synthesize_robust_experiment_plan(
+        hs, e, epsilon=0.1, risk_budget=0.3, max_probe_risk=0.3,
+        authorities={**mapping, "semantic-B": "sha256:different-version"},
+    )
+    assert not other.complete
+    assert other.digest != authority_plan.digest
+    with pytest.raises(RobustDiagnosisRejected, match="trusted identity"):
+        advance_robust_diagnosis(
+            plan=other, trusted_plan_digest=authority_plan.digest,
+        )
+
+
+def test_common_exact_authority_can_stop_without_physical_probe():
+    hs = _hypotheses((("world-0", (1.0,)), ("world-1", (100.0,))))
+    plan = synthesize_robust_experiment_plan(
+        hs, (SemanticExperiment("risky", (1.0,), risk=0.5),),
+        epsilon=0.1, risk_budget=0.0, max_probe_risk=0.5,
+        authorities={"world-0": "same-bundle", "world-1": "same-bundle"},
+    )
+    assert plan.complete
+    assert plan.root.experiment is None
+    result = advance_robust_diagnosis(
+        plan=plan, trusted_plan_digest=plan.digest,
+    )
+    assert result.authority_id == "same-bundle"
+    assert result.consistent_hypotheses == ("world-0", "world-1")
+    assert result.spent_risk == 0.0
