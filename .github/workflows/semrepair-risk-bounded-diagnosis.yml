@@ -17,6 +17,7 @@ on:
       - "research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py"
       - "research/semantic_invariants/tests/test_embodied_robust_diagnosis.py"
       - "research/semantic_invariants/tests/test_embodied_robust_runtime.py"
+      - "research/semantic_invariants/tests/test_robust_diagnosis_independent_oracle.py"
       - ".github/workflows/semrepair-risk-bounded-diagnosis.yml"
   pull_request:
     paths:
@@ -32,6 +33,7 @@ on:
       - "research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py"
       - "research/semantic_invariants/tests/test_embodied_robust_diagnosis.py"
       - "research/semantic_invariants/tests/test_embodied_robust_runtime.py"
+      - "research/semantic_invariants/tests/test_robust_diagnosis_independent_oracle.py"
 
 jobs:
   finite-diagnosis:
@@ -57,6 +59,6 @@ jobs:
             research/semantic_invariants/embodied_diagnostic_episode_store.py \
             research/semantic_invariants/embodied_robust_diagnosis.py
       - name: Validate adaptive diagnosis and cumulative risk
-        run: python -m pytest -q research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py research/semantic_invariants/tests/test_embodied_diagnostic_execution.py research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py research/semantic_invariants/tests/test_embodied_robust_diagnosis.py research/semantic_invariants/tests/test_embodied_robust_runtime.py
+        run: python -m pytest -q research/semantic_invariants/tests/test_embodied_semantic_experiment_design.py research/semantic_invariants/tests/test_embodied_diagnostic_execution.py research/semantic_invariants/tests/test_embodied_diagnostic_episode_store.py research/semantic_invariants/tests/test_embodied_robust_diagnosis.py research/semantic_invariants/tests/test_embodied_robust_runtime.py research/semantic_invariants/tests/test_robust_diagnosis_independent_oracle.py
       - name: Falsify noisy-ABI aliasing and check durable HMAC capsule
         run: python -m research.semantic_invariants.robust_diagnosis_quick_repro
