@@ -77,3 +77,38 @@ A top-tier scientific claim would require:
 
 This branch establishes a **sound cumulative-budget planning primitive**,
 not independent adoption, physical safety, or an L8/L9 achievement.
+
+
+## Durable effect reservation and trusted observation interface
+
+The offline planner alone has no authority to execute a robot action.
+`embodied_diagnostic_execution.py` validates the trusted entire decision tree,
+the chosen observation branch, and the worst-case episode-level risk budget.
+`embodied_diagnostic_episode_store.py` adds a crash-stable SQLite
+`BEGIN IMMEDIATE` gate:
+
+1. A trusted deployment authority pins the plan/tree digests and creates an
+   episode with a globally unique episode identifier.
+2. `reserve_next` grants at most one outstanding probe **reservation** under
+   competing workers, charges declared risk durably, and returns a random
+   reservation/idempotency token.
+3. The physical adapter must honor that token and must not retry the same
+   effect after an ambiguous timeout.
+4. `commit_observation` requires a matching reservation token and a
+   separately trusted `evidence_verifier(episode_id, step_index, token,
+   observation)` that returns the literal boolean `True`. Invalid or stale
+   observations leave the episode reserved, never resetting charged risk.
+5. Crashes retain RESERVED; `abort` retains an ABORTED terminal record.
+   No implicit retry or cost refund is available.
+
+The implementation is a **single-reservation gate**, not a general claim of
+physical exactly-once actuation. It assumes a protected non-rollback database,
+host-verified sensors and an idempotency-aware real robot adapter. It does
+not authenticate the sensor or provide a physical emergency stop.
+
+Relevant tests:
+`tests/test_embodied_diagnostic_execution.py` and
+`tests/test_embodied_diagnostic_episode_store.py`.
+The [2026-10-08 author-run regression workflow](https://github.com/lindicaphxag-tech/Isaac-GR00T/actions/runs/37709508447)
+is green on Python 3.10, 3.12, 3.13. These results are public, not
+maintainer-authored or physically validated.
