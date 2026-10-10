@@ -1,0 +1,32 @@
+name: Validate PR 786 truncation semantics
+
+on:
+  push:
+    branches:
+      - ci/validate-multistep-786-20261011
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  targeted-wrapper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install minimal CPU dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "numpy==1.26.4" "gymnasium==1.2.2" pytest
+      - name: Run wrapper boundary regressions
+        run: |
+          python -m pytest tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py -q
+      - name: Ruff changed files
+        run: |
+          python -m pip install ruff
+          ruff check gr00t/eval/sim/wrapper/multistep_wrapper.py tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py
+          ruff format --check gr00t/eval/sim/wrapper/multistep_wrapper.py tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py
