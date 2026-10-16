@@ -40,6 +40,14 @@ def extract_step_data(
         indices_to_load = [step_index + delta_index for delta_index in config.delta_indices]
         if allow_padding:
             indices_to_load = [max(0, min(idx, len(episode_data) - 1)) for idx in indices_to_load]
+        else:
+            # Negative temporal offsets are history requests, so pad them with the
+            # first frame rather than letting pandas iloc wrap them to episode-end rows.
+            indices_to_load = [max(0, idx) for idx in indices_to_load]
+            if any(idx >= len(episode_data) for idx in indices_to_load):
+                raise IndexError(
+                    f"Requested step index is outside the episode: {indices_to_load}, episode length={len(episode_data)}"
+                )
         for key in config.modality_keys:
             if f"{modality}.{key}" in episode_data.columns:
                 modality_data = episode_data[f"{modality}.{key}"].iloc[indices_to_load]
