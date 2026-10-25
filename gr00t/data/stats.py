@@ -62,6 +62,38 @@ logger = logging.getLogger(__name__)
 STATS_FINGERPRINTS_KEY = "__fingerprints__"
 
 
+def _compute_dataset_source_fingerprint(dataset_path: Path | str) -> str | None:
+    """Fingerprint the parquet source manifest used to compute statistics.
+
+    This is deliberately a cache-invalidation fingerprint, not a cryptographic
+    content hash.  It is O(number of shards): each entry records the shard's
+    dataset-relative path, byte size, and nanosecond modification time.  Normal
+    rewrites, additions, removals, and replacements therefore invalidate stale
+    statistics without reading every parquet byte on a cache hit.
+
+    Preserving both size and mtime while mutating bytes can evade this manifest;
+    callers that require adversarial content integrity should use a stronger
+    content-addressed dataset identity instead.
+    """
+    dataset_path = Path(dataset_path)
+    entries = []
+    for path in sorted(dataset_path.glob(LE_ROBOT_DATA_FILENAME)):
+        stat = path.stat()
+        entries.append(
+            {
+                "path": path.relative_to(dataset_path).as_posix(),
+                "size": stat.st_size,
+                "mtime_ns": stat.st_mtime_ns,
+            }
+        )
+
+    if not entries:
+        return None
+
+    canonical = json.dumps(entries, sort_keys=True, separators=(",", ":"))
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _load_stats_cache(path: Path) -> dict[str, Any]:
     """Load a stats JSON cache, treating any unreadable state as "no cache".
 
@@ -180,32 +212,44 @@ def calculate_dataset_statistics(
     return dataset_statistics
 
 
-def _compute_stats_fingerprint(feature_name: str, feature_meta: dict) -> str:
-    """Hash the per-feature schema in ``info.json`` that drives ``calculate_dataset_statistics``.
+def _compute_stats_fingerprint(
+    feature_name: str,
+    feature_meta: dict,
+    source_fingerprint: str | None = None,
+) -> str:
+    """Hash the inputs that make one cached dataset statistic valid.
 
-    Without this, ``meta/stats.json`` was reused whenever every feature name was
-    still present, even if the underlying ``dtype`` / ``shape`` had changed
-    (e.g. column dim grew, dtype widened). Result: silently wrong normalization
-    at training/eval time. Hashing the per-feature schema makes any such change
-    invalidate just that feature's cached entry.
+    Schema identity remains the base contract.  When parquet sources exist, the
+    source-manifest fingerprint is included as provenance so regenerating a
+    dataset in place cannot silently reuse statistics from the previous source.
+    Keeping the argument optional preserves the pure helper's historical
+    schema-only behavior for callers with no dataset source surface.
     """
     payload = {
         "feature": feature_name,
         "dtype": feature_meta.get("dtype"),
         "shape": feature_meta.get("shape"),
     }
+    if source_fingerprint is not None:
+        payload["source_fingerprint"] = source_fingerprint
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _stale_features(stats: dict | None, le_features: dict, lowdim_features: list[str]) -> list[str]:
+def _stale_features(
+    stats: dict | None,
+    le_features: dict,
+    lowdim_features: list[str],
+    source_fingerprint: str | None = None,
+) -> list[str]:
     """Return the subset of ``lowdim_features`` whose cached entry is missing or stale.
 
     A feature is considered fresh iff its stat-dict has all six fields and its
     fingerprint in ``__fingerprints__`` matches the canonical hash for its
-    current ``info.json`` schema. Anything else (missing info entry, missing
-    stat entry, missing stat field, missing fingerprint, mismatched
-    fingerprint) is treated as stale and recomputed.
+    current ``info.json`` schema and, when present, the current parquet
+    source manifest. Anything else (missing info entry, missing stat entry,
+    missing stat field, missing fingerprint, mismatched fingerprint) is treated
+    as stale and recomputed.
     """
     if stats is None:
         return list(lowdim_features)
@@ -224,7 +268,9 @@ def _stale_features(stats: dict | None, le_features: dict, lowdim_features: list
         if any(k not in stats[feature] for k in ("mean", "std", "min", "max", "q01", "q99")):
             stale.append(feature)
             continue
-        if fingerprints.get(feature) != _compute_stats_fingerprint(feature, feature_meta):
+        if fingerprints.get(feature) != _compute_stats_fingerprint(
+            feature, feature_meta, source_fingerprint
+        ):
             stale.append(feature)
     return stale
 
@@ -233,8 +279,8 @@ def check_stats_validity(dataset_path: Path | str, features: list[str]):
     """Return True iff every feature in ``features`` has a fingerprint-matching cached entry.
 
     A True result means ``generate_stats`` can skip recomputation entirely. We
-    re-derive the expected fingerprint from the *current* ``info.json`` so any
-    schema drift since the cache was written invalidates it.
+    re-derive the expected fingerprint from the current ``info.json`` and
+    parquet source manifest so schema or source drift invalidates the cache.
     """
     dataset_path = Path(dataset_path)
     stats = _load_stats_cache(dataset_path / LE_ROBOT_STATS_FILENAME)
@@ -245,7 +291,8 @@ def check_stats_validity(dataset_path: Path | str, features: list[str]):
         return False
     with open(info_path, "r") as f:
         le_features = json.load(f).get("features", {})
-    return not _stale_features(stats, le_features, features)
+    source_fingerprint = _compute_dataset_source_fingerprint(dataset_path)
+    return not _stale_features(stats, le_features, features, source_fingerprint)
 
 
 def generate_stats(dataset_path: Path | str):
@@ -257,7 +304,8 @@ def generate_stats(dataset_path: Path | str):
 
     stats_path = dataset_path / LE_ROBOT_STATS_FILENAME
     existing = _load_stats_cache(stats_path)
-    stale = _stale_features(existing, le_features, lowdim_features)
+    source_fingerprint = _compute_dataset_source_fingerprint(dataset_path)
+    stale = _stale_features(existing, le_features, lowdim_features, source_fingerprint)
 
     # Pull the reserved sidecar aside so the cleanup pass below can iterate
     # ``existing`` cleanly. Drop entries for features that no longer exist in
@@ -285,7 +333,9 @@ def generate_stats(dataset_path: Path | str):
     fresh = calculate_dataset_statistics(parquet_files, stale) if stale else {}
     for feature, values in fresh.items():
         existing[feature] = values
-        fingerprints[feature] = _compute_stats_fingerprint(feature, le_features[feature])
+        fingerprints[feature] = _compute_stats_fingerprint(
+            feature, le_features[feature], source_fingerprint
+        )
 
     existing[STATS_FINGERPRINTS_KEY] = fingerprints
     _dump_stats_cache_atomic(stats_path, existing)
@@ -385,14 +435,18 @@ def calculate_stats_for_key(
     }
 
 
-def _compute_relative_action_fingerprint(embodiment_tag: EmbodimentTag, action_key: str) -> str:
+def _compute_relative_action_fingerprint(
+    embodiment_tag: EmbodimentTag,
+    action_key: str,
+    source_fingerprint: str | None = None,
+) -> str:
     """Hash the inputs that change ``calculate_stats_for_key``'s output.
 
     Cached entries in ``relative_stats.json`` are only safe to reuse when every
-    such input matches what they were computed under. A stats file produced for
-    one ``(delta_indices, format, state_key, ...)`` combo would otherwise be
-    silently reused for a different combo with the same ``action_key`` name,
-    leading to wrong normalization without any error.
+    such input matches what they were computed under. This includes both the
+    action/state configuration and, when present, the parquet source manifest.
+    Otherwise a cache can be silently reused for different source values or a
+    different configuration with the same ``action_key`` name.
     """
     action_modality = MODALITY_CONFIGS[embodiment_tag.value]["action"]
     state_modality = MODALITY_CONFIGS[embodiment_tag.value]["state"]
@@ -408,6 +462,8 @@ def _compute_relative_action_fingerprint(embodiment_tag: EmbodimentTag, action_k
         "format": action_config.format.name,
         "state_key": action_config.state_key,
     }
+    if source_fingerprint is not None:
+        payload["source_fingerprint"] = source_fingerprint
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -425,8 +481,11 @@ def generate_rel_stats(dataset_path: Path | str, embodiment_tag: EmbodimentTag) 
     stats_path = Path(dataset_path) / LE_ROBOT_REL_STATS_FILENAME
     stats = _load_stats_cache(stats_path)
     fingerprints = stats.setdefault(STATS_FINGERPRINTS_KEY, {})
+    source_fingerprint = _compute_dataset_source_fingerprint(dataset_path)
     for action_key in sorted(action_keys):
-        expected_fp = _compute_relative_action_fingerprint(embodiment_tag, action_key)
+        expected_fp = _compute_relative_action_fingerprint(
+            embodiment_tag, action_key, source_fingerprint
+        )
         if action_key in stats and fingerprints.get(action_key) == expected_fp:
             continue
         print(f"Generating relative stats for {dataset_path} {embodiment_tag} {action_key}")
