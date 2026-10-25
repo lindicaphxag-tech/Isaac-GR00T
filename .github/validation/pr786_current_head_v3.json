@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "upstream_pr": "NVIDIA/Isaac-GR00T#786",
+  "production_head": "8ca15ac4f3e76f1a4151bfd1f59572d306d99b49",
+  "production_shape": {
+    "commits": 1,
+    "changed_files": 2
+  },
+  "validation_branch": "validation/pr786-current-head-v3",
+  "invariants": [
+    "inner truncation stops action chunk and remains truncated",
+    "joint termination+truncation preserves both flags",
+    "wrapper max_episode_steps is truncation, not termination",
+    "terminate_on_success updates returned boundary and internal dones consistently"
+  ],
+  "claim_boundary": "self-authored exact-head validation; not upstream CI approval or maintained adoption",
+  "latest_public_validation": {
+    "workflow_run": 37473373819,
+    "public_validation_head": "ce4e5813f9863c0ca380b7f36bbe005ff093e077",
+    "python_matrix": [
+      "3.10",
+      "3.12",
+      "3.13"
+    ],
+    "production_blob_identity": {
+      "gr00t/eval/sim/wrapper/multistep_wrapper.py": "779d696af205555bc4530f3afe8acfd0e9073c37",
+      "tests/gr00t/eval/sim/wrapper/test_multistep_aggregate.py": "9d0fd25b0fc480f610e7bbacb4a06ff274cecae9"
+    },
+    "result": "pass"
+  }
+}
