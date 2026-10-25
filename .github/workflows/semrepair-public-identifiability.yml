@@ -1,0 +1,47 @@
+name: SemRepair public identifiability gate
+
+on:
+  push:
+    branches:
+      - "research/semrepair-public-evidence"
+    paths:
+      - "research/semrepair/**"
+      - ".github/workflows/semrepair-public-identifiability.yml"
+  pull_request:
+    paths:
+      - "research/semrepair/**"
+      - ".github/workflows/semrepair-public-identifiability.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-collision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build LeRobot identifiability certificate
+        run: |
+          mkdir -p artifacts
+          python research/semrepair/tools/evidence_collision_certificate.py             research/semrepair/cases/lerobot_evidence_collision.json             --output artifacts/lerobot-identifiability.json
+          cat artifacts/lerobot-identifiability.json
+      - name: Enforce fail-closed result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r = json.loads(Path("artifacts/lerobot-identifiability.json").read_text())
+          assert r["collision_count"] >= 1, r
+          assert r["identifiability"] == "non_identifying", r
+          assert r["authority"] == "reject_until_external_anchor", r
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: semrepair-lerobot-identifiability
+          path: artifacts/lerobot-identifiability.json
+          if-no-files-found: error
