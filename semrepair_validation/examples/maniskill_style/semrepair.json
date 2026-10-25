@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "producer": {
+    "path": "producer.py",
+    "base_type": {
+      "role": "action",
+      "entity": "ee_rotation_delta",
+      "frame": "root_aligned_body",
+      "representation": null,
+      "unit": "rad",
+      "provenance": "requested"
+    }
+  },
+  "consumer": {
+    "path": "consumer.py",
+    "base_type": {
+      "role": "action",
+      "entity": "ee_rotation_delta",
+      "frame": "root_aligned_body",
+      "representation": null,
+      "unit": "rad",
+      "provenance": "requested"
+    }
+  },
+  "rules": [
+    {
+      "rule_id": "rotation/axis-angle-output",
+      "callee_suffix": "compact_axis_angle_from_quaternion",
+      "facts": {"representation": "axis_angle"}
+    },
+    {
+      "rule_id": "rotation/euler-xyz-input",
+      "callee_suffix": "euler_angles_to_matrix",
+      "required_string_args": {"1": "XYZ"},
+      "facts": {"representation": "euler_xyz"}
+    }
+  ],
+  "adapters": [
+    {
+      "name": "axis-angle-to-quaternion",
+      "requires": {"representation": "axis_angle"},
+      "produces": {"representation": "quaternion"},
+      "effects": ["reencode"]
+    },
+    {
+      "name": "quaternion-to-euler-xyz",
+      "requires": {"representation": "quaternion"},
+      "produces": {"representation": "euler_xyz"},
+      "effects": ["reencode"]
+    }
+  ]
+}

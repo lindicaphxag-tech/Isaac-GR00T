@@ -1,0 +1,49 @@
+{
+  "schema_version": 2,
+  "source_repository": "lindicaphxag-tech/lindicaphxag-tech",
+  "source_branch": "research/invariantbench-l8",
+  "source_branch_head_at_export": "2f523f126896d6a6e843a5ffc44d8e631d90ee27",
+  "source_core_code_revision": "9c772d2d0c6ef7ad40a863a5676d00e4daf8e4d7",
+  "validation_repository": "lindicaphxag-tech/Isaac-GR00T",
+  "validation_branch": "validation/semrepair-core-v0.3",
+  "validation_parent_head": "dfa45621ef2128831c7b65bc94852d618c16be54",
+  "purpose": "Public GitHub-hosted execution surface for the SemRepair core. Not upstream adoption, prospective evidence, or a standalone release.",
+  "python_modules": 24,
+  "test_files": 21,
+  "provenance_audit": {
+    "public_core_and_tests": 45,
+    "exact_git_blob_matches_to_private_source": 39,
+    "canonical_content_matches_despite_blob_difference": 4,
+    "intentional_public_wrapper_files": [
+      "semrepair_validation/research/semantic_invariants/__init__.py"
+    ],
+    "public_only_real_stack_tests": [
+      "semrepair_validation/tests/test_groot_real_source_semantic_closure.py"
+    ],
+    "note": "All 43 shared substantive module/test files are exact-blob or canonical-content equivalent to the recorded private core source. The package __init__ is intentionally minimized on the public validation surface."
+  },
+  "coverage": [
+    "active semantic inference",
+    "type/effect compilation",
+    "source-to-type inference",
+    "repair synthesis",
+    "held-out repair verification",
+    "certificate-only runtime mediation",
+    "refinement verification",
+    "proof-carrying compilation",
+    "independent compilation verifier",
+    "proof kernel",
+    "finite model check",
+    "small-step calculus",
+    "three deterministic closed-loop behavioral assays",
+    "real GR00T ActionRepresentation/runtime semantic-closure audit"
+  ],
+  "claim_boundary": {
+    "public_reproducibility": true,
+    "upstream_adoption": false,
+    "prospective_discovery": false,
+    "standalone_release": false,
+    "l8_claim": false,
+    "l9_claim": false
+  }
+}
